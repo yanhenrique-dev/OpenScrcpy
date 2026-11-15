@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Select from '../Select.svelte';
+    import SettingSelect from './SettingSelect.svelte';
     import { t } from '../../i18n';
 
     interface Props {
@@ -9,7 +9,7 @@
     let { value, onChange }: Props = $props();
 </script>
 
-<Select
+<SettingSelect
     label={t('controlPanel.codec')}
     value={value || 'h264'}
     {onChange}
@@ -18,7 +18,4 @@
         { value: 'h265', label: 'H.265' },
         { value: 'av1', label: 'AV1' }
     ]}
-    triggerClassName="cp-select"
-    optionClassName="cp-opt"
-    customLabel={t('controlPanel.custom')}
 />

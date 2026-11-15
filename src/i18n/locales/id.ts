@@ -2,11 +2,11 @@ import type { Translations } from './en';
 
 export const id: Translations = {
 languages: {
-    en: 'Anglais',
+    en: 'English',
     fr: 'Français',
-    'pt-BR': 'Portugais (Brésil)',
-    'zh-CN': 'Chinois simplifié',
-    'zh-TW': 'Chinois traditionnel',
+    'pt-BR': 'Português (Brasil)',
+    'zh-CN': '简体中文',
+    'zh-TW': '繁體中文',
     ru: 'Русский',
     id: 'Bahasa Indonesia',
     ar: 'العربية'
@@ -276,6 +276,11 @@ languages: {
         systemConsole: 'Konsol Sistem',
         report: 'Laporan',
         reportTitle: 'Ekspor laporan diagnostik ke Unduhan',
+        copy: 'Salin',
+        copied: 'Tersalin',
+        expand: 'Perluas konsol',
+        collapse: 'Ciutkan konsol',
+        copyFailed: 'Tidak dapat menyalin log.',
         clear: 'Hapus',
         waitingForSequence: 'Menunggu urutan...',
         terminalPlaceholder: 'Masukkan perintah (mis. adb shell, scrcpy --help)...',

@@ -59,7 +59,7 @@
     {:else}
         <span
             class="ds-caption ds-strong"
-            style="color: {route.ok ? 'var(--success, var(--primary))' : 'var(--warning, var(--secondary))'}"
+            style="color: {route.ok ? 'var(--status-ok)' : 'var(--status-warn)'}"
             title={route.sink}
         >
             {route.sink}{route.ok ? '' : ' *'}
@@ -75,7 +75,7 @@
                 {typeof level === 'number' ? `${level} dB` : '—'}
             </span>
         </div>
-        <div style="height: 8px; border-radius: 99px; background: var(--surface-inset, rgba(0,0,0,0.25)); overflow: hidden">
+        <div style="height: 8px; border-radius: 99px; background: var(--bg-input); overflow: hidden">
             <div
                 style="height: 100%; width: {levelWidth}%; background: var(--primary); transition: width 120ms linear"
             ></div>

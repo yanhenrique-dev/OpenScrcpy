@@ -2,16 +2,16 @@
 // Every other locale should mirror these keys.
 
 export const en = {
-    languages: { 
-    en: 'English',
-    fr: 'Français',
-    'pt-BR': 'Português (Brasil)',
-    'zh-CN': 'Simplified Chinese',
-    'zh-TW': 'Traditional Chinese',
-    ru: 'Русский',
-    id: 'Bahasa Indonesia',
-    ar: 'Arabic'
-},
+    languages: {
+        en: 'English',
+        fr: 'Français',
+        'pt-BR': 'Português (Brasil)',
+        'zh-CN': '简体中文',
+        'zh-TW': '繁體中文',
+        ru: 'Русский',
+        id: 'Bahasa Indonesia',
+        ar: 'العربية'
+    },
     common: {
         ok: 'OK',
         cancel: 'Cancel',
@@ -277,6 +277,11 @@ export const en = {
         systemConsole: 'System Console',
         report: 'Report',
         reportTitle: 'Export diagnostic report to Downloads',
+        copy: 'Copy',
+        copied: 'Copied',
+        expand: 'Expand console',
+        collapse: 'Collapse console',
+        copyFailed: 'Could not copy the logs.',
         clear: 'Clear',
         waitingForSequence: 'Waiting for sequence...',
         terminalPlaceholder: 'Enter command (e.g. adb shell, scrcpy --help)...',

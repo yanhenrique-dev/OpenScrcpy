@@ -68,4 +68,29 @@ describe('scrcpy store', () => {
         expect(config.rotation).toBe('0');
         expect(config.cameraFacing).toBeUndefined();
     });
+
+    it('drops persisted values that do not match their declared type', () => {
+        const config = normalizeConfig({
+            device: 42,
+            turnOff: 'false',
+            recordPath: null,
+            bitrate: '12',
+            fps: Number.NaN,
+            vdWidth: Infinity,
+            windowX: '100'
+        } as any);
+
+        expect(config.device).toBe(DEFAULT_CONFIG.device);
+        expect(config.turnOff).toBe(DEFAULT_CONFIG.turnOff);
+        expect(config.recordPath).toBe(DEFAULT_CONFIG.recordPath);
+        expect(config.bitrate).toBe(DEFAULT_CONFIG.bitrate);
+        expect(config.fps).toBe(DEFAULT_CONFIG.fps);
+        expect(config.vdWidth).toBe(DEFAULT_CONFIG.vdWidth);
+        expect(config.windowX).toBeUndefined();
+    });
+
+    it('ignores non-object persisted configs', () => {
+        expect(normalizeConfig(42 as any)).toEqual(DEFAULT_CONFIG);
+        expect(normalizeConfig([1, 2] as any)).toEqual(DEFAULT_CONFIG);
+    });
 });

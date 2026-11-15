@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Select from '../Select.svelte';
+    import SettingSelect from './SettingSelect.svelte';
     import { t } from '../../i18n';
 
     interface Props {
@@ -9,7 +9,7 @@
     let { value, onChange }: Props = $props();
 </script>
 
-<Select
+<SettingSelect
     label={t('controlPanel.resolution')}
     value={value || '0'}
     {onChange}
@@ -23,7 +23,4 @@
         { value: '1024', label: '576p' },
         { value: '800', label: '480p' }
     ]}
-    triggerClassName="cp-select"
-    optionClassName="cp-opt"
-    customLabel={t('controlPanel.custom')}
 />

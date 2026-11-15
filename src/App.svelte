@@ -18,17 +18,40 @@
     import AlertHost from './components/AlertHost.svelte';
     import ErrorBoundary from './components/ErrorBoundary.svelte';
 
+    let configPersistTimer: ReturnType<typeof setTimeout> | undefined;
+    const configSnapshot = $derived(JSON.stringify(scrcpy.config));
+
     onMount(() => {
         void scrcpy.init().catch(error => {
             console.error('Failed to initialize scrcpy store', error);
         });
-        return () => scrcpy.destroy();
+        return () => {
+            if (configPersistTimer) clearTimeout(configPersistTimer);
+            if (scrcpy.ready) scrcpy.persistConfig();
+            scrcpy.destroy();
+        };
     });
 
     onMount(() => setupMainWindowState());
 
+    function scheduleConfigPersist() {
+        if (configPersistTimer) clearTimeout(configPersistTimer);
+        configPersistTimer = setTimeout(() => {
+            configPersistTimer = undefined;
+            scrcpy.persistConfig();
+        }, 250);
+    }
+
     $effect(() => {
-        if (scrcpy.ready) scrcpy.persistConfig();
+        if (!scrcpy.ready) return;
+        // Read the snapshot so the effect tracks every config field. The
+        // write itself is debounced: dragging a slider used to hit
+        // localStorage on every input event.
+        void configSnapshot;
+        scheduleConfigPersist();
+        return () => {
+            if (configPersistTimer) clearTimeout(configPersistTimer);
+        };
     });
 
     $effect(() => {

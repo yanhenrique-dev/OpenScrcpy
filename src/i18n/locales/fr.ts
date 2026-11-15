@@ -2,11 +2,11 @@ import type { Translations } from './en';
 
 export const fr: Translations = {
    languages: {
-    en: 'Anglais',
+    en: 'English',
     fr: 'Français',
-    'pt-BR': 'Portugais (Brésil)',
-    'zh-CN': 'Chinois simplifié',
-    'zh-TW': 'Chinois traditionnel',
+    'pt-BR': 'Português (Brasil)',
+    'zh-CN': '简体中文',
+    'zh-TW': '繁體中文',
     ru: 'Русский',
     id: 'Bahasa Indonesia',
     ar: 'العربية'
@@ -276,6 +276,11 @@ export const fr: Translations = {
         systemConsole: 'Console Système',
         report: 'Rapport',
         reportTitle: 'Exporter le rapport de diagnostic vers Téléchargements',
+        copy: 'Copier',
+        copied: 'Copié',
+        expand: 'Agrandir la console',
+        collapse: 'Réduire la console',
+        copyFailed: 'Impossible de copier les journaux.',
         clear: 'Effacer',
         waitingForSequence: 'En attente de la séquence...',
         terminalPlaceholder: 'Saisissez une commande (ex. adb shell, scrcpy --help)...',

@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { ConfigFieldSetter, Rotation, ScrcpyConfig } from '../../lib/types';
-    import Select from '../Select.svelte';
+    import SettingSelect from './SettingSelect.svelte';
     import Tooltip from '../Tooltip.svelte';
     import { t } from '../../i18n';
     import { mapRendererSelection, type RendererOption } from './rendererOptions';
@@ -8,7 +8,7 @@
     import CodecSelect from './CodecSelect.svelte';
     import FpsSelect from './FpsSelect.svelte';
     import RotationSelect from './RotationSelect.svelte';
-    import ToggleRow from './ToggleRow.svelte';
+    import SwitchRow from '../SwitchRow.svelte';
 
     interface Props {
         config: ScrcpyConfig;
@@ -43,19 +43,16 @@
             value={config.rotation}
             onChange={(value) => handleChange('rotation', value as Rotation)}
         />
-        <Select
+        <SettingSelect
             label={t('controlPanel.graphicsRenderer')}
             value={config.renderDriver || 'auto'}
             onChange={(value) => handleChange('renderDriver', mapRendererSelection(value))}
             options={rendererOptions}
-            triggerClassName="cp-select"
-            optionClassName="cp-opt"
-            customLabel={t('controlPanel.custom')}
         />
     </div>
     <div class="grid grid-cols-2 gap-3">
         <Tooltip text={t('controlPanel.vsyncTooltip')} block>
-            <ToggleRow
+            <SwitchRow
                 checked={config.vsync !== false}
                 onChange={(value) => handleChange('vsync', value)}
                 label={t('controlPanel.vsync')}
@@ -63,7 +60,7 @@
             />
         </Tooltip>
         <Tooltip text={t('controlPanel.ignoreEncoderConstraintsTooltip')} block>
-            <ToggleRow
+            <SwitchRow
                 checked={!!config.ignoreVideoEncoderConstraints}
                 onChange={(value) => handleChange('ignoreVideoEncoderConstraints', value)}
                 label={t('controlPanel.ignoreEncoderConstraints')}

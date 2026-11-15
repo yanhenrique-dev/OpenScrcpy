@@ -68,6 +68,11 @@
         selected?.focus();
     });
 
+    $effect(() => {
+        if (!showEngineMenu) return;
+        engineMenuRef?.querySelector<HTMLButtonElement>('button')?.focus();
+    });
+
     function onLangKeyDown(e: KeyboardEvent) {
         if (!showLangMenu) {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -261,7 +266,7 @@
                 title={t('header.updateBadge', { v: appUpdateLatest })}
                 aria-label={t('header.updateBadge', { v: appUpdateLatest })}
                 class="ds-badge cursor-pointer flex items-center gap-1"
-                style="color: #E0C559; border-color: #E0C559"
+                style="color: var(--status-warn); border-color: var(--status-warn)"
             >
                 <ArrowUp size={9} />
                 {t('header.updateBadge', { v: appUpdateLatest })}

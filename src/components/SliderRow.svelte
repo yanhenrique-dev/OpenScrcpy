@@ -53,6 +53,7 @@
         {step}
         value={localValue}
         aria-label={label}
+        aria-valuetext={format(localValue)}
         oninput={(e) => (localValue = parseFloat((e.currentTarget as HTMLInputElement).value))}
         onmouseup={commit}
         ontouchend={commit}

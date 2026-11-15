@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Select from '../Select.svelte';
+    import SettingSelect from './SettingSelect.svelte';
     import { t } from '../../i18n';
 
     interface Props {
@@ -9,7 +9,7 @@
     let { value, onChange }: Props = $props();
 </script>
 
-<Select
+<SettingSelect
     label={t('controlPanel.rotation')}
     value={value || '0'}
     {onChange}
@@ -19,7 +19,4 @@
         { value: '90', label: '+90°' },
         { value: '180', label: '180°' }
     ]}
-    triggerClassName="cp-select"
-    optionClassName="cp-opt"
-    customLabel={t('controlPanel.custom')}
 />

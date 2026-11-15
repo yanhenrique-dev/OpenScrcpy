@@ -5,14 +5,14 @@ import type { Translations } from './en';
 
 export const ar: Translations = {
    languages: {
-    en: 'English',
-    fr: 'Français',
-    'pt-BR': 'Português (Brasil)',
-    'zh-CN': 'الصينية المبسطة',
-    'zh-TW': 'الصينية التقليدية',
-    ru: 'Русский',
-    id: 'Bahasa Indonesia',
-    ar: 'العربية'
+       en: 'English',
+       fr: 'Français',
+       'pt-BR': 'Português (Brasil)',
+       'zh-CN': '简体中文',
+       'zh-TW': '繁體中文',
+       ru: 'Русский',
+       id: 'Bahasa Indonesia',
+       ar: 'العربية'
    },
     common: {
         ok: 'موافق',
@@ -279,6 +279,11 @@ export const ar: Translations = {
         systemConsole: 'وحدة تحكم النظام',
         report: 'تقرير',
         reportTitle: 'تصدير تقرير التشخيص إلى مجلد التنزيلات',
+        copy: 'نسخ',
+        copied: 'تم النسخ',
+        expand: 'توسيع وحدة التحكم',
+        collapse: 'طي وحدة التحكم',
+        copyFailed: 'تعذر نسخ السجلات.',
         clear: 'مسح',
         waitingForSequence: 'في انتظار التسلسل...',
         terminalPlaceholder: 'أدخل أمرًا (مثل: adb shell أو scrcpy --help)...',

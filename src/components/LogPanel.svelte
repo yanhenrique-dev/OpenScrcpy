@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Terminal, Trash2, Download } from '@lucide/svelte';
+    import { Check, Copy, Download, Maximize2, Minimize2, Terminal, Trash2 } from '@lucide/svelte';
     import { invoke } from '@tauri-apps/api/core';
     import { t } from '../i18n';
     import type { LogEntry, LogLevel } from '../lib/logs';
@@ -8,10 +8,10 @@
     import { showAlert } from '../lib/alerts.svelte';
 
     const LEVEL_COLORS: Record<LogLevel, string> = {
-        system: '#8FA6FF',
-        warn: '#E0C559',
-        err: '#F88686',
-        ok: '#57D06F'
+        system: 'var(--log-info)',
+        warn: 'var(--log-warn)',
+        err: 'var(--log-err)',
+        ok: 'var(--log-ok)'
     };
 
     function logColor(entry: LogEntry): string {
@@ -23,13 +23,15 @@
         if (/\[OK\]|connected|descoberto|estabelecid|iniciad|concluíd|pronto|ready|success/i.test(text)) {
             return LEVEL_COLORS.ok;
         }
-        return '#FAFAFA';
+        return 'var(--log-text)';
     }
 
     let containerRef: HTMLDivElement;
     let stick = true;
     let isLive = $state(false);
     let command = $state('');
+    let expanded = $state(false);
+    let copied = $state(false);
 
     $effect(() => {
         const entries = scrcpy.logs;
@@ -53,6 +55,28 @@
         if (e.key === 'Enter' && command.trim()) {
             void scrcpy.runTerminalCommand(command.trim());
             command = '';
+        }
+    }
+
+    async function copyLogs() {
+        const text = scrcpy.logs.map(entry => `[${entry.time}] ${entry.text}`).join('\n');
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+            } else {
+                const area = document.createElement('textarea');
+                area.value = text;
+                area.style.position = 'fixed';
+                area.style.opacity = '0';
+                document.body.appendChild(area);
+                area.select();
+                document.execCommand('copy');
+                area.remove();
+            }
+            copied = true;
+            setTimeout(() => (copied = false), 1500);
+        } catch {
+            scrcpy.addLogs(t('logPanel.copyFailed'), 'err');
         }
     }
 
@@ -86,14 +110,14 @@
 </script>
 
 <div
-    class="force-dark rounded-lg h-[220px] flex-none overflow-hidden font-mono flex flex-col relative"
-    style="border: 1px solid #5C5C5C"
+    class="force-dark rounded-lg {expanded ? 'h-[420px]' : 'h-[220px]'} flex-none overflow-hidden font-mono flex flex-col relative transition-[height] duration-200"
+    style="border: 1px solid var(--log-border)"
 >
-    <div class="px-4 py-2.5 flex justify-between items-center shrink-0" style="border-bottom: 1px solid #5C5C5C">
+    <div class="px-4 py-2.5 flex justify-between items-center shrink-0" style="border-bottom: 1px solid var(--log-border)">
         <div class="flex items-center gap-3">
             <Terminal size={12} />
             <div class="flex items-center gap-2">
-                <span class="ds-label" style="color: #AEAEAE">{t('logPanel.systemConsole')}</span>
+                <span class="ds-label" style="color: var(--log-muted)">{t('logPanel.systemConsole')}</span>
                 <span class="ds-dot" data-live={isLive}></span>
             </div>
         </div>
@@ -106,22 +130,49 @@
                 <Trash2 size={10} />
                 {t('logPanel.clear')}
             </button>
+            <button
+                onclick={copyLogs}
+                class="ds-btn ds-btn-tertiary"
+                title={copied ? t('logPanel.copied') : t('logPanel.copy')}
+                aria-label={copied ? t('logPanel.copied') : t('logPanel.copy')}
+            >
+                {#if copied}<Check size={10} />{:else}<Copy size={10} />{/if}
+            </button>
+            <button
+                onclick={() => (expanded = !expanded)}
+                class="ds-btn ds-btn-tertiary"
+                title={expanded ? t('logPanel.collapse') : t('logPanel.expand')}
+                aria-label={expanded ? t('logPanel.collapse') : t('logPanel.expand')}
+                aria-expanded={expanded}
+            >
+                {#if expanded}<Minimize2 size={10} />{:else}<Maximize2 size={10} />{/if}
+            </button>
         </div>
     </div>
 
-    <div bind:this={containerRef} onscroll={handleScroll} class="flex-1 overflow-y-auto p-4 pt-2">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div
+        bind:this={containerRef}
+        onscroll={handleScroll}
+        class="flex-1 overflow-y-auto p-4 pt-2"
+        role="log"
+        tabindex="0"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label={t('logPanel.systemConsole')}
+    >
         {#if scrcpy.logs.length === 0}
             <div class="h-full flex items-center justify-center">
-                <span class="ds-caption" style="color: #AEAEAE">{t('logPanel.waitingForSequence')}</span>
+                <span class="ds-caption" style="color: var(--log-muted)">{t('logPanel.waitingForSequence')}</span>
             </div>
         {:else}
             <div class="space-y-1">
                 {#each scrcpy.logs as entry (entry.id)}
                     <div
                         class="flex gap-3 leading-relaxed py-0.5 ps-3"
-                        style="border-left: 1px solid #5C5C5C; font-size: 11px"
+                        style="border-left: 1px solid var(--log-border); font-size: 11px"
                     >
-                        <span class="shrink-0 tabular-nums" style="color: #AEAEAE">{entry.time}</span>
+                        <span class="shrink-0 tabular-nums" style="color: var(--log-muted)">{entry.time}</span>
                         <span class="break-all" style="color: {logColor(entry)}">{entry.text}</span>
                     </div>
                 {/each}
@@ -129,7 +180,7 @@
         {/if}
     </div>
 
-    <div class="px-4 py-2 flex items-center gap-2 shrink-0" style="border-top: 1px solid #5C5C5C">
+    <div class="px-4 py-2 flex items-center gap-2 shrink-0" style="border-top: 1px solid var(--log-border)">
         <label for="log-terminal-input" class="select-none" style="color: var(--primary); font-size: 11px; font-weight: 700">$</label>
         <input
             id="log-terminal-input"
@@ -139,7 +190,7 @@
             onkeydown={handleKeyDown}
             placeholder={t('logPanel.terminalPlaceholder')}
             class="ds-input flex-1 font-mono"
-            style="background: transparent; border-color: transparent; color: #FAFAFA; font-size: 11px"
+            style="background: transparent; border-color: transparent; color: var(--log-text); font-size: 11px"
         />
     </div>
 </div>

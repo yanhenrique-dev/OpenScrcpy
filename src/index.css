@@ -45,6 +45,12 @@
   --border-base: #AEAEAE;
   --border-strong: #808080;
 
+  /* Semantic status colors (readable on the light surfaces). */
+  --status-info: #3B5CF6;
+  --status-ok: #1E7F3C;
+  --status-warn: #8A5A00;
+  --status-err: #B3261E;
+
   color-scheme: light;
 }
 
@@ -64,6 +70,11 @@
 
   --border-base: #5C5C5C;
   --border-strong: #808080;
+
+  --status-info: #8FA6FF;
+  --status-ok: #57D06F;
+  --status-warn: #E0C559;
+  --status-err: #F88686;
 
   color-scheme: dark;
 }
@@ -229,6 +240,14 @@ input[type="range"].ds-range { accent-color: var(--primary); height: 4px; cursor
 
 /* ── Terminal stays darkest in both modes (data surface) ─── */
 .force-dark, .force-dark.glass {
+  /* Terminal palette: fixed on purpose, independent of the app theme. */
+  --log-text: #FAFAFA;
+  --log-muted: #AEAEAE;
+  --log-border: #5C5C5C;
+  --log-info: #8FA6FF;
+  --log-ok: #57D06F;
+  --log-warn: #E0C559;
+  --log-err: #F88686;
   background-color: color-mix(in srgb, #2E2E2E 55%, black) !important;
   border-color: #5C5C5C !important;
   color: #FAFAFA !important;

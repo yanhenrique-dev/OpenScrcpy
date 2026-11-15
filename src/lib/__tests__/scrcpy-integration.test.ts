@@ -151,6 +151,34 @@ describe('scrcpy store — integration', () => {
         expect(scrcpy.mdnsDevices).toHaveLength(1);
         expect(scrcpy.mdnsDevices[0].address).toBe('192.168.0.5:5555');
     });
+
+    it('initializes settings, engine status and discovery', async () => {
+        localStorage.setItem('scrcpy_config', JSON.stringify({ bitrate: 12 }));
+        mockInvoke.mockImplementation((command: string) => {
+            if (command === 'get_videos_dir') return Promise.resolve('/videos');
+            if (command === 'check_scrcpy') return Promise.resolve({ found: true, message: 'ok' });
+            if (command === 'get_render_drivers') {
+                return Promise.resolve({
+                    hostOs: 'linux',
+                    supportsRenderDriver: false,
+                    supportedDrivers: []
+                });
+            }
+            return Promise.resolve(null);
+        });
+        const refresh = vi
+            .spyOn(scrcpy.deviceStore, 'refreshDevicesUntilSettled')
+            .mockResolvedValue();
+
+        await scrcpy.init();
+
+        expect(scrcpy.config.bitrate).toBe(12);
+        expect(scrcpy.config.recordPath).toBe('/videos');
+        expect(scrcpy.scrcpyStatus.found).toBe(true);
+        expect(refresh).toHaveBeenCalled();
+
+        scrcpy.destroy();
+    });
 });
 
 describe('scrcpy store — actions', () => {

@@ -19,6 +19,13 @@ use tokio::time::{timeout, Duration};
 
 const AUDIO_FALLBACK_CHAIN: &[&str] = &["aac", "flac", "raw"];
 
+// Screen-off startup: the ADB wake must be quick, but a wireless device can
+// take a little longer to report the new display state.
+const ADB_WAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const DISPLAY_POWER_QUERY_TIMEOUT: Duration = Duration::from_secs(3);
+const DISPLAY_WAKE_SETTLE_TIMEOUT: Duration = Duration::from_secs(3);
+const DISPLAY_WAKE_POLL_INTERVAL: Duration = Duration::from_millis(150);
+
 fn is_audio_codec_error(text: &str) -> bool {
     let lower = text.to_lowercase();
     if lower.contains("could not create default audio encoder")
@@ -1464,9 +1471,11 @@ fn build_scrcpy_args(
             }
             if let Some(to) = config.turn_off {
                 if to {
-                    // Do not pass --no-power-on: if the phone is already
-                    // asleep, scrcpy must be allowed to wake it before
-                    // turning the screen off for the session.
+                    // Keep --no-power-on off as a fallback. The startup path
+                    // also wakes the display over ADB before launching (see
+                    // `wake_display_before_screen_off`) to avoid the async
+                    // power-on/power-off race, but scrcpy must still be able
+                    // to wake a phone whose ADB wake failed.
                     args.push("--turn-screen-off".to_string());
                 }
             }
@@ -1602,6 +1611,92 @@ fn build_scrcpy_args(
     args
 }
 
+/// Screen-off sessions are the only ones where scrcpy must power the device
+/// on and then off again. Camera and mic sessions never use the flag (see
+/// `build_scrcpy_args`), so they must not pay the extra ADB round-trip.
+fn wakes_before_screen_off(config: &ScrcpyConfig) -> bool {
+    config.turn_off.unwrap_or(false)
+        && !config.device.is_empty()
+        && matches!(config.session_mode.as_str(), "mirror" | "desktop")
+}
+
+/// Reads the display state from a `dumpsys power` snapshot. The most specific
+/// signal wins: on recent Android versions `mWakefulness=Awake` can coexist
+/// with a display that was just powered off, so the explicit display state
+/// (and the legacy `mScreenOn` flag) must be checked first.
+fn display_power_is_on(dumpsys_power: &str) -> bool {
+    if let Some(state) = dumpsys_power.split("Display Power: state=").nth(1) {
+        return state.trim_start().starts_with("ON");
+    }
+    if let Some(state) = dumpsys_power.split("mScreenOn=").nth(1) {
+        return state.trim_start().starts_with("true");
+    }
+    if let Some(state) = dumpsys_power.split("mWakefulness=").nth(1) {
+        return state.trim_start().starts_with("Awake");
+    }
+    false
+}
+
+async fn read_display_power_state(adb_exe_path: &str, device: &str) -> bool {
+    let mut cmd = create_command(adb_exe_path);
+    cmd.args(["-s", device, "shell", "dumpsys", "power"]);
+    match process::output_with_timeout(cmd, DISPLAY_POWER_QUERY_TIMEOUT).await {
+        Ok(output) if output.status.success() => {
+            display_power_is_on(&String::from_utf8_lossy(&output.stdout))
+        }
+        _ => false,
+    }
+}
+
+/// Wakes the device display before starting a screen-off session.
+///
+/// scrcpy powers the device on by itself, but it does so asynchronously and
+/// then sends the `--turn-screen-off` request right after setup. On slower
+/// devices the power-off can win the race and be overwritten by the pending
+/// power-on, which is why the phone's screen sometimes only turns off after
+/// the user wakes it by hand. Waking it here (and waiting for Android to
+/// report the display as on) makes scrcpy start from a known state, so its
+/// screen-off request lands last.
+async fn wake_display_before_screen_off(window: &Window, adb_exe_path: &str, device: &str) {
+    let _ = window.emit(
+        "scrcpy-log",
+        "[SYSTEM] Screen off requested: waking the device display...".to_string(),
+    );
+
+    let mut wake = create_command(adb_exe_path);
+    wake.args(["-s", device, "shell", "input", "keyevent", "224"]);
+    let wake_ok = process::output_with_timeout(wake, ADB_WAKE_TIMEOUT)
+        .await
+        .map(|output| output.status.success())
+        .unwrap_or(false);
+    if !wake_ok {
+        let _ = window.emit(
+            "scrcpy-log",
+            "[SYSTEM] Could not wake the device display; scrcpy will try to power it on."
+                .to_string(),
+        );
+        return;
+    }
+
+    let deadline = tokio::time::Instant::now() + DISPLAY_WAKE_SETTLE_TIMEOUT;
+    while tokio::time::Instant::now() < deadline {
+        if read_display_power_state(adb_exe_path, device).await {
+            let _ = window.emit(
+                "scrcpy-log",
+                "[SYSTEM] Device display is awake.".to_string(),
+            );
+            return;
+        }
+        tokio::time::sleep(DISPLAY_WAKE_POLL_INTERVAL).await;
+    }
+
+    let _ = window.emit(
+        "scrcpy-log",
+        "[SYSTEM] Device display did not report as awake; scrcpy will try to power it on."
+            .to_string(),
+    );
+}
+
 async fn spawn_scrcpy_streams(
     window: &Window,
     exe_path: &str,
@@ -1643,42 +1738,21 @@ async fn spawn_scrcpy_streams(
     let stderr = child.stderr.take().expect("Failed to capture stderr");
 
     let audio_error_flag = Arc::new(AtomicBool::new(false));
+    spawn_log_reader(stdout, window.clone(), None);
+    spawn_log_reader(stderr, window.clone(), Some(audio_error_flag.clone()));
 
-    let window_stdout = window.clone();
+    Ok((child, audio_error_flag))
+}
+
+/// Buffers scrcpy's output for 100 ms so a burst of lines reaches the GUI as
+/// one log event. The stderr reader also watches for audio codec failures,
+/// which drive the automatic fallback chain.
+fn spawn_log_reader<R>(reader: R, window: Window, audio_error_flag: Option<Arc<AtomicBool>>)
+where
+    R: tokio::io::AsyncRead + Unpin + Send + 'static,
+{
     tokio::spawn(async move {
-        let reader = BufReader::new(stdout);
-        let mut lines = reader.lines();
-        let mut buffer = Vec::new();
-        let mut interval = tokio::time::interval(Duration::from_millis(100));
-
-        loop {
-            tokio::select! {
-                line_res = lines.next_line() => {
-                    match line_res {
-                        Ok(Some(line)) => buffer.push(line),
-                        Ok(None) => break,
-                        Err(_) => break,
-                    }
-                }
-                _ = interval.tick() => {
-                    if !buffer.is_empty() {
-                        let combined = buffer.join("\n");
-                        let _ = window_stdout.emit("scrcpy-log", combined);
-                        buffer.clear();
-                    }
-                }
-            }
-        }
-        if !buffer.is_empty() {
-            let _ = window_stdout.emit("scrcpy-log", buffer.join("\n"));
-        }
-    });
-
-    let window_stderr = window.clone();
-    let flag_clone = audio_error_flag.clone();
-    tokio::spawn(async move {
-        let reader = BufReader::new(stderr);
-        let mut lines = reader.lines();
+        let mut lines = BufReader::new(reader).lines();
         let mut buffer = Vec::new();
         let mut interval = tokio::time::interval(Duration::from_millis(100));
 
@@ -1687,8 +1761,10 @@ async fn spawn_scrcpy_streams(
                 line_res = lines.next_line() => {
                     match line_res {
                         Ok(Some(line)) => {
-                            if is_audio_codec_error(&line) {
-                                flag_clone.store(true, Ordering::SeqCst);
+                            if let Some(flag) = &audio_error_flag {
+                                if is_audio_codec_error(&line) {
+                                    flag.store(true, Ordering::SeqCst);
+                                }
                             }
                             buffer.push(line);
                         }
@@ -1698,19 +1774,16 @@ async fn spawn_scrcpy_streams(
                 }
                 _ = interval.tick() => {
                     if !buffer.is_empty() {
-                        let combined = buffer.join("\n");
-                        let _ = window_stderr.emit("scrcpy-log", combined);
+                        let _ = window.emit("scrcpy-log", buffer.join("\n"));
                         buffer.clear();
                     }
                 }
             }
         }
         if !buffer.is_empty() {
-            let _ = window_stderr.emit("scrcpy-log", buffer.join("\n"));
+            let _ = window.emit("scrcpy-log", buffer.join("\n"));
         }
     });
-
-    Ok((child, audio_error_flag))
 }
 
 enum AttemptOutcome {
@@ -2368,6 +2441,16 @@ pub async fn run_scrcpy(
         }
     }
 
+    // `--turn-screen-off` is applied right after the connection is set up, so
+    // the display must already be on when scrcpy starts. Otherwise, on slower
+    // devices, scrcpy's own asynchronous power-on can land after its
+    // power-off request and leave the phone screen on until the user wakes it
+    // manually. Wake it here, after any previous session has been stopped, so
+    // the power-off request is the last one to reach the device.
+    if wakes_before_screen_off(&config) {
+        wake_display_before_screen_off(&window, &adb_exe_path, &config.device).await;
+    }
+
     // Mic bridge on Linux: create/refresh the virtual sink and hand the
     // scrcpy client to it through the libpulse default-sink env. Other
     // platforms get an honest console note for now.
@@ -2911,6 +2994,44 @@ mod tests {
 
         assert!(args.contains(&"--turn-screen-off".to_string()));
         assert!(!args.contains(&"--no-power-on".to_string()));
+    }
+
+    #[test]
+    fn test_wakes_before_screen_off_only_for_windowed_control_sessions() {
+        let mut config = base_config("mirror");
+        assert!(!wakes_before_screen_off(&config));
+
+        config.turn_off = Some(true);
+        assert!(wakes_before_screen_off(&config));
+
+        // No serial means scrcpy picks the device itself; do not run a wake
+        // command against an empty `-s`.
+        config.device.clear();
+        assert!(!wakes_before_screen_off(&config));
+
+        config.device = "device1".to_string();
+        for mode in ["camera", "mic"] {
+            config.session_mode = mode.to_string();
+            assert!(!wakes_before_screen_off(&config), "{mode}");
+        }
+
+        config.session_mode = "desktop".to_string();
+        assert!(wakes_before_screen_off(&config));
+    }
+
+    #[test]
+    fn test_display_power_is_on_parses_dumpsys_variants() {
+        assert!(display_power_is_on("Display Power: state=ON\n"));
+        assert!(!display_power_is_on("Display Power: state=OFF\n"));
+        // A stale wakefulness line must not hide an explicit display-off state.
+        assert!(!display_power_is_on(
+            "mWakefulness=Awake\nDisplay Power: state=OFF\n"
+        ));
+        assert!(display_power_is_on("mScreenOn=true\nmWakefulness=Awake\n"));
+        assert!(!display_power_is_on("mScreenOn=false\n"));
+        assert!(display_power_is_on("mWakefulness=Awake\n"));
+        assert!(!display_power_is_on("mWakefulness=Dozing\n"));
+        assert!(!display_power_is_on("unrecognized dump"));
     }
 
     #[test]

@@ -3,7 +3,7 @@
     import { Coffee, MonitorOff, Volume2, Layers, Maximize, Square, Circle, Folder, Settings2, ActivitySquare, Move } from '@lucide/svelte';
     import Tooltip from './Tooltip.svelte';
     import Select from './Select.svelte';
-    import SessionToggle from './SessionToggle.svelte';
+    import SwitchRow from './SwitchRow.svelte';
     import { t } from '../i18n';
     import { scrcpy } from '../lib/scrcpy.svelte';
     import type { ScrcpyConfig } from '../lib/types';
@@ -45,6 +45,7 @@
 
 </script>
 
+{#if config.sessionMode !== 'mic'}
 <div class="space-y-4">
     <div class="ds-card p-3 space-y-2">
         <div class="flex items-center gap-2" style="border-bottom: 1px solid var(--border-base); padding-bottom: 8px">
@@ -53,29 +54,31 @@
         </div>
 
         <div class="flex flex-col gap-1">
-            <SessionToggle
-                checked={config.stayAwake || false}
-                onChange={(v) => update('stayAwake', v)}
-                icon={Coffee}
-                label={t('sessionBehavior.stayAwake')}
-                tooltip={t('sessionBehavior.stayAwakeTooltip')}
-            />
-            <SessionToggle
-                checked={config.keepActive || false}
-                onChange={(v) => update('keepActive', v)}
-                icon={ActivitySquare}
-                label={t('sessionBehavior.keepActive')}
-                tooltip={t('sessionBehavior.keepActiveTooltip')}
-            />
-            <SessionToggle
-                checked={config.turnOff || false}
-                onChange={(v) => update('turnOff', v)}
-                icon={MonitorOff}
-                label={t('sessionBehavior.screenOff')}
-                tooltip={t('sessionBehavior.screenOffTooltip')}
-            />
+            {#if config.sessionMode === 'mirror' || config.sessionMode === 'desktop'}
+                <SwitchRow variant="compact"
+                    checked={config.stayAwake || false}
+                    onChange={(v) => update('stayAwake', v)}
+                    icon={Coffee}
+                    label={t('sessionBehavior.stayAwake')}
+                    tooltip={t('sessionBehavior.stayAwakeTooltip')}
+                />
+                <SwitchRow variant="compact"
+                    checked={config.keepActive || false}
+                    onChange={(v) => update('keepActive', v)}
+                    icon={ActivitySquare}
+                    label={t('sessionBehavior.keepActive')}
+                    tooltip={t('sessionBehavior.keepActiveTooltip')}
+                />
+                <SwitchRow variant="compact"
+                    checked={config.turnOff || false}
+                    onChange={(v) => update('turnOff', v)}
+                    icon={MonitorOff}
+                    label={t('sessionBehavior.screenOff')}
+                    tooltip={t('sessionBehavior.screenOffTooltip')}
+                />
+            {/if}
             <div>
-                <SessionToggle
+                <SwitchRow variant="compact"
                     checked={config.audioEnabled || false}
                     onChange={(v) => update('audioEnabled', v)}
                     icon={Volume2}
@@ -83,10 +86,7 @@
                     tooltip={t('sessionBehavior.forwardAudioTooltip')}
                 />
                 {#if config.audioEnabled}
-                    <div
-                        class="pe-2 pb-1"
-                        style="margin-top: 2px; padding-left: 28px; opacity: {config.audioEnabled ? 1 : 0.45}"
-                    >
+                    <div class="pe-2 pb-1" style="margin-top: 2px; padding-left: 28px">
                         <div class="flex items-center gap-1.5">
                             <span class="ds-caption" style="color: var(--text-muted)">
                                 {t('sessionBehavior.audioCodec')}
@@ -110,67 +110,66 @@
                     </div>
                 {/if}
             </div>
-            <SessionToggle
+            <SwitchRow variant="compact"
                 checked={config.alwaysOnTop || false}
                 onChange={(v) => update('alwaysOnTop', v)}
                 icon={Layers}
                 label={t('sessionBehavior.alwaysOnTop')}
                 tooltip={t('sessionBehavior.alwaysOnTopTooltip')}
             />
-            <SessionToggle
+            <SwitchRow variant="compact"
                 checked={config.fullscreen || false}
                 onChange={(v) => update('fullscreen', v)}
                 icon={Maximize}
                 label={t('sessionBehavior.fullScreen')}
                 tooltip={t('sessionBehavior.fullScreenTooltip')}
             />
-            <SessionToggle
+            <SwitchRow variant="compact"
                 checked={config.borderless || false}
                 onChange={(v) => update('borderless', v)}
                 icon={Square}
                 label={t('sessionBehavior.borderless')}
                 tooltip={t('sessionBehavior.borderlessTooltip')}
             />
-            <SessionToggle
-                checked={config.rememberWindowPosition !== false}
-                onChange={(v) => update('rememberWindowPosition', v)}
-                icon={Move}
-                label={t('sessionBehavior.rememberWindowPosition')}
-                tooltip={t('sessionBehavior.rememberWindowPositionTooltip')}
-            />
-            {#if config.sessionMode !== 'mic'}
-                <SessionToggle
-                    checked={config.record || false}
-                    onChange={(v) => update('record', v)}
-                    icon={Circle}
-                    label={t('sessionBehavior.recordFeed')}
-                    tooltip={t('sessionBehavior.recordFeedTooltip')}
+            {#if config.sessionMode === 'mirror'}
+                <SwitchRow variant="compact"
+                    checked={config.rememberWindowPosition !== false}
+                    onChange={(v) => update('rememberWindowPosition', v)}
+                    icon={Move}
+                    label={t('sessionBehavior.rememberWindowPosition')}
+                    tooltip={t('sessionBehavior.rememberWindowPositionTooltip')}
                 />
             {/if}
+            <SwitchRow variant="compact"
+                checked={config.record || false}
+                onChange={(v) => update('record', v)}
+                icon={Circle}
+                label={t('sessionBehavior.recordFeed')}
+                tooltip={t('sessionBehavior.recordFeedTooltip')}
+            />
         </div>
 
-        {#if config.sessionMode !== 'mic'}
-            <div class="pt-2 space-y-2" style="border-top: 1px solid var(--border-base)">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-1.5">
-                        <Folder size={12} style="color: var(--text-muted)" />
-                        <span class="ds-label">{t('sessionBehavior.recordPath')}</span>
-                    </div>
-                    <button
-                        type="button"
-                        onclick={pickFolder}
-                        class="ds-btn-tertiary"
-                        style="padding: 3px 8px; font-size: 12px; line-height: 15px"
-                    >
-                        {t('sessionBehavior.change')}
-                    </button>
+        <div class="pt-2 space-y-2" style="border-top: 1px solid var(--border-base)">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                    <Folder size={12} style="color: var(--text-muted)" />
+                    <span class="ds-label">{t('sessionBehavior.recordPath')}</span>
                 </div>
-                <div class="ds-inset px-2.5 py-1.5">
-                    <p class="ds-caption font-mono truncate" style="color: var(--text-muted)">
-                        {config.recordPath || t('sessionBehavior.defaultVideosFolder')}
-                    </p>
-                </div>
+                <button
+                    type="button"
+                    onclick={pickFolder}
+                    class="ds-btn-tertiary"
+                    style="padding: 3px 8px; font-size: 12px; line-height: 15px"
+                >
+                    {t('sessionBehavior.change')}
+                </button>
             </div>
-        {/if}
+            <div class="ds-inset px-2.5 py-1.5">
+                <p class="ds-caption font-mono truncate" style="color: var(--text-muted)">
+                    {config.recordPath || t('sessionBehavior.defaultVideosFolder')}
+                </p>
+            </div>
+        </div>
     </div>
 </div>
+{/if}

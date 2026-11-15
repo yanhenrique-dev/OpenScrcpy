@@ -3,15 +3,15 @@ import type { Translations } from './en';
 // Russian translations.
 export const ru: Translations = {
   languages: {
-    en: 'Anglais',
-    fr: 'Français',
-    'pt-BR': 'Portugais (Brésil)',
-    'zh-CN': 'Chinois simplifié',
-    'zh-TW': 'Chinois traditionnel',
-    ru: 'Русский',
-    id: 'Bahasa Indonesia',
-    ar: 'العربية'
-},
+      en: 'English',
+      fr: 'Français',
+      'pt-BR': 'Português (Brasil)',
+      'zh-CN': '简体中文',
+      'zh-TW': '繁體中文',
+      ru: 'Русский',
+      id: 'Bahasa Indonesia',
+      ar: 'العربية'
+  },
 
   common: {
     ok: 'OK',
@@ -284,6 +284,11 @@ export const ru: Translations = {
     systemConsole: 'Системная консоль',
     report: 'Отчёт',
     reportTitle: 'Экспортировать диагностический отчёт в Загрузки',
+    copy: 'Копировать',
+    copied: 'Скопировано',
+    expand: 'Развернуть консоль',
+    collapse: 'Свернуть консоль',
+    copyFailed: 'Не удалось скопировать журналы.',
     clear: 'Очистить',
     waitingForSequence: 'Ожидание последовательности...',
     terminalPlaceholder: 'Введите команду (например, adb shell, scrcpy --help)...',

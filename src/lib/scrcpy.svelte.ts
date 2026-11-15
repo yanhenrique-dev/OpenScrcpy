@@ -1,186 +1,242 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { getVersion } from '@tauri-apps/api/app';
-import { open } from '@tauri-apps/plugin-dialog';
-import { appendLogs, type LogEntry, type LogLevel } from './logs';
-import { loadStoredJSON, loadStoredStringArray, safeGetItem, safeSetItem, sanitizeWindowPositions } from './storage';
 import { isTauri } from './tauri';
 import { showAlert } from './alerts.svelte';
 import { t } from '../i18n';
-import type {
-    CommandResult,
-    DeviceListResult,
-    DownloadStatus,
-    MdnsDevice,
-    MdnsDevicesResult,
-    RenderDriverSupport,
-    ScrcpyConfig,
-    WindowPositions,
-    ColorMode,
-    SessionMode,
-    UnavailableDevice
-} from './types';
-import { DEFAULT_CONFIG, normalizeConfig } from './config';
+import type { CommandResult, ColorMode, ScrcpyConfig, WindowPositions } from './types';
+import { LogStore } from './stores/logs.svelte';
+import { SettingsStore } from './stores/settings.svelte';
+import { DevicesStore } from './stores/devices.svelte';
+import { SessionStore } from './stores/session.svelte';
+import { EngineStore } from './stores/engine.svelte';
 
 export { DEFAULT_CONFIG, normalizeConfig } from './config';
 
+/**
+ * Public facade for the renderer. The actual work is split by domain:
+ * settings (preferences), devices (discovery), sessions (scrcpy processes),
+ * engine (binary/downloads/updates) and logs. Components keep using the
+ * familiar `scrcpy.*` API, so this split is internal.
+ */
 class ScrcpyStore {
-    config = $state<ScrcpyConfig>({ ...DEFAULT_CONFIG });
-    colorMode = $state<ColorMode>('system');
-    historyDevices = $state<string[]>([]);
-    defaultRecordPath = $state('');
-    logs = $state<LogEntry[]>([]);
+    readonly logStore = new LogStore();
+    readonly settings = new SettingsStore();
+    readonly deviceStore = new DevicesStore(this.settings, this.logStore);
+    readonly sessionStore = new SessionStore(this.settings, this.logStore, this.deviceStore);
+    readonly engineStore = new EngineStore(this.settings, this.logStore);
 
-    devices = $state<string[]>([]);
-    deviceModels = $state<Record<string, string>>({});
-    deviceFriendlyNames = $state<Record<string, string>>({});
-    unavailableDevices = $state<UnavailableDevice[]>([]);
-    mdnsDevices = $state<MdnsDevice[]>([]);
-    activeDevice = $state('');
-    isRefreshing = $state(false);
-
-    runningDevices = $state<string[]>([]);
-    isStarting = $state(false);
-    detectedCameras = $state<{ id: string; name: string }[]>([]);
-    windowPositions = $state<WindowPositions>({});
-    wirelessSwitching = $state<string | null>(null);
-
-    downloadProgress = $state(0);
-    downloadError = $state<string | null>(null);
-    isDownloading = $state(false);
-    scrcpyStatus = $state<{ found: boolean; message: string }>({ found: false, message: t('common.loading') });
-    renderDriverSupport = $state<RenderDriverSupport>({
-        hostOs: 'unknown',
-        supportsRenderDriver: false,
-        supportedDrivers: []
-    });
-    isOnboardingOpen = $state(false);
-
-    appVersion = $state('1.0.0');
-    appUpdate = $state<{ latest: string; notes: string } | null>(null);
     ready = $state(false);
 
     private initialized = false;
-    private starting = false;
-    private downloading = false;
-    private fetchInFlight: Promise<void> | null = null;
     private mounted = true;
-    private prevDevices: string[] = [];
-    private mdnsCache: MdnsDevice[] = [];
-    private fetchedFriendlyNames = new Set<string>();
-    private reconnectInFlight = new Set<string>();
-    private reconnectBackoff: Record<string, { attempts: number; nextAt: number }> = {};
     private unlisteners: UnlistenFn[] = [];
     private intervals: ReturnType<typeof setInterval>[] = [];
-    private startedModeByDevice: Record<string, SessionMode> = {};
-    private scrcpyUpdateChecked = false;
-    private colorMediaQuery: MediaQueryList | null = null;
-    private colorMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
+
+    // ── State facade ───────────────────────────────────────────────────────
+    get config(): ScrcpyConfig {
+        return this.settings.config;
+    }
+    set config(value: ScrcpyConfig) {
+        this.settings.config = value;
+    }
+
+    get colorMode(): ColorMode {
+        return this.settings.colorMode;
+    }
+    set colorMode(value: ColorMode) {
+        this.settings.colorMode = value;
+    }
+
+    get historyDevices(): string[] {
+        return this.settings.historyDevices;
+    }
+    set historyDevices(value: string[]) {
+        this.settings.historyDevices = value;
+    }
+
+    get defaultRecordPath(): string {
+        return this.settings.defaultRecordPath;
+    }
+
+    get windowPositions(): WindowPositions {
+        return this.settings.windowPositions;
+    }
+    set windowPositions(value: WindowPositions) {
+        this.settings.windowPositions = value;
+    }
+
+    get logs() {
+        return this.logStore.logs;
+    }
+    set logs(value) {
+        this.logStore.logs = value;
+    }
+
+    get devices(): string[] {
+        return this.deviceStore.devices;
+    }
+    set devices(value: string[]) {
+        this.deviceStore.devices = value;
+    }
+
+    get deviceModels(): Record<string, string> {
+        return this.deviceStore.deviceModels;
+    }
+    set deviceModels(value: Record<string, string>) {
+        this.deviceStore.deviceModels = value;
+    }
+
+    get deviceFriendlyNames(): Record<string, string> {
+        return this.deviceStore.deviceFriendlyNames;
+    }
+    set deviceFriendlyNames(value: Record<string, string>) {
+        this.deviceStore.deviceFriendlyNames = value;
+    }
+
+    get unavailableDevices() {
+        return this.deviceStore.unavailableDevices;
+    }
+    set unavailableDevices(value) {
+        this.deviceStore.unavailableDevices = value;
+    }
+
+    get mdnsDevices() {
+        return this.deviceStore.mdnsDevices;
+    }
+    set mdnsDevices(value) {
+        this.deviceStore.mdnsDevices = value;
+    }
+
+    get activeDevice(): string {
+        return this.deviceStore.activeDevice;
+    }
+    set activeDevice(value: string) {
+        this.deviceStore.activeDevice = value;
+    }
+
+    get isRefreshing(): boolean {
+        return this.deviceStore.isRefreshing;
+    }
+    set isRefreshing(value: boolean) {
+        this.deviceStore.isRefreshing = value;
+    }
+
+    get wirelessSwitching(): string | null {
+        return this.deviceStore.wirelessSwitching;
+    }
+    set wirelessSwitching(value: string | null) {
+        this.deviceStore.wirelessSwitching = value;
+    }
+
+    get runningDevices(): string[] {
+        return this.sessionStore.runningDevices;
+    }
+    set runningDevices(value: string[]) {
+        this.sessionStore.runningDevices = value;
+    }
+
+    get isStarting(): boolean {
+        return this.sessionStore.isStarting;
+    }
+    set isStarting(value: boolean) {
+        this.sessionStore.isStarting = value;
+    }
+
+    get detectedCameras() {
+        return this.sessionStore.detectedCameras;
+    }
+    set detectedCameras(value) {
+        this.sessionStore.detectedCameras = value;
+    }
+
+    get downloadProgress(): number {
+        return this.engineStore.downloadProgress;
+    }
+    set downloadProgress(value: number) {
+        this.engineStore.downloadProgress = value;
+    }
+
+    get downloadError(): string | null {
+        return this.engineStore.downloadError;
+    }
+    set downloadError(value: string | null) {
+        this.engineStore.downloadError = value;
+    }
+
+    get isDownloading(): boolean {
+        return this.engineStore.isDownloading;
+    }
+    set isDownloading(value: boolean) {
+        this.engineStore.isDownloading = value;
+    }
+
+    get scrcpyStatus() {
+        return this.engineStore.scrcpyStatus;
+    }
+    set scrcpyStatus(value) {
+        this.engineStore.scrcpyStatus = value;
+    }
+
+    get renderDriverSupport() {
+        return this.engineStore.renderDriverSupport;
+    }
+    set renderDriverSupport(value) {
+        this.engineStore.renderDriverSupport = value;
+    }
+
+    get isOnboardingOpen(): boolean {
+        return this.engineStore.isOnboardingOpen;
+    }
+    set isOnboardingOpen(value: boolean) {
+        this.engineStore.isOnboardingOpen = value;
+    }
+
+    get appVersion(): string {
+        return this.engineStore.appVersion;
+    }
+
+    get appUpdate() {
+        return this.engineStore.appUpdate;
+    }
 
     get sessionRunning(): boolean {
-        return this.runningDevices.includes(this.activeDevice);
+        return this.sessionStore.sessionRunning;
     }
 
     get recordingSupported(): boolean {
-        return this.config.sessionMode !== 'mic';
+        return this.sessionStore.recordingSupported;
     }
 
-    addLogs = (lines: string | string[], level?: LogLevel) => {
-        this.logs = appendLogs(this.logs, lines, level);
-    };
-
-    clearLogs = () => {
-        this.logs = [];
-    };
-
-    setLogs = (next: LogEntry[] | ((prev: LogEntry[]) => LogEntry[])) => {
-        this.logs = typeof next === 'function' ? next(this.logs) : next;
-    };
-
-    updateConfig = (patch: Partial<ScrcpyConfig>) => {
-        this.config = { ...this.config, ...patch };
-    };
-
-    setConfig = (next: ScrcpyConfig) => {
-        this.config = next;
-    };
-
-    setActiveDevice = (device: string) => {
-        this.activeDevice = device;
-        if (device) this.updateConfig({ device });
-    };
-
-    setColorMode = (mode: ColorMode) => {
-        this.colorMode = mode;
-        this.applyColorMode(mode);
-        safeSetItem('scrcpy_color_mode', mode);
-    };
-
-    persistConfig = () => {
-        safeSetItem('scrcpy_config', JSON.stringify(this.config));
-    };
-
-    persistWindowPositions = () => {
-        safeSetItem('scrcpy_window_positions', JSON.stringify(this.windowPositions));
-    };
-
-    persistHistory = () => {
-        safeSetItem('scrcpy_history', JSON.stringify(this.historyDevices));
-    };
-
-    addToHistory = (ip: string) => {
-        if (!ip.includes(':')) return;
-        this.historyDevices = [ip, ...this.historyDevices.filter(d => d !== ip)].slice(0, 10);
-        this.persistHistory();
-    };
-
-    clearHistory = () => {
-        this.historyDevices = [];
-        this.persistHistory();
-    };
-
+    // ── Lifecycle ──────────────────────────────────────────────────────────
     init = async () => {
         if (this.initialized) return;
         this.initialized = true;
         this.mounted = true;
+        this.deviceStore.activate();
 
-        const savedConfig = loadStoredJSON<Partial<ScrcpyConfig> | null>('scrcpy_config', null);
-        this.config = normalizeConfig(savedConfig);
-        this.colorMode =
-            (safeGetItem('scrcpy_color_mode') as ColorMode) || 'system';
-        this.historyDevices = loadStoredStringArray('scrcpy_history', []).slice(0, 10);
-        this.windowPositions = sanitizeWindowPositions(
-            loadStoredJSON<unknown>('scrcpy_window_positions', {})
-        );
-        this.scrcpyStatus = { found: false, message: t('common.loading') };
+        this.settings.load();
+        this.engineStore.scrcpyStatus = { found: false, message: t('common.loading') };
 
-        try {
-            this.appVersion = await getVersion();
-        } catch (e) {
-            console.error('Initialization failed:', e);
-        }
+        await this.engineStore.loadVersion();
         if (!this.mounted) return;
 
-        this.defaultRecordPath = await invoke<string>('get_videos_dir').catch(() => '');
+        await this.engineStore.loadDefaultRecordPath();
         if (!this.mounted) return;
-        if (!this.config.recordPath && this.defaultRecordPath) {
-            this.config = { ...this.config, recordPath: this.defaultRecordPath };
-        }
 
-        this.applyColorMode(this.colorMode);
-        await this.checkScrcpy(this.config.scrcpyPath);
+        this.settings.applyColorMode();
+        await this.engineStore.checkScrcpy(this.settings.config.scrcpyPath);
         // The component may have unmounted while init was awaiting. Starting
         // polling or listeners after destroy() would leak them.
         if (!this.mounted) return;
         this.ready = true;
-        void this.refreshDevicesUntilSettled(this.config.scrcpyPath);
-        void this.checkForAppUpdate(true);
+        void this.deviceStore.refreshDevicesUntilSettled(this.settings.config.scrcpyPath);
+        void this.engineStore.checkForAppUpdate(true);
 
         if (!isTauri()) return;
 
         this.setupEventListeners();
         this.startPolling();
-        void this.checkScrcpyUpdate();
+        void this.engineStore.checkScrcpyUpdate();
     };
 
     destroy = () => {
@@ -192,44 +248,44 @@ class ScrcpyStore {
         this.unlisteners = [];
         for (const interval of this.intervals) clearInterval(interval);
         this.intervals = [];
-        if (this.colorMediaQuery && this.colorMediaHandler) {
-            this.colorMediaQuery.removeEventListener('change', this.colorMediaHandler);
-            this.colorMediaQuery = null;
-            this.colorMediaHandler = null;
-        }
+        this.settings.destroy();
+        this.deviceStore.dispose();
     };
 
     private setupEventListeners = () => {
         const status = listen<any>('scrcpy-status', event => {
             const data = event.payload;
             if (data.type === 'downloading') {
-                this.isDownloading = true;
-                this.downloadError = null;
-                this.downloadProgress = 0;
+                this.engineStore.isDownloading = true;
+                this.engineStore.downloadError = null;
+                this.engineStore.downloadProgress = 0;
             } else if (data.type === 'download-progress') {
-                this.downloadProgress = data.percent;
+                this.engineStore.downloadProgress = data.percent;
             } else if (data.type === 'download-complete') {
-                this.isDownloading = false;
-                this.downloadError = null;
-                this.downloadProgress = 100;
-                void this.refreshDevicesUntilSettled();
-                void this.checkScrcpy();
+                this.engineStore.isDownloading = false;
+                this.engineStore.downloadError = null;
+                this.engineStore.downloadProgress = 100;
+                void this.deviceStore.refreshDevicesUntilSettled();
+                void this.engineStore.checkScrcpy();
             }
             if (data.device && typeof data.running === 'boolean') {
-                this.runningDevices = data.running
-                    ? [...new Set([...this.runningDevices, data.device])]
-                    : this.runningDevices.filter(d => d !== data.device);
+                this.sessionStore.runningDevices = data.running
+                    ? [...new Set([...this.sessionStore.runningDevices, data.device])]
+                    : this.sessionStore.runningDevices.filter(d => d !== data.device);
             }
         });
 
         const windowPos = listen<{ device: string; x: number; y: number }>(
             'scrcpy-window-pos',
             event => {
-                if (this.config.rememberWindowPosition === false) return;
+                if (this.settings.config.rememberWindowPosition === false) return;
                 const { device, x, y } = event.payload;
                 // The App-level effect persists this; writing here too caused
                 // two localStorage writes per window-position event.
-                this.windowPositions = { ...this.windowPositions, [device]: { x, y } };
+                this.settings.windowPositions = {
+                    ...this.settings.windowPositions,
+                    [device]: { x, y }
+                };
             }
         );
 
@@ -246,230 +302,78 @@ class ScrcpyStore {
     private startPolling = () => {
         this.intervals.push(
             setInterval(() => {
-                if (document.visibilityState === 'hidden' || this.isRefreshing) return;
-                void this.fetchDevicesOnce(undefined, true);
+                if (document.visibilityState === 'hidden' || this.deviceStore.isRefreshing) return;
+                void this.deviceStore.poll();
             }, 5000)
         );
 
-        this.intervals.push(
-            setInterval(() => this.tryReconnectHistory(), 25000)
-        );
-        this.tryReconnectHistory();
+        this.intervals.push(setInterval(() => this.deviceStore.tryReconnectHistory(), 25000));
+        this.deviceStore.tryReconnectHistory();
     };
 
-    private applyColorMode = (mode: ColorMode) => {
-        const apply = (dark: boolean) => {
-            document.documentElement.setAttribute('data-mode', dark ? 'dark' : 'light');
-        };
+    // ── Logs ───────────────────────────────────────────────────────────────
+    addLogs = (lines: string | string[], level?: Parameters<LogStore['add']>[1]) => {
+        this.logStore.add(lines, level);
+    };
 
-        if (this.colorMediaQuery && this.colorMediaHandler) {
-            this.colorMediaQuery.removeEventListener('change', this.colorMediaHandler);
-            this.colorMediaQuery = null;
-            this.colorMediaHandler = null;
-        }
+    clearLogs = () => {
+        this.logStore.clear();
+    };
 
-        if (mode === 'system') {
-            const mq = window.matchMedia('(prefers-color-scheme: dark)');
-            const handler = (event: MediaQueryListEvent) => apply(event.matches);
-            apply(mq.matches);
-            mq.addEventListener('change', handler);
-            this.colorMediaQuery = mq;
-            this.colorMediaHandler = handler;
-        } else {
-            apply(mode === 'dark');
-        }
+    setLogs = (next: Parameters<LogStore['set']>[0]) => {
+        this.logStore.set(next);
+    };
+
+    // ── Settings ───────────────────────────────────────────────────────────
+    updateConfig = (patch: Partial<ScrcpyConfig>) => {
+        this.settings.updateConfig(patch);
+    };
+
+    setConfig = (next: ScrcpyConfig) => {
+        this.settings.setConfig(next);
+    };
+
+    setActiveDevice = (device: string) => {
+        this.deviceStore.setActiveDevice(device);
+    };
+
+    setColorMode = (mode: ColorMode) => {
+        this.settings.setColorMode(mode);
+    };
+
+    persistConfig = () => {
+        this.settings.persistConfig();
+    };
+
+    persistWindowPositions = () => {
+        this.settings.persistWindowPositions();
+    };
+
+    persistHistory = () => {
+        this.settings.persistHistory();
+    };
+
+    addToHistory = (ip: string) => {
+        this.settings.addToHistory(ip);
+    };
+
+    clearHistory = () => {
+        this.settings.clearHistory();
     };
 
     // ── Devices ────────────────────────────────────────────────────────────
-    private fetchDevicesOnceUnlocked = async (customPath?: string, silent = false) => {
-        try {
-            const res = await invoke<DeviceListResult>('get_devices', {
-                customPath: customPath || this.config.scrcpyPath
-            });
+    refreshDevices = (customPath?: string, silent = false) =>
+        this.deviceStore.refreshDevices(customPath, silent);
 
-            if (!res.error) {
-                const newDevices = res.devices ?? [];
-                if (res.deviceModels) this.deviceModels = res.deviceModels;
-
-                const added = newDevices.filter(d => !this.prevDevices.includes(d));
-                const removed = this.prevDevices.filter(d => !newDevices.includes(d));
-
-                added.forEach(device => this.addLogs(t('logs.newDeviceDiscovered', { device }), 'ok'));
-                removed.forEach(device => this.addLogs(t('logs.deviceDisconnected', { device }), 'warn'));
-
-                this.devices = newDevices;
-                this.unavailableDevices = res.unavailable ?? [];
-                this.prevDevices = newDevices;
-                newDevices.forEach(device => delete this.reconnectBackoff[device]);
-                void this.ensureFriendlyNames(newDevices);
-
-                if (!silent && added.length === 0 && removed.length === 0) {
-                    this.addLogs(t('logs.discoveryActive', { count: newDevices.length }), 'system');
-                }
-
-                if (!newDevices.includes(this.activeDevice)) {
-                    this.setActiveDevice(newDevices[0] ?? '');
-                }
-            } else {
-                this.unavailableDevices = [];
-                if (!silent) {
-                    this.addLogs(t('logs.discoveryError', { error: res.message ?? 'unknown error' }), 'err');
-                }
-            }
-
-            try {
-                const mdnsRes = await invoke<MdnsDevicesResult>('get_mdns_devices', {
-                    customPath: customPath || this.config.scrcpyPath
-                });
-                if (mdnsRes && !mdnsRes.error && mdnsRes.services) {
-                    const parsed = mdnsRes.services.filter(
-                        s =>
-                            s.service &&
-                            (s.service.includes('_adb-tls-connect') ||
-                                s.service.includes('_adb-tls-pairing'))
-                    );
-                    this.mdnsDevices = parsed;
-                    this.mdnsCache = parsed;
-                } else if (mdnsRes && mdnsRes.error) {
-                    console.warn('[ADB MDNS] Failed to get mdns devices:', mdnsRes.message);
-                    this.mdnsDevices = [];
-                    this.mdnsCache = [];
-                }
-            } catch (e) {
-                console.error('Failed to query mDNS devices:', e);
-            }
-        } catch (e) {
-            console.error(e);
-            this.addLogs(t('logs.errorRefreshingDevices', { error: String(e) }), 'err');
-        }
-    };
-
-    private ensureFriendlyNames = async (serials: string[]) => {
-        for (const serial of serials) {
-            if (this.fetchedFriendlyNames.has(serial)) continue;
-            this.fetchedFriendlyNames.add(serial);
-            const isEmulator = /^emulator-\d+$/.test(serial);
-            try {
-                const command = isEmulator
-                    ? 'getprop ro.boot.qemu.avd_name; getprop ro.kernel.qemu.avd_name'
-                    : 'getprop ro.product.marketname; getprop ro.product.manufacturer; getprop ro.product.model';
-                const res = await invoke<CommandResult>('adb_shell', {
-                    device: serial,
-                    command,
-                    customPath: this.config.scrcpyPath
-                });
-
-                if (isEmulator) {
-                    const avdName = res?.success
-                        ? (res.output ?? '')
-                              .split('\n')
-                              .map(line => line.trim())
-                              .find(line => line.length > 0)
-                        : undefined;
-                    this.deviceFriendlyNames = {
-                        ...this.deviceFriendlyNames,
-                        [serial]: avdName ? `${avdName.replace(/_/g, ' ')} (${serial})` : serial
-                    };
-                    continue;
-                }
-
-                if (res?.success) {
-                    const [marketname, manufacturer, model] = (res.output ?? '')
-                        .split('\n')
-                        .map(line => line.trim());
-                    const name =
-                        marketname ||
-                        (manufacturer &&
-                        model &&
-                        !model.toLowerCase().startsWith(manufacturer.toLowerCase())
-                            ? `${manufacturer} ${model}`
-                            : model);
-                    if (name) {
-                        this.deviceFriendlyNames = { ...this.deviceFriendlyNames, [serial]: name };
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to fetch friendly name for', serial, e);
-            }
-        }
-    };
-
-    private fetchDevicesOnce = (customPath?: string, silent = false): Promise<void> => {
-        if (this.fetchInFlight) return this.fetchInFlight;
-        const run = this.fetchDevicesOnceUnlocked(customPath, silent);
-        let tracked: Promise<void>;
-        tracked = run.finally(() => {
-            if (this.fetchInFlight === tracked) this.fetchInFlight = null;
-        });
-        this.fetchInFlight = tracked;
-        return tracked;
-    };
-
-    refreshDevices = async (customPath?: string, silent = false) => {
-        if (this.isRefreshing) return;
-        this.isRefreshing = true;
-        try {
-            await this.fetchDevicesOnce(customPath, silent);
-        } finally {
-            this.isRefreshing = false;
-        }
-    };
-
-    refreshDevicesUntilSettled = async (customPath?: string, attempts = 8, delayMs = 2000) => {
-        if (this.isRefreshing) return;
-        this.isRefreshing = true;
-        try {
-            let prevSnapshot = '';
-            for (let i = 0; i <= attempts; i++) {
-                if (!this.mounted) return;
-                await this.fetchDevicesOnce(customPath, true);
-                if (!this.mounted) return;
-                const snapshot = JSON.stringify([this.prevDevices, this.mdnsCache]);
-                if (snapshot === prevSnapshot) return;
-                prevSnapshot = snapshot;
-                if (i < attempts) await new Promise(r => setTimeout(r, delayMs));
-            }
-        } finally {
-            if (this.mounted) this.isRefreshing = false;
-        }
-    };
-
-    private tryReconnectHistory = () => {
-        if (document.visibilityState === 'hidden') return;
-        const now = Date.now();
-        this.historyDevices.forEach(ip => {
-            if (this.prevDevices.includes(ip)) return;
-            if (this.reconnectInFlight.has(ip)) return;
-            const backoff = this.reconnectBackoff[ip];
-            if (backoff && now < backoff.nextAt) return;
-
-            this.reconnectInFlight.add(ip);
-            invoke<CommandResult>('adb_connect', {
-                ip,
-                customPath: this.config.scrcpyPath,
-                silent: true
-            })
-                .then(res => {
-                    if (res?.success) delete this.reconnectBackoff[ip];
-                    else this.scheduleReconnect(ip);
-                })
-                .catch(() => this.scheduleReconnect(ip))
-                .finally(() => this.reconnectInFlight.delete(ip));
-        });
-    };
-
-    private scheduleReconnect = (ip: string) => {
-        const attempts = (this.reconnectBackoff[ip]?.attempts ?? 0) + 1;
-        const delay = Math.min(25000 * 2 ** (attempts - 1), 5 * 60_000);
-        this.reconnectBackoff[ip] = { attempts, nextAt: Date.now() + delay };
-    };
+    refreshDevicesUntilSettled = (customPath?: string, attempts?: number, delayMs?: number) =>
+        this.deviceStore.refreshDevicesUntilSettled(customPath, attempts, delayMs);
 
     pairDevice = async (ip: string, code: string, customPath?: string): Promise<CommandResult> => {
         try {
             const res = await invoke<CommandResult>('adb_pair', {
                 ip,
                 code,
-                customPath: customPath || this.config.scrcpyPath
+                customPath: customPath || this.settings.config.scrcpyPath
             });
             if (res.success) {
                 this.addLogs(t('logs.successfullyPaired', { ip }), 'ok');
@@ -482,19 +386,19 @@ class ScrcpyStore {
                 this.addLogs(msgs);
             }
             return res;
-        } catch (e: any) {
+        } catch (e) {
             this.addLogs(t('logs.pairingError', { error: String(e) }), 'err');
             return { success: false, message: String(e) };
         }
     };
 
     connectDevice = async (ip: string, customPath?: string): Promise<CommandResult> => {
-        this.isRefreshing = true;
+        this.deviceStore.isRefreshing = true;
         try {
             const target = ip.includes(':') ? ip : `${ip}:5555`;
             let res = await invoke<CommandResult>('adb_connect', {
                 ip: target,
-                customPath: customPath || this.config.scrcpyPath
+                customPath: customPath || this.settings.config.scrcpyPath
             });
 
             if (
@@ -505,22 +409,22 @@ class ScrcpyStore {
                 this.addLogs(t('logs.connectionFailedRetrying'), 'warn');
                 await invoke<CommandResult>('run_terminal_command', {
                     cmd: `adb disconnect ${target}`,
-                    customPath: customPath || this.config.scrcpyPath
+                    customPath: customPath || this.settings.config.scrcpyPath
                 });
                 await new Promise(r => setTimeout(r, 500));
                 res = await invoke<CommandResult>('adb_connect', {
                     ip: target,
-                    customPath: customPath || this.config.scrcpyPath
+                    customPath: customPath || this.settings.config.scrcpyPath
                 });
             }
 
             if (res.success) {
                 this.addLogs(t('logs.connectedSuccessfully', { ip: target }), 'ok');
                 this.addToHistory(target);
-                delete this.reconnectBackoff[target];
+                this.deviceStore.isRefreshing = false;
                 await new Promise(r => setTimeout(r, 1000));
-                this.isRefreshing = false;
-                await this.refreshDevices(customPath || this.config.scrcpyPath, true);
+                this.deviceStore.isRefreshing = false;
+                await this.refreshDevices(customPath || this.settings.config.scrcpyPath, true);
             } else {
                 const msgs = [t('logs.connectionFailed', { message: String(res.message) })];
                 if (
@@ -532,275 +436,26 @@ class ScrcpyStore {
                 this.addLogs(msgs);
             }
             return res;
-        } catch (e: any) {
+        } catch (e) {
             this.addLogs(t('logs.connectionError', { error: String(e) }), 'err');
             return { success: false, message: String(e) };
         } finally {
-            this.isRefreshing = false;
-        }
-    };
-
-    // ── Session ────────────────────────────────────────────────────────────
-    runScrcpy = async (config: ScrcpyConfig) => {
-        if (this.starting) return;
-        this.starting = true;
-        this.isStarting = true;
-        try {
-            this.addLogs(t('logs.initializingScrcpy', { device: config.device }), 'system');
-            const savedPos =
-                config.rememberWindowPosition !== false
-                    ? this.windowPositions[config.device]
-                    : undefined;
-            await invoke('run_scrcpy', {
-                config: { ...config, windowX: savedPos?.x, windowY: savedPos?.y }
-            });
-        } catch (e: any) {
-            this.addLogs(t('logs.failedToStartScrcpy', { error: String(e) }), 'err');
-        } finally {
-            this.starting = false;
-            this.isStarting = false;
-        }
-    };
-
-    startSession = async () => {
-        if (!this.activeDevice) {
-            showAlert({
-                title: t('alerts.noDeviceSelectedTitle'),
-                message: t('alerts.noDeviceSelectedMessage'),
-                kind: 'warning'
-            });
-            return;
-        }
-
-        const runningMode = this.runningDevices.includes(this.activeDevice)
-            ? this.startedModeByDevice[this.activeDevice]
-            : undefined;
-        const modeLabels: Record<SessionMode, string> = {
-            mirror: 'controlPanel.screen',
-            camera: 'controlPanel.camera',
-            desktop: 'controlPanel.desktop',
-            mic: 'controlPanel.microphone'
-        };
-
-        if (runningMode && runningMode !== this.config.sessionMode) {
-            showAlert({
-                title: t('alerts.sessionReplaceTitle'),
-                message: t('alerts.sessionReplaceMsg', {
-                    mode: t(modeLabels[runningMode] ?? runningMode),
-                    newMode: t(modeLabels[this.config.sessionMode] ?? this.config.sessionMode)
-                }),
-                kind: 'warning',
-                actionLabel: t('alerts.sessionReplaceConfirm'),
-                onAction: () => this.performStart(),
-                showCancel: true
-            });
-            return;
-        }
-        await this.performStart();
-    };
-
-    private performStart = async () => {
-        if (this.activeDevice) {
-            this.startedModeByDevice[this.activeDevice] = this.config.sessionMode;
-        }
-        await this.runScrcpy(this.config);
-    };
-
-    stopSession = async () => {
-        if (!this.activeDevice) return;
-        delete this.startedModeByDevice[this.activeDevice];
-        await this.stopScrcpy(this.activeDevice);
-    };
-
-    stopScrcpy = async (device: string) => {
-        try {
-            await invoke('stop_scrcpy', { device });
-        } catch (e) {
-            const message = String(e);
-            this.addLogs(t('logs.failedToStopScrcpy', { error: message }), 'err');
-            showAlert({
-                title: t('alerts.stopFailedTitle'),
-                message: t('alerts.stopFailedMsg', { error: message }),
-                kind: 'error'
-            });
-        }
-    };
-
-    recenterMirrorWindow = async (device: string) => {
-        try {
-            await invoke('recenter_scrcpy_window', { device });
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    listScrcpyOptions = async (device: string, arg: string, customPath?: string): Promise<CommandResult> => {
-        try {
-            this.addLogs(t('logs.runningScrcpyArg', { arg }), 'system');
-            const res = await invoke<CommandResult>('list_scrcpy_options', {
-                device,
-                arg,
-                customPath: customPath || this.config.scrcpyPath
-            });
-            if (res.output) {
-                const lines = res.output.split('\n');
-                this.addLogs(lines);
-                if (arg === '--list-cameras') {
-                    const cameras: { id: string; name: string }[] = [];
-                    lines.forEach(line => {
-                        const trimmed = line.trim();
-                        const next = trimmed.match(/--camera-id=(\w+)\s*\((.*?)\)/);
-                        const old = trimmed.match(/^(?:-\s*)?\[(\w+)\]\s*\((.*?)\)\s*(.*)/);
-                        if (next) {
-                            cameras.push({ id: next[1], name: `${next[1]}: ${next[2]}` });
-                        } else if (old) {
-                            const resolution = old[2];
-                            const metadata = old[3].replace(/\r$/, '').trim();
-                            cameras.push({
-                                id: old[1],
-                                name: `${old[1]}: ${metadata || 'Camera'} (${resolution})`
-                            });
-                        }
-                    });
-                    if (cameras.length > 0) this.detectedCameras = cameras;
-                    else this.addLogs(t('logs.noCamerasParsed'), 'warn');
-                }
-            }
-            return res;
-        } catch (e: any) {
-            this.addLogs(t('logs.genericError', { error: String(e) }), 'err');
-            return { success: false, message: String(e) };
-        }
-    };
-
-    pushFile = async (device: string, filePath: string, customPath?: string): Promise<CommandResult> => {
-        try {
-            this.addLogs(t('logs.pushingFile', { device, filePath }), 'system');
-            const res = await invoke<CommandResult>('push_file', {
-                device,
-                filePath,
-                customPath: customPath || this.config.scrcpyPath
-            });
-            this.addLogs(t('logs.adbPrefix', { message: String(res.message) }));
-            return res;
-        } catch (e: any) {
-            this.addLogs(t('logs.genericError', { error: String(e) }), 'err');
-            return { success: false, message: String(e) };
-        }
-    };
-
-    installApk = async (device: string, filePath: string, customPath?: string): Promise<CommandResult> => {
-        try {
-            this.addLogs(t('logs.installingApk', { device, filePath }), 'system');
-            const res = await invoke<CommandResult>('install_apk', {
-                device,
-                filePath,
-                customPath: customPath || this.config.scrcpyPath
-            });
-            this.addLogs(t('logs.adbPrefix', { message: String(res.message) }));
-            return res;
-        } catch (e: any) {
-            this.addLogs(t('logs.genericError', { error: String(e) }), 'err');
-            return { success: false, message: String(e) };
-        }
-    };
-
-    runTerminalCommand = async (command: string, customPath?: string): Promise<CommandResult> => {
-        try {
-            const lower = command.trim().toLowerCase();
-            const prefix = lower.startsWith('scrcpy') || lower.startsWith('adb') ? '' : 'adb ';
-            this.addLogs(`> ${prefix}${command}`, 'system');
-            const res = await invoke<CommandResult>('run_terminal_command', {
-                device: this.activeDevice,
-                cmd: command,
-                customPath: customPath || this.config.scrcpyPath
-            });
-            if (res.stdout) this.addLogs(res.stdout.trim().split('\n'));
-            if (res.stderr) {
-                this.addLogs(
-                    res.stderr
-                        .trim()
-                        .split('\n')
-                        .map(l => `[${res.binary?.toUpperCase() || 'ERR'}] ${l}`)
-                );
-            }
-            if (!res.success && res.message) {
-                this.addLogs(t('logs.commandFailed', { error: String(res.message) }), 'err');
-            }
-            return res;
-        } catch (e: any) {
-            this.addLogs(t('logs.commandFailed', { error: String(e) }), 'err');
-            return { success: false, message: String(e) };
-        }
-    };
-
-    handleFileOperation = async (path: string) => {
-        if (!this.activeDevice) return;
-        if (path.toLowerCase().endsWith('.apk')) {
-            await this.installApk(this.activeDevice, path);
-        } else {
-            await this.pushFile(this.activeDevice, path);
-        }
-    };
-
-    handleFileBrowse = async () => {
-        if (!this.activeDevice) return;
-        try {
-            const selected = await open({
-                multiple: true,
-                filters: [
-                    { name: 'All Files', extensions: ['*'] },
-                    { name: 'Android App (APK)', extensions: ['apk'] }
-                ]
-            });
-            if (selected) {
-                const paths = Array.isArray(selected) ? selected : [selected];
-                for (const path of paths) await this.handleFileOperation(path);
-            }
-        } catch (e) {
-            console.error(e);
+            this.deviceStore.isRefreshing = false;
         }
     };
 
     handleKillAdb = async () => {
         try {
-            await invoke('kill_adb', { customPath: this.config.scrcpyPath });
-            await this.refreshDevices(this.config.scrcpyPath);
+            await invoke('kill_adb', { customPath: this.settings.config.scrcpyPath });
+            await this.refreshDevices(this.settings.config.scrcpyPath);
         } catch (e) {
             console.error(e);
         }
-    };
-
-    handleSetPath = async () => {
-        try {
-            let startPath = this.config.scrcpyPath;
-            if (!startPath) {
-                startPath = await invoke<string>('get_scrcpy_bin_dir').catch(() => '');
-            }
-            const selected = await open({
-                directory: true,
-                multiple: false,
-                defaultPath: startPath || undefined
-            });
-            if (selected && typeof selected === 'string') {
-                this.updateConfig({ scrcpyPath: selected });
-                this.addLogs(t('logs.customScrcpyPathSet', { path: selected }), 'system');
-                void this.checkScrcpy(selected);
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    handleResetPath = async () => {
-        this.updateConfig({ scrcpyPath: undefined });
-        this.addLogs(t('logs.customScrcpyPathCleared'), 'system');
-        void this.checkScrcpy('');
     };
 
     handleGotoWireless = async (device: string) => {
-        if (this.wirelessSwitching) return;
-        this.wirelessSwitching = device;
+        if (this.deviceStore.wirelessSwitching) return;
+        this.deviceStore.wirelessSwitching = device;
         try {
             const res = await invoke<{ success: boolean; message: string; ip?: string }>(
                 'goto_wireless',
@@ -833,7 +488,7 @@ class ScrcpyStore {
                 kind: 'warning'
             });
         } finally {
-            this.wirelessSwitching = null;
+            this.deviceStore.wirelessSwitching = null;
             void this.refreshDevices();
         }
     };
@@ -846,240 +501,52 @@ class ScrcpyStore {
         return t('alerts.wirelessHintGeneric');
     };
 
-    // ── Downloads ──────────────────────────────────────────────────────────
-    downloadScrcpy = async () => {
-        if (this.downloading) return;
-        this.downloading = true;
-        try {
-            this.isDownloading = true;
-            this.downloadError = null;
-            this.downloadProgress = 0;
-            await invoke('download_scrcpy');
-        } catch (e: any) {
-            this.isDownloading = false;
-            // Surface the backend reason (for example "stop all sessions
-            // first") instead of a generic "Download failed".
-            const detail = typeof e === 'string' ? e.trim() : e instanceof Error ? e.message : '';
-            const message = detail || t('onboarding.downloadFailed');
-            this.downloadError = message;
-            this.addLogs(t('logs.downloadError', { error: message }), 'err');
-            if (!this.isOnboardingOpen) {
-                showAlert({ title: t('alerts.downloadFailedTitle'), message, kind: 'error' });
-            }
-        } finally {
-            this.downloading = false;
-        }
-    };
+    // ── Sessions ───────────────────────────────────────────────────────────
+    runScrcpy = (config: ScrcpyConfig) => this.sessionStore.runScrcpy(config);
 
-    checkScrcpy = async (customPath?: string): Promise<boolean> => {
-        try {
-            const pathToCheck = customPath !== undefined ? customPath : this.config.scrcpyPath;
-            const res = await invoke<DownloadStatus>('check_scrcpy', { customPath: pathToCheck });
-            this.scrcpyStatus = res;
+    startSession = () => this.sessionStore.startSession();
 
-            if (res.found) {
-                try {
-                    const renderRes = await invoke<Partial<RenderDriverSupport>>(
-                        'get_render_drivers',
-                        { customPath: pathToCheck }
-                    );
-                    this.renderDriverSupport = {
-                        hostOs: renderRes?.hostOs || 'unknown',
-                        supportsRenderDriver: !!renderRes?.supportsRenderDriver,
-                        supportedDrivers: Array.isArray(renderRes?.supportedDrivers)
-                            ? renderRes.supportedDrivers
-                            : []
-                    };
-                } catch {
-                    this.renderDriverSupport = {
-                        hostOs: 'unknown',
-                        supportsRenderDriver: false,
-                        supportedDrivers: []
-                    };
-                }
-            } else {
-                this.renderDriverSupport = {
-                    hostOs: 'unknown',
-                    supportsRenderDriver: false,
-                    supportedDrivers: []
-                };
-            }
+    stopSession = () => this.sessionStore.stopSession();
 
-            if (!res.found && safeGetItem('scrcpy_onboarding_done') !== 'true') {
-                this.isOnboardingOpen = true;
-            }
-            if (res.found) void this.checkScrcpyUpdate();
-            return res.found;
-        } catch (e: any) {
-            this.scrcpyStatus = {
-                found: false,
-                message: t('logs.genericError', { error: String(e) })
-            };
-            return false;
-        }
-    };
+    stopScrcpy = (device: string) => this.sessionStore.stopScrcpy(device);
 
-    completeOnboarding = () => {
-        safeSetItem('scrcpy_onboarding_done', 'true');
-        this.isOnboardingOpen = false;
-    };
+    recenterMirrorWindow = (device: string) => this.sessionStore.recenterMirrorWindow(device);
 
-    // ── App update ─────────────────────────────────────────────────────────
-    checkForAppUpdate = async (silent: boolean) => {
-        if (!isTauri()) return null;
-        try {
-            const { check } = await import('@tauri-apps/plugin-updater');
-            const update = await check();
-            const info = update ? { latest: update.version, notes: update.body ?? '' } : null;
-            this.appUpdate = info;
-            if (!silent) {
-                if (info) this.openAppUpdateModal(info);
-                else {
-                    showAlert({
-                        title: t('alerts.appUpToDateTitle'),
-                        message: t('alerts.appUpToDateMsg', { v: this.appVersion }),
-                        kind: 'info'
-                    });
-                }
-            }
-            return info;
-        } catch {
-            if (!silent) {
-                showAlert({
-                    title: t('alerts.appCheckFailedTitle'),
-                    message: t('alerts.appCheckFailedMsg'),
-                    kind: 'warning'
-                });
-            }
-            return null;
-        }
-    };
+    listScrcpyOptions = (device: string, arg: string, customPath?: string) =>
+        this.sessionStore.listScrcpyOptions(device, arg, customPath);
 
-    openAppUpdateModal = (info: { latest: string; notes: string }) => {
-        const notes = (info.notes || '')
-            .replace(/^#{1,4}\s?/gm, '')
-            .replace(/^>\s?/gm, '')
-            .replace(/[*`]/g, '')
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line && !/^what'?s changed$/i.test(line) && !/^full changelog:/i.test(line))
-            .join('\n')
-            .trim();
-        const isPlaceholder = /^see the assets below for the release\.?$/i.test(notes);
-        showAlert({
-            title: t('alerts.newAppVersionTitle'),
-            message: notes && !isPlaceholder ? notes : t('alerts.newAppVersionMsg'),
-            kind: 'info',
-            eyebrow: `v${this.appVersion} → v${info.latest}`,
-            actionLabel: t('header.autoUpdateBtn'),
-            onAction: () => this.handleAutoUpdate(),
-            showCancel: true,
-            cancelLabel: t('alerts.appCloseBtn'),
-            secondaryLabel: t('alerts.updateOpenBtn'),
-            onSecondary: async () => {
-                try {
-                    await invoke('open_app_release');
-                } catch {
-                    window.open(
-                        'https://github.com/Umbr-Corp/OpenScrcpy/releases/latest',
-                        '_blank'
-                    );
-                }
-            }
-        });
-    };
+    pushFile = (device: string, filePath: string, customPath?: string) =>
+        this.sessionStore.pushFile(device, filePath, customPath);
 
-    handleAutoUpdate = async () => {
-        try {
-            const { check } = await import('@tauri-apps/plugin-updater');
-            const { relaunch } = await import('@tauri-apps/plugin-process');
-            const update = await check();
-            if (!update) {
-                showAlert({
-                    title: t('alerts.appUpToDateTitle'),
-                    message: t('alerts.appUpToDateMsg', { v: this.appVersion }),
-                    kind: 'info'
-                });
-                return;
-            }
-            let total = 0;
-            let done = 0;
-            let lastShownPct = -1;
-            const fmtMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
-            await update.downloadAndInstall(event => {
-                if (event.event === 'Started') {
-                    total = event.data.contentLength ?? 0;
-                    if (total > 0) {
-                        lastShownPct = 0;
-                        showAlert({
-                            title: t('header.autoDownloading'),
-                            message: t('header.autoProgress', { p: 0 }),
-                            kind: 'info',
-                            progress: 0,
-                            progressDetail: `0/${fmtMb(total)} MB`
-                        });
-                    }
-                } else if (event.event === 'Progress') {
-                    done += event.data.chunkLength;
-                    if (total > 0) {
-                        const p = Math.min(100, Math.round((done / total) * 100));
-                        if (p !== lastShownPct) {
-                            lastShownPct = p;
-                            showAlert({
-                                title: t('header.autoDownloading'),
-                                message: t('header.autoProgress', { p }),
-                                kind: 'info',
-                                progress: p,
-                                progressDetail: `${fmtMb(done)}/${fmtMb(total)} MB`
-                            });
-                        }
-                    }
-                }
-            });
-            showAlert({
-                title: t('header.autoInstalled'),
-                message: t('header.autoRestarting'),
-                kind: 'success'
-            });
-            await new Promise(resolve => setTimeout(resolve, 1200));
-            await relaunch();
-        } catch (e) {
-            showAlert({
-                title: t('header.autoFailTitle'),
-                message: `${t('header.autoFailMsg')}\n\n${t('alerts.wirelessConsoleLabel')}: ${String(e)}`,
-                kind: 'warning'
-            });
-        }
-    };
+    installApk = (device: string, filePath: string, customPath?: string) =>
+        this.sessionStore.installApk(device, filePath, customPath);
 
-    checkScrcpyUpdate = async () => {
-        if (this.scrcpyUpdateChecked || !this.scrcpyStatus.found || this.isDownloading) return;
-        this.scrcpyUpdateChecked = true;
-        try {
-            const updateRes: any = await invoke('check_scrcpy_update', {
-                customPath: this.config.scrcpyPath
-            });
-            if (updateRes && updateRes.update_available) {
-                showAlert({
-                    title: t('alerts.updateAvailableTitle'),
-                    message: t('alerts.updateAvailableMessage', {
-                        local: updateRes.local_version || 'unknown',
-                        latest: updateRes.latest_version || 'unknown'
-                    }),
-                    kind: 'info',
-                    actionLabel: t('alerts.updateBtn'),
-                    onAction: async () => {
-                        if (this.config.scrcpyPath) this.updateConfig({ scrcpyPath: undefined });
-                        await this.downloadScrcpy();
-                    },
-                    showCancel: true,
-                    cancelLabel: t('alerts.cancelBtn')
-                });
-            }
-        } catch (e) {
-            console.error('Failed to check for scrcpy updates:', e);
-        }
-    };
+    runTerminalCommand = (command: string, customPath?: string) =>
+        this.sessionStore.runTerminalCommand(command, customPath);
+
+    handleFileOperation = (path: string) => this.sessionStore.handleFileOperation(path);
+
+    handleFileBrowse = () => this.sessionStore.handleFileBrowse();
+
+    // ── Engine / downloads / updates ───────────────────────────────────────
+    downloadScrcpy = () => this.engineStore.downloadScrcpy();
+
+    checkScrcpy = (customPath?: string) => this.engineStore.checkScrcpy(customPath);
+
+    completeOnboarding = () => this.engineStore.completeOnboarding();
+
+    handleSetPath = () => this.engineStore.handleSetPath();
+
+    handleResetPath = () => this.engineStore.handleResetPath();
+
+    checkForAppUpdate = (silent: boolean) => this.engineStore.checkForAppUpdate(silent);
+
+    openAppUpdateModal = (info: { latest: string; notes: string }) =>
+        this.engineStore.openAppUpdateModal(info);
+
+    handleAutoUpdate = () => this.engineStore.handleAutoUpdate();
+
+    checkScrcpyUpdate = () => this.engineStore.checkScrcpyUpdate();
 }
 
 export const scrcpy = new ScrcpyStore();

@@ -38,4 +38,15 @@ describe('Sidebar', () => {
         expect(screen.getByText('Pixel 8')).toBeInTheDocument();
         expect(screen.getByText('Authorize on the device')).toBeInTheDocument();
     });
+
+    it('hints the pairing inputs for IPs and one-time numeric codes', async () => {
+        render(Sidebar);
+        await fireEvent.click(screen.getByRole('tab', { name: 'Wireless' }));
+
+        expect(screen.getByLabelText('IP:Port')).toHaveAttribute('inputmode', 'url');
+        const code = screen.getByLabelText('Pairing Code');
+        expect(code).toHaveAttribute('inputmode', 'numeric');
+        expect(code).toHaveAttribute('maxlength', '6');
+        expect(code).toHaveAttribute('autocomplete', 'one-time-code');
+    });
 });

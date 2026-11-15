@@ -53,6 +53,15 @@
         };
     });
 
+    $effect(() => {
+        if (!isOpen) return;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    });
+
     function handleKeyDown(e: KeyboardEvent) {
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -79,7 +88,7 @@
 
 {#if isOpen}
     <div
-        class="fixed inset-0 flex items-center justify-center {overlayClassName}"
+        class="fixed inset-0 flex items-center justify-center overscroll-contain {overlayClassName}"
         role="dialog"
         aria-modal="true"
         aria-label={label}

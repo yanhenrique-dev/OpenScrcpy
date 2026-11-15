@@ -12,6 +12,7 @@ describe('SliderRow', () => {
         const slider = screen.getByRole('slider', { name: 'Bitrate' });
         await fireEvent.input(slider, { target: { value: '12' } });
         expect(onChange).not.toHaveBeenCalled();
+        expect(slider).toHaveAttribute('aria-valuetext', '12');
 
         await fireEvent.mouseUp(slider);
         expect(onChange).toHaveBeenCalledWith(12);

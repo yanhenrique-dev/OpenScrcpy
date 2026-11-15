@@ -1,5 +1,5 @@
 <script lang="ts">
-    import Select from '../Select.svelte';
+    import SettingSelect from './SettingSelect.svelte';
     import { t } from '../../i18n';
 
     interface Props {
@@ -9,7 +9,7 @@
     let { value, onChange }: Props = $props();
 </script>
 
-<Select
+<SettingSelect
     label={t('controlPanel.fps')}
     value={value ?? 0}
     onChange={(next) => onChange(next === 0 ? undefined : next)}
@@ -20,7 +20,4 @@
         { value: 90, label: '90' },
         { value: 120, label: '120' }
     ]}
-    triggerClassName="cp-select"
-    optionClassName="cp-opt"
-    customLabel={t('controlPanel.custom')}
 />
