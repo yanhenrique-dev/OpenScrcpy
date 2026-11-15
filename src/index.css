@@ -193,7 +193,7 @@ input[type="range"].ds-range { accent-color: var(--primary); height: 4px; cursor
 .custom-range::-moz-range-thumb { width: 12px; height: 12px; background: var(--primary); border-radius: var(--radius-full); cursor: grab; border: 2px solid var(--bg-surface); }
 
 /* Toggle switch */
-.ds-toggle { width: 32px; height: 20px; border-radius: var(--radius-full); background: var(--border-base); padding: 2px; transition: background 0.09s ease-out; flex-shrink: 0; }
+.ds-toggle { display: inline-flex; align-items: center; width: 32px; height: 20px; border-radius: var(--radius-full); background: var(--border-base); padding: 2px; transition: background 0.09s ease-out; flex-shrink: 0; }
 .ds-toggle[data-on="true"] { background: var(--primary); }
 .ds-toggle > span { display: block; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--bg-surface); transition: transform 0.09s ease-out; }
 .ds-toggle[data-on="true"] > span { transform: translateX(12px); }
