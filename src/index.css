@@ -1,0 +1,258 @@
+@import "tailwindcss";
+
+/* ── Settings design system · tokens ───────────────────
+   Source palette only (no raw values outside these):
+   #EEEEEE bg · #F2F2F2 bg · #808080 secondary · #3B5CF6 accent
+   #2E2E2E dark · #5C5C5C dark-2 · #AEAEAE subtle · #FAFAFA light */
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--text-on-primary);
+  --color-surface: var(--bg-surface);
+  --color-base: var(--bg-base);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 9999px;
+
+  --shadow-sm: rgba(0, 0, 0, 0.3) 0px 2px 4px 0px, rgba(0, 0, 0, 0.3) 0px 1px 2px 0px, rgba(255, 255, 255, 0.16) 0px 0px 0px 0.5px, rgba(255, 255, 255, 0.06) 0px -0.5px 0px 0px;
+  --shadow-md: rgba(255, 255, 255, 0.1) 0px -0.5px 0px 0px inset, rgba(255, 255, 255, 0.16) 0px 0px 0px 0.5px inset;
+  --shadow-lg: rgba(0, 0, 0, 0.4) 0px 0.5px 0.5px 0px;
+  --shadow-xl: rgba(0, 0, 0, 0.4) 0px 1px 2px 0px, rgba(255, 255, 255, 0.2) 0px 0px 0px 0.5px, rgba(255, 255, 255, 0.1) 0px -0.5px 0px 0px;
+
+  --duration-fast: 0.09s;
+  --duration-base: 0.22s;
+}
+
+/* Light = default (Settings dashboard) */
+:root {
+  --primary: #3B5CF6;
+  --text-on-primary: #FAFAFA;
+
+  --bg-base: #EEEEEE;
+  --bg-surface: #FAFAFA;
+  --bg-input: #F2F2F2;
+
+  --text-base: #2E2E2E;
+  --text-secondary: #5C5C5C;
+  --text-muted: #636363;
+  --text-subtle: #6B6B6B;
+  --text-inverse: #FAFAFA;
+
+  --border-base: #AEAEAE;
+  --border-strong: #808080;
+
+  color-scheme: light;
+}
+
+/* Dark — deeper background. Elevation via lightness steps anchored on the
+   page base (all derived from the palette with color-mix, no new hues):
+   page darkest, surfaces lift slightly per level. */
+[data-mode='dark'] {
+  --bg-base: color-mix(in srgb, #2E2E2E 70%, black);
+  --bg-surface: color-mix(in srgb, var(--bg-base) 72%, #5C5C5C);
+  --bg-input: color-mix(in srgb, var(--bg-base) 82%, #5C5C5C);
+
+  --text-base: #FAFAFA;
+  --text-secondary: #EEEEEE;
+  --text-muted: #AEAEAE;
+  --text-subtle: #AEAEAE;
+  --text-inverse: #2E2E2E;
+
+  --border-base: #5C5C5C;
+  --border-strong: #808080;
+
+  color-scheme: dark;
+}
+
+/* ── Base ─────────────────────────────────────────────── */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-base);
+  color: var(--text-base);
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 400;
+  transition: color 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Type scale: base 15/20 · sm 13/16.25 · xs 11/13. Weights 400/440/530. */
+.ds-body { font-size: 15px; line-height: 20px; font-weight: 400; }
+.ds-label { font-size: 13px; line-height: 16.25px; font-weight: 440; }
+.ds-caption { font-size: 11px; line-height: 13px; font-weight: 400; }
+.ds-strong { font-weight: 530; }
+
+/* Sentence case: never force uppercase via CSS */
+.ds-label, .ds-caption, .ds-body { text-transform: none; }
+
+/* Text selection follows the accent in both modes */
+::selection { background: var(--primary); color: var(--text-on-primary); }
+
+/* ── Surfaces ─────────────────────────────────────────── */
+.ds-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.ds-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+}
+.ds-inset {
+  background: var(--bg-input);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+}
+
+/* ── Scrollbars: thin, themed, quiet on hover ───────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-subtle); }
+::-webkit-scrollbar-corner { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+[data-mode='dark'] .ds-card { box-shadow: var(--shadow-xl); }
+
+/* Legacy .glass now maps to flat card (no decoration) */
+.glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-base);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* ── Buttons (3 variants, all states) ─────────────────── */
+.ds-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 13px; line-height: 16px; font-weight: 530;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  cursor: pointer; user-select: none;
+  transition: background 0.09s ease-out, opacity 0.09s ease-out, outline-color 0.09s ease-out, transform 0.09s ease-out;
+}
+.ds-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.ds-btn:active { transform: translateY(0.5px); }
+.ds-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+.ds-btn-primary { background: var(--primary); color: var(--text-on-primary); box-shadow: var(--shadow-lg); }
+.ds-btn-primary:hover { filter: brightness(1.06); }
+.ds-btn-primary:active { filter: brightness(0.97); }
+
+.ds-btn-secondary { background: var(--bg-input); color: var(--text-base); border-color: var(--border-base); }
+.ds-btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.ds-btn-secondary:active { background: var(--bg-base); }
+
+.ds-btn-tertiary { background: transparent; color: var(--text-secondary); padding: 6px 8px; }
+.ds-btn-tertiary:hover { background: var(--bg-input); color: var(--text-base); }
+
+/* Destructive uses text hierarchy + border, not a new hue */
+.ds-btn-danger { background: transparent; color: var(--text-base); border-color: var(--border-strong); }
+.ds-btn-danger:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── Inputs ───────────────────────────────────────────── */
+.ds-input, .ds-select-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-base);
+  border-radius: var(--radius-md);
+  color: var(--text-base);
+  font-size: 13px; line-height: 16px; font-weight: 400;
+  padding: 6px 8px;
+  outline: none;
+  transition: background 0.085s ease-out, outline-color 0.085s ease-out, box-shadow 0.085s ease-out, border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ds-input::placeholder { color: var(--text-muted); }
+.ds-input:hover { border-color: var(--border-strong); }
+.ds-input:focus-visible, .ds-select-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+.ds-input:disabled { opacity: 0.45; cursor: not-allowed; }
+.ds-input-error { border-color: var(--primary); border-style: dashed; }
+
+/* Range sliders */
+input[type="range"].ds-range { accent-color: var(--primary); height: 4px; cursor: pointer; }
+.custom-range { accent-color: var(--primary); }
+.custom-range::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; background: var(--primary); border-radius: var(--radius-full); cursor: grab; border: 2px solid var(--bg-surface); }
+.custom-range::-moz-range-thumb { width: 12px; height: 12px; background: var(--primary); border-radius: var(--radius-full); cursor: grab; border: 2px solid var(--bg-surface); }
+
+/* Toggle switch */
+.ds-toggle { width: 32px; height: 20px; border-radius: var(--radius-full); background: var(--border-base); padding: 2px; transition: background 0.09s ease-out; flex-shrink: 0; }
+.ds-toggle[data-on="true"] { background: var(--primary); }
+.ds-toggle > span { display: block; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--bg-surface); transition: transform 0.09s ease-out; }
+.ds-toggle[data-on="true"] > span { transform: translateX(12px); }
+
+/* ── Settings rows / selects (ControlPanel and SessionBehavior) ── */
+.cp-row { border: 1px solid var(--border-base); border-radius: var(--radius-md); background: var(--bg-surface); transition: background 0.09s ease-out, border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+.cp-row:hover { border-color: var(--primary); background: var(--bg-input); }
+.cp-select:hover { border-color: var(--primary); }
+.cp-opt { border: 1px solid transparent; }
+.cp-opt:hover { border-color: var(--primary); }
+.sb-row { border: 1px solid transparent; border-radius: var(--radius-md); }
+.sb-row:hover { border-color: var(--primary); }
+.sb-select:hover { border-color: var(--primary); }
+.sb-opt { border: 1px solid transparent; }
+.sb-opt:hover { border-color: var(--primary); }
+
+/* ── Navigation (segmented tabs, 2 zones: devices + modes) */
+.ds-tabs { display: flex; gap: 4px; background: var(--bg-input); border: 1px solid var(--border-base); border-radius: var(--radius-md); padding: 4px; }
+.ds-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 440; color: var(--text-muted); border-radius: var(--radius-sm); padding: 6px 8px; cursor: pointer; border: 1px solid transparent; transition: background 0.09s ease-out, color 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+.ds-tab:hover { color: var(--text-base); }
+.ds-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.ds-tab[data-active="true"] { background: var(--primary); color: var(--text-on-primary); }
+
+/* ── Links (16 on page: footer/attributions/help) ─────── */
+.ds-link { color: var(--primary); font-size: 13px; text-decoration: none; border-radius: var(--radius-sm); }
+.ds-link:hover { text-decoration: underline; }
+.ds-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ── Status: data visibility without new hues ────────────
+   Live/ready uses shape + primary vs muted, not green/red. */
+.ds-dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--border-strong); flex-shrink: 0; }
+.ds-dot[data-live="true"] { background: var(--primary); box-shadow: var(--shadow-lg); }
+.ds-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; line-height: 13px; font-weight: 530; border: 1px solid var(--border-base); border-radius: var(--radius-full); padding: 2px 8px; color: var(--text-secondary); background: var(--bg-input); }
+.ds-badge[data-live="true"] { border-color: var(--primary); color: var(--primary); }
+
+/* Transport switch on the hub card: two transports render as a segmented
+   control (same language as the Capture source tabs); a single transport
+   keeps the plain badge, because there is nothing to switch. */
+.tpx-group { display: inline-flex; align-items: center; gap: 2px; padding: 2px; background: var(--bg-input); border: 1px solid var(--border-base); border-radius: 999px; }
+.tpx-seg { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 10px; line-height: 12px; font-weight: 530; color: var(--text-muted); cursor: pointer; border: none; background: transparent; transition: background 0.09s ease-out, color 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+.tpx-seg:hover { color: var(--text-base); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.tpx-seg[data-active="true"] { background: var(--primary); color: var(--text-on-primary); }
+.tpx-seg:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* ── Terminal stays darkest in both modes (data surface) ─── */
+.force-dark, .force-dark.glass {
+  background-color: color-mix(in srgb, #2E2E2E 55%, black) !important;
+  border-color: #5C5C5C !important;
+  color: #FAFAFA !important;
+}
+
+/* ── Motion ───────────────────────────────────────────── */
+.ds-fade-in { animation: ds-fade 0.22s cubic-bezier(0.2, 0.7, 0.2, 1); }
+@keyframes ds-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── Single-line header: every control shares one height ─── */
+header .ds-tabs { height: 32px; padding: 2px; }
+header .ds-tabs .ds-tab { height: 100%; padding-top: 0; padding-bottom: 0; }
+header .ds-select-btn, header .ds-btn { height: 32px; }
+
+/* Focus must always be visible (3:1 against surface) */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ── Window chrome (Linux custom titlebar) ──────────────
+   WindowButtons trio; hover lives in CSS because inline styles cannot
+   express :hover. Close uses the conventional red. */
+.win-chrome-btn:hover { background: color-mix(in srgb, var(--text-base) 12%, transparent); color: var(--text-base); }
+.win-chrome-btn.win-chrome-close:hover { background: #E81123; color: #FFFFFF; }
+.win-chrome-btn svg { pointer-events: none; }

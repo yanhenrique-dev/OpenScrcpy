@@ -1,0 +1,47 @@
+name: Tag on Version Bump Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  tag:
+    # Only run when a version-bump PR is merged (not just closed)
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'chore/version-bump-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Require RELEASE_TOKEN
+        run: |
+          if [ -z "${{ secrets.RELEASE_TOKEN }}" ]; then
+            echo "::error::RELEASE_TOKEN is not configured. Create a fine-grained PAT with contents:write (and workflow if tags must trigger workflows), save it as RELEASE_TOKEN, or use the documented manual release process."
+            exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Git Config
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and Push Tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          git tag "v${{ env.VERSION }}" HEAD
+          git push origin "v${{ env.VERSION }}"
