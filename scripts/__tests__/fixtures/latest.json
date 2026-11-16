@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "notes": "Release v2.0.0",
+  "pub_date": "2026-11-14T00:33:18Z",
+  "platforms": {
+    "linux-x86_64": {
+      "signature": "c2lnbmF0dXJlLXBsYWNlaG9sZGVy",
+      "url": "https://github.com/yanhenrique-dev/OpenScrcpy/releases/download/v2.0.0/OpenScrcpy_2.0.0_amd64.AppImage"
+    },
+    "windows-x86_64": {
+      "signature": "c2lnbmF0dXJlLXBsYWNlaG9sZGVy",
+      "url": "https://github.com/yanhenrique-dev/OpenScrcpy/releases/download/v2.0.0/OpenScrcpy_2.0.0_x64-setup.exe"
+    }
+  }
+}

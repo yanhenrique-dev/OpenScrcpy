@@ -30,13 +30,13 @@ Before using OpenScrcpy, ensure you have the following:
 ## 🚀 Installation Guide
 
 ### 🪟 Windows
-1. Download the latest `.exe` or `.msi` from the [Releases](https://github.com/Umbr-Corp/OpenScrcpy/releases) page.
-2. Run the installer or standalone executable.
+1. Download the latest `.exe` or `.msi` from the [Releases](https://github.com/yanhenrique-dev/OpenScrcpy/releases) page.
+2. Run the installer. Windows SmartScreen may warn because the build is not code-signed; choose **More info > Run anyway** if you trust the source.
 3. **Smart Setup**: On the first launch, OpenScrcpy will detect if the core binary is installed. If not, it will offer a one-click download.
 4. **Automated Updates**: When launched, OpenScrcpy will automatically check your installed version against the latest official release and prompt you with a one-click update modal if a new version is available.
 
 ### 🍎 macOS
-1. Download the `.dmg` file matching your architecture (**Intel** or **Apple Silicon/M1/M2**).
+1. Download the universal `.dmg` (it runs on both **Intel** and **Apple Silicon**).
 2. Drag the **OpenScrcpy** icon into your **Applications** folder.
 3. **Security Note**: Since the app is not signed by Apple, you may need to:
    - Go to **System Settings > Privacy & Security**.
@@ -44,11 +44,11 @@ Before using OpenScrcpy, ensure you have the following:
 4. **Window position**: allow OpenScrcpy under **Privacy & Security > Accessibility** if you want it to remember/recentre the mirror window (optional).
 
 ### 🐧 Linux
-1. Download the `.AppImage` or `.deb` package.
-2. **AppImage**: Right-click -> Properties -> Permissions -> **Allow executing file as program**. Double-click to run.
-3. **Dependencies**: Ensure you have the following installed if you encounter issues:
+1. Download the `.AppImage`, `.deb` or `.rpm` package.
+2. **AppImage**: Right-click -> Properties -> Permissions -> **Allow executing file as program**. Double-click to run. On distributions that do not ship FUSE 2, run it with `./OpenScrcpy_*.AppImage --appimage-extract-and-run`.
+3. **Runtime dependencies** (Debian/Ubuntu) if the AppImage does not start:
    ```bash
-   sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+   sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 libfuse2
    ```
 4. **Optional features**: install `xdotool` for window-position memory/recentre and `pulseaudio-utils` (provides `pactl`/`parec`) for the microphone bridge:
    ```bash
@@ -148,4 +148,4 @@ Renderer choices are **capability-aware**:
 
 ---
 
-*Found a bug or have a suggestion? Open an issue on [GitHub](https://github.com/Umbr-Corp/OpenScrcpy/issues)!*
+*Found a bug or have a suggestion? Open an issue on [GitHub](https://github.com/yanhenrique-dev/OpenScrcpy/issues)!*

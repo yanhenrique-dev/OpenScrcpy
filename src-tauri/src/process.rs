@@ -101,9 +101,14 @@ async fn read_capped<R: AsyncRead + Unpin>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    // The timeout tests below drive a POSIX shell and `kill`; they are not
+    // portable to the Windows CI runner.
+    #[cfg(unix)]
     use std::process::Stdio;
+    #[cfg(unix)]
     use std::time::Duration;
 
+    #[cfg(unix)]
     async fn pid_is_alive(pid: u32) -> bool {
         std::process::Command::new("kill")
             .args(["-0", &pid.to_string()])
@@ -114,6 +119,7 @@ mod tests {
             .unwrap_or(false)
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn timeout_kills_the_child() {
         let pid_file =
@@ -146,6 +152,7 @@ mod tests {
         panic!("child {pid} survived the timeout");
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn returns_output_when_command_finishes_in_time() {
         let mut cmd = Command::new("sh");

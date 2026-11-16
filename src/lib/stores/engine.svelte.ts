@@ -212,7 +212,7 @@ export class EngineStore {
                     await invoke('open_app_release');
                 } catch {
                     window.open(
-                        'https://github.com/Umbr-Corp/OpenScrcpy/releases/latest',
+                        'https://github.com/yanhenrique-dev/OpenScrcpy/releases/latest',
                         '_blank'
                     );
                 }

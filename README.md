@@ -6,7 +6,12 @@
 
 **Control your Android from the desktop. Mirror the screen, use it as a webcam, or open a virtual display.**
 
-`v2.0.0` · `MIT` · `Linux / Windows / macOS`
+[![CI](https://github.com/yanhenrique-dev/OpenScrcpy/actions/workflows/pull_request.yml/badge.svg)](https://github.com/yanhenrique-dev/OpenScrcpy/actions/workflows/pull_request.yml)
+[![Latest release](https://img.shields.io/github/v/release/yanhenrique-dev/OpenScrcpy?sort=semver)](https://github.com/yanhenrique-dev/OpenScrcpy/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#installation)
+
+`Linux` · `Windows` · `macOS`
 
 [![Donate on Liberapay](https://img.shields.io/liberapay/goal/mryofc.svg?logo=liberapay)](https://pt.liberapay.com/mryofc/)
 
@@ -24,7 +29,7 @@
 
 ## Features
 
-- **Mirror, camera and desktop modes** — screen mirroring, phone-as-webcam with lens, torch and zoom controls, and a virtual display with flex resize.
+- **Mirror, camera, desktop and microphone modes** — screen mirroring, phone-as-webcam with lens, torch and zoom controls, a virtual display with flex resize, and audio routing.
 - **Precision input over OTG/HID** — hardware keyboard and mouse simulation, side by side.
 - **Wireless pairing with history** — pair Android 11+ devices over Wi-Fi and reconnect in one click.
 - **One-click core setup** — automatic core binary download and update checks, right from the header.
@@ -34,20 +39,32 @@
 
 ---
 
+## Requirements
+
+- **Android 5.0+** — Android 11+ for wireless debugging; Android 12+ for camera mode.
+- **USB debugging** enabled on the device (and **Wireless debugging** for Wi-Fi connections).
+- **Desktop** — Linux x86_64, Windows x64, and a universal macOS build (Intel and Apple Silicon).
+
+---
+
 ## Installation
 
 ### Quick start
 
-1. Download the latest release from [Releases](https://github.com/Umbr-Corp/OpenScrcpy/releases).
+1. Download the latest release from [Releases](https://github.com/yanhenrique-dev/OpenScrcpy/releases).
 2. Enable **USB debugging** on your Android device (plus **Wireless debugging** for Wi-Fi connections).
-3. Follow the full walkthrough in [GUIDE.md](GUIDE.md) or the [Wiki](https://github.com/Umbr-Corp/OpenScrcpy/wiki).
+3. Follow the full walkthrough in [GUIDE.md](GUIDE.md).
+
+The published Windows and macOS builds are not code-signed, so the OS may show a
+SmartScreen or Gatekeeper warning on first launch. The guide explains how to
+allow the app.
 
 ### NixOS (flakes)
 
 To install it permanently with a desktop launcher, add the flake to your system's `flake.nix`:
 
 ```nix
-inputs.openscrcpy.url = "git+https://github.com/Umbr-Corp/OpenScrcpy";
+inputs.openscrcpy.url = "git+https://github.com/yanhenrique-dev/OpenScrcpy";
 ```
 
 Then add it to your system packages:
@@ -77,9 +94,9 @@ warning and falls back to the platform default.
 
 ### Prerequisites
 
-- Node.js 20.19+ or 22.12+ (Vite 8 requirement)
+- Node.js 22.12+ (CI uses Node 24)
 - The Rust toolchain and Cargo
-- The desktop framework's OS-level prerequisites
+- The [Tauri desktop prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS
 
 ### Build
 
@@ -87,11 +104,27 @@ warning and falls back to the platform default.
 2. `npm run tauri dev` — development
 3. `npm run tauri build` — production
 
+The production build signs the updater artifacts, so it needs
+`TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. For a
+local build without a signing key, use the local override:
+
+```bash
+npm run tauri build -- --config src-tauri/tauri.local.conf.json
+```
+
+### Tests
+
+```bash
+npm run lint          # TypeScript + Svelte checks
+npm test              # frontend tests (Vitest)
+(cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+```
+
 ### Updates
 
 The app updates through the Tauri updater plugin, which polls
 `releases/latest/download/latest.json` on GitHub. `scripts/publish-release.mjs
-manifest` rebuilds that asset from the published release assets: it maps each
+manifest` builds that asset from the published release assets: it maps each
 platform to the signed artifact and uses the release body as the notes. An
 empty body falls back to `Release v<version>` instead of the old placeholder.
 The manifest is uploaded to the release itself, so the protected `main` branch
@@ -103,8 +136,8 @@ The manual and automated release steps are documented in
 The app version must match in `package.json`, `src-tauri/tauri.conf.json`,
 `src-tauri/Cargo.toml` and `src-tauri/Cargo.lock`.
 `scripts/__tests__/version-consistency.test.ts` enforces it.
-`updater/latest.json` is a local copy for inspection; the release workflow
-rebuilds and uploads it after the tag.
+The live updater manifest is generated at release time;
+`scripts/__tests__/fixtures/latest.json` is only a fixture for the tests.
 
 ---
 
@@ -114,6 +147,12 @@ The in-app console runs only the `adb` and `scrcpy` binaries resolved by the
 app, not an arbitrary shell. It is meant for device and session commands.
 
 Found a vulnerability? Read [SECURITY.md](SECURITY.md) — report it privately, never in a public issue.
+
+## Contributing
+
+Bug reports, feature requests and pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR and follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

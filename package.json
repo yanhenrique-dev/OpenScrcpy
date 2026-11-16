@@ -3,14 +3,33 @@
   "private": true,
   "version": "2.0.0",
   "description": "A modern desktop GUI for controlling Android devices",
+  "author": "Yan Henrique (https://github.com/yanhenrique-dev)",
   "license": "MIT",
+  "homepage": "https://github.com/yanhenrique-dev/OpenScrcpy#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Umbr-Corp/OpenScrcpy.git"
+    "url": "git+https://github.com/yanhenrique-dev/OpenScrcpy.git"
   },
+  "bugs": {
+    "url": "https://github.com/yanhenrique-dev/OpenScrcpy/issues"
+  },
+  "funding": [
+    {
+      "type": "liberapay",
+      "url": "https://liberapay.com/mryofc"
+    }
+  ],
+  "keywords": [
+    "android",
+    "scrcpy",
+    "tauri",
+    "svelte",
+    "screen-mirroring",
+    "desktop"
+  ],
   "type": "module",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": "^22.12.0 || >=24.0.0"
   },
   "scripts": {
     "dev": "vite dev",

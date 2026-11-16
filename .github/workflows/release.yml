@@ -23,23 +23,19 @@ jobs:
     runs-on: ${{ matrix.platform }}
     env:
       PKG_CONFIG_ALLOW_CROSS: 1
-      # linuxdeploy's bundled strip cannot handle the .relr.dyn sections the
-      # current linker emits; skipping the strip step keeps the AppImage
-      # bundling from failing. (Cost: a slightly larger binary.)
-      NO_STRIP: 1
       # The updater plugin refuses unsigned bundles: sign the artifacts
       # so latest.json + .sig files land on the release (in-app updates).
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
 
       - name: Install Rust
@@ -50,7 +46,7 @@ jobs:
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - name: Cache Rust
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -68,7 +64,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build
+      # The Linux bundle needs the linuxdeploy workarounds encoded in the
+      # `build:linux` script (NO_STRIP, APPIMAGE_EXTRACT_AND_RUN and the
+      # excluded Wayland libraries); a bare `tauri build` would bundle the
+      # host Wayland client libraries and can fail on the runner.
+      - name: Build (Linux bundles)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run build:linux
+
+      - name: Build (macOS / Windows bundles)
+        if: matrix.platform != 'ubuntu-22.04'
         run: npm run tauri build -- ${{ matrix.args }}
 
       - name: Collect artifacts
@@ -88,15 +93,16 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 24
+          cache: 'npm'
 
       - name: Publish updater manifest
         env:

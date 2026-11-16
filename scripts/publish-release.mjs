@@ -10,11 +10,13 @@
  * Two modes:
  *   upload   create (or reuse) the release and upload the artifacts of one
  *            build platform
- *   manifest rebuild `updater/latest.json` from the published assets and push
- *            it to the default branch, which is what the Tauri updater polls
+ *   manifest rebuild `updater/latest.json` from the published assets and
+ *            upload it as an asset of the release, which is what the Tauri
+ *            updater polls (`releases/latest/download/latest.json`)
  */
 
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -146,10 +148,17 @@ function releaseNotes() {
 
     if (log) return log;
   } catch {
-    // No previous tag, or a shallow clone: fall through to the default body.
+    // No previous tag, or a shallow clone: fall through to the notes file.
   }
 
-  return '';
+  // A repository with no previous tag has no commit range to render. The
+  // checked-in notes describe the initial release; later releases use the
+  // commit log so this file does not need to be maintained every time.
+  try {
+    return readFileSync('docs/RELEASE_NOTES.md', 'utf8').trim();
+  } catch {
+    return '';
+  }
 }
 
 async function collectAssets(release) {
