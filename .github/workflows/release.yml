@@ -1,0 +1,110 @@
+name: Release CI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    env:
+      PKG_CONFIG_ALLOW_CROSS: 1
+      # The updater plugin refuses unsigned bundles: sign the artifacts
+      # so latest.json + .sig files land on the release (in-app updates).
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+
+      - name: Add macOS targets
+        if: matrix.platform == 'macos-latest'
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Cache Rust
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: rust-${{ matrix.platform }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: rust-${{ matrix.platform }}-
+
+      - name: Install Linux dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # The Linux bundle needs the linuxdeploy workarounds encoded in the
+      # `build:linux` script (NO_STRIP, APPIMAGE_EXTRACT_AND_RUN and the
+      # excluded Wayland libraries); a bare `tauri build` would bundle the
+      # host Wayland client libraries and can fail on the runner.
+      - name: Build (Linux bundles)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run build:linux
+
+      - name: Build (macOS / Windows bundles)
+        if: matrix.platform != 'ubuntu-22.04'
+        run: npm run tauri build -- ${{ matrix.args }}
+
+      - name: Collect artifacts
+        run: node scripts/collect-artifacts.mjs
+
+      - name: Publish assets
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/publish-release.mjs upload artifacts
+
+  # The updater polls the stable `releases/latest/download/latest.json`
+  # asset. This job rebuilds it from the signed assets of this release and
+  # uploads it to the release itself.
+  manifest:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Publish updater manifest
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/publish-release.mjs manifest

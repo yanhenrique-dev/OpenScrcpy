@@ -1,0 +1,127 @@
+name: Bug report
+description: Something in OpenScrcpy does not work as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please search the existing
+        issues first, and read the [troubleshooting section](https://github.com/yanhenrique-dev/OpenScrcpy/blob/main/GUIDE.md#-troubleshooting)
+        of the guide.
+
+        **Do not paste secrets, Wi-Fi passwords, pairing codes or the full serial
+        number of your device.** Replace them with `REDACTED`.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the problem.
+      placeholder: When I start a camera session with the ultra-wide lens, ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact steps that trigger the problem.
+      placeholder: |
+        1. Connect the phone over USB
+        2. Open the Capture source menu and choose Camera
+        3. Select ...
+        4. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead? Include any error message shown in the app.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenScrcpy version
+      description: Shown in the header badge or in **About**.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - Other (describe in the additional context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install OpenScrcpy?
+      options:
+        - AppImage
+        - .deb package
+        - .rpm package
+        - Windows installer (.exe)
+        - Windows .msi
+        - macOS .dmg
+        - Nix flake
+        - Built from source
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Session mode
+      description: Which mode was active when the problem happened?
+      options:
+        - Mirror
+        - Camera
+        - Desktop
+        - Microphone
+        - Not started / app startup
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or report
+      description: |
+        Paste the relevant lines from the in-app console, or attach the report
+        saved with the **Relatório** / **Report** button. Redact serial numbers,
+        IP addresses and tokens.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched the existing issues and the guide.
+          required: true
+        - label: I removed secrets, pairing codes and personal data from the logs.
+          required: true
+        - label: This is not a security vulnerability (those go through SECURITY.md).
+          required: true

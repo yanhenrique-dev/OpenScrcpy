@@ -1,0 +1,71 @@
+{
+  "name": "openscrcpy",
+  "private": true,
+  "version": "2.0.0",
+  "description": "A modern desktop GUI for controlling Android devices",
+  "author": "Yan Henrique (https://github.com/yanhenrique-dev)",
+  "license": "MIT",
+  "homepage": "https://github.com/yanhenrique-dev/OpenScrcpy#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yanhenrique-dev/OpenScrcpy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yanhenrique-dev/OpenScrcpy/issues"
+  },
+  "funding": [
+    {
+      "type": "liberapay",
+      "url": "https://liberapay.com/mryofc"
+    }
+  ],
+  "keywords": [
+    "android",
+    "scrcpy",
+    "tauri",
+    "svelte",
+    "screen-mirroring",
+    "desktop"
+  ],
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "scripts": {
+    "dev": "vite dev",
+    "build": "svelte-check --tsconfig ./tsconfig.json && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "test": "vitest run",
+    "lint": "tsc --noEmit && svelte-check --tsconfig ./tsconfig.json",
+    "build:appimage:local": "NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 LINUXDEPLOY_EXCLUDE_LIBS=libwayland-client.so.0:libwayland-cursor.so.0:libwayland-egl.so.1:libwayland-server.so.0 npm run tauri build -- --bundles appimage --config src-tauri/tauri.local.conf.json",
+    "build:linux": "NO_STRIP=1 APPIMAGE_EXTRACT_AND_RUN=1 LINUXDEPLOY_EXCLUDE_LIBS=libwayland-client.so.0:libwayland-cursor.so.0:libwayland-egl.so.1:libwayland-server.so.0 npm run tauri build"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@lucide/svelte": "^1.70.0",
+    "@tauri-apps/api": "2.12.4",
+    "@tauri-apps/plugin-dialog": "^2.8.4",
+    "@tauri-apps/plugin-process": "^2.4.0",
+    "@tauri-apps/plugin-updater": "^2.14.1",
+    "svelte": "^5.57.3"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tailwindcss/postcss": "4.2.4",
+    "@tauri-apps/cli": "^2.12.4",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/svelte": "^5.4.2",
+    "autoprefixer": "10.5.0",
+    "axe-core": "^4.14.0",
+    "browserslist": "4.29.5",
+    "caniuse-lite": "1.0.30001791",
+    "jsdom": "29.1.0",
+    "postcss": "8.5.33",
+    "svelte-check": "^4.7.8",
+    "tailwindcss": "4.2.4",
+    "typescript": "6.0.3",
+    "vite": "8.3.8",
+    "vitest": "4.1.12"
+  }
+}
