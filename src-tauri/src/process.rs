@@ -100,6 +100,7 @@ async fn read_capped<R: AsyncRead + Unpin>(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use super::*;
     // The timeout tests below drive a POSIX shell and `kill`; they are not
     // portable to the Windows CI runner.

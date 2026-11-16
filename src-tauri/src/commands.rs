@@ -935,6 +935,7 @@ pub struct ScrcpyConfig {
     mic_bitrate: Option<u32>,
     /// Experimental: create the virtual sink through a PipeWire RNNoise
     /// filter-chain (PC-side noise suppression). Best effort with fallback.
+    #[cfg_attr(not(unix), allow(dead_code))]
     mic_denoise: Option<bool>,
 }
 
@@ -2558,8 +2559,6 @@ pub async fn run_scrcpy(
                 session_generation,
             ));
         }
-        #[cfg(not(unix))]
-        drop(pulse_sink.as_deref());
     }
 
     // Monitor for exit (and orchestrate the audio codec fallback chain)
@@ -2787,8 +2786,6 @@ pub async fn run_scrcpy(
         if config_mon.session_mode == "mic" && generation_is_current && !remaining_mic {
             #[cfg(unix)]
             unload_mic_sink(&window_mon).await;
-            #[cfg(not(unix))]
-            drop(&window_mon);
         }
         session_pid.store(0, Ordering::Relaxed);
         session_done.notify_one();
