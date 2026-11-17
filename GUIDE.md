@@ -134,7 +134,7 @@ Audio capture has device-side requirements that the app cannot override:
 - On **Android 11**, unlock the device before starting the session.
 - Some apps (streaming services, DRM-protected content) opt out of capture, so their sound is not forwarded.
 - The default source captures the whole device output and mutes the phone while mirroring.
-- In **Camera** mode the source is the phone **microphone**, which is what webcam/OBS use needs; the device output is not captured there.
+- In **Camera** mode the source is the phone **microphone**; scrcpy plays it on the PC's default output, so in OBS capture that audio (desktop/application audio) or use the Linux microphone bridge for a selectable input.
 
 When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable` (or `Audio failed` with **Require audio** enabled).
 
