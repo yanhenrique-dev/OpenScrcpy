@@ -55,4 +55,20 @@ describe('ControlPanel', () => {
             expect.objectContaining({ sessionMode: 'camera' })
         );
     });
+
+    it('shows the audio health badge only for a running session', () => {
+        render(ControlPanel, {
+            props: { ...props(), isRunning: true, audioStatus: 'warning' }
+        });
+
+        const badge = screen.getByText('Audio unavailable');
+        expect(badge).toBeInTheDocument();
+        expect(badge).toHaveAttribute('data-audio', 'warning');
+    });
+
+    it('hides the audio badge when the session is stopped', () => {
+        render(ControlPanel, { props: { ...props(), audioStatus: 'error' } });
+
+        expect(screen.queryByText('Audio failed')).not.toBeInTheDocument();
+    });
 });

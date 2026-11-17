@@ -45,6 +45,12 @@ tauri-plugin-process = "2"
 # is also one adb poller and one updater.
 tauri-plugin-single-instance = "2.5.4"
 
+# Linux-only: KWin scripting bridge over D-Bus, used to read and set the
+# scrcpy window geometry on KDE Wayland (where xdotool cannot see windows).
+# Already in the tree via tauri-plugin-opener/single-instance.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5"
+
 # Windows-only: read the scrcpy mirror window's client-area position natively
 # (EnumWindows + ClientToScreen) to persist it across sessions. Pinned to the
 # 0.61 line already resolved transitively by tao/wry, so Cargo unifies onto a

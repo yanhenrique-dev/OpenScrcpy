@@ -1,3 +1,4 @@
+mod audio;
 mod commands;
 mod download;
 mod process;
@@ -6,6 +7,10 @@ mod validate;
 // (Ctrl+Alt+Shift+W).
 #[cfg(target_os = "windows")]
 mod grab;
+// Linux-only: KDE Plasma Wayland window position/recentre bridge (KWin
+// scripting over D-Bus); xdotool handles X11.
+#[cfg(target_os = "linux")]
+mod kwin;
 // Cross-platform global OS shortcuts (e.g. Ctrl+Alt+Shift+C to recentre the
 // active mirror window), shared with grab.rs's Windows-only drag toggle.
 mod shortcuts;
@@ -26,6 +31,10 @@ pub struct SessionHandle {
     /// Session mode ("mirror", "camera", "desktop" or "mic"). The mic sink
     /// lifecycle needs to know whether another mic bridge is still active.
     pub mode: String,
+    /// Whether this session owns the persisted mirror-window position. Only
+    /// windowed mirror sessions do; camera/desktop/fullscreen must not read or
+    /// overwrite it.
+    pub track_position: bool,
     pub pid: Arc<AtomicU32>,
     pub stop: oneshot::Sender<StopRequest>,
     pub done: Arc<Notify>,
@@ -142,6 +151,11 @@ pub fn run() {
             if let Err(e) = shortcuts::register(app.handle()) {
                 eprintln!("[shortcuts] failed to register global shortcuts: {e}");
             }
+
+            // KDE Wayland: start the D-Bus service that receives window
+            // positions from KWin. Non-fatal on every other desktop.
+            #[cfg(target_os = "linux")]
+            kwin::init();
 
             // Windows-only: start the drag-follow thread backing Ctrl+Alt+Shift+W.
             #[cfg(target_os = "windows")]

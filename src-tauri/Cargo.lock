@@ -2620,6 +2620,7 @@ dependencies = [
  "tauri-plugin-updater",
  "tokio",
  "windows 0.61.3",
+ "zbus",
  "zip",
 ]
 

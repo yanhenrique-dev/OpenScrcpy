@@ -22,7 +22,7 @@ Before using OpenScrcpy, ensure you have the following:
 - **USB Cable**: A high-quality data cable (avoid charging-only cables).
 - **PC**: Windows, macOS, or Linux.
 - **Core Binaries**: The app can download these for you automatically, but you can also provide your own.
-- **Optional Linux tools**: `xdotool` (remember/recentre the mirror window on X11/XWayland) and `pactl`/`parec` (microphone bridge and level meter).
+- **Optional Linux tools**: `xdotool` (remember/recentre the mirror window on X11/XWayland) and `pactl`/`parec` (microphone bridge and level meter). On **KDE Plasma Wayland**, position memory and recentre use KWin directly — no extra tool is needed.
 - **Optional macOS permission**: allow OpenScrcpy in **System Settings > Privacy & Security > Accessibility** to capture the mirror window position and use the recentre shortcut. Audio routing is Linux-only.
 
 ---
@@ -121,6 +121,23 @@ Turn your Android device into a secondary workspace or virtual monitor.
 3. **Background Color**: Customize the window borders or letterbox border colors by typing in a hex value (e.g., `#2b2d42`) with a live preview swatch.
 4. **Keep Active**: Enable **Keep Active** to simulate activity and prevent the virtual display from turning off or sleeping during mirroring sessions.
 
+### 🔊 Audio Forwarding
+The phone's audio is forwarded to the PC by default (scrcpy enables it since v2.0). In **Session Behavior** you can:
+
+- **Forward audio**: turn device-audio capture on or off.
+- **Audio codec**: leave it on **Automatic** (Opus with an automatic fallback to AAC/FLAC/raw), or force a codec if your device lacks an Opus encoder.
+- **Require audio**: off by default. When on, the session stops with a visible error instead of silently mirroring video only if the device cannot capture audio. Useful when sound is essential, but it will prevent mirroring on devices that cannot capture audio at all.
+
+Audio capture has device-side requirements that the app cannot override:
+
+- **Android 11+** only; on Android 10 or older, capture is automatically disabled.
+- On **Android 11**, unlock the device before starting the session.
+- Some apps (streaming services, DRM-protected content) opt out of capture, so their sound is not forwarded.
+- The default source captures the whole device output and mutes the phone while mirroring.
+- In **Camera** mode the source is the phone **microphone**; scrcpy plays it on the PC's default output, so in OBS capture that audio (desktop/application audio) or use the Linux microphone bridge for a selectable input.
+
+When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable`. If every audio codec fails, it shows `Audio failed` while the video keeps running. When the session stops (for example with **Require audio** enabled), the error remains in the console.
+
 ### 🖥 Graphics Renderer (Render API)
 You can choose which graphics renderer the core engine should request for video display.
 
@@ -143,6 +160,7 @@ Renderer choices are **capability-aware**:
 
 - **Device not found?**: Try a different USB port or cable. Ensure "USB Debugging" is still active.
 - **Laggy video?**: Lower the **Bitrate** (8M-12M is usually perfect) or the **Resolution**.
+- **No audio?**: Check the `[AUDIO]` line in the console and the audio badge. Unlock the phone (Android 11), confirm it runs Android 11+, and try forcing the **AAC** codec. Some apps block audio capture; enable **Require audio** to make the failure explicit instead of silent.
 - **ADB Error?**: If commands are failing, click the **Kill ADB** button in the sidebar. This resets the connection bridge without closing the app.
 - **Binary Error?**: If the app says it cannot find the core binary, use the **Downloader** in the top right corner.
 

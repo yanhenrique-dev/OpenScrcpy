@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Play, Square, Monitor, Camera, LayoutGrid, Mic } from '@lucide/svelte';
-    import type { RenderDriverSupport, ScrcpyConfig } from '../lib/types';
+    import type { AudioStatus, RenderDriverSupport, ScrcpyConfig } from '../lib/types';
     import MirrorPanel from './ControlPanel/MirrorPanel.svelte';
     import CameraPanel from './ControlPanel/CameraPanel.svelte';
     import DesktopPanel from './ControlPanel/DesktopPanel.svelte';
@@ -15,6 +15,7 @@
         onStop: () => void;
         isRunning: boolean;
         isStarting?: boolean;
+        audioStatus?: AudioStatus;
         onListOptions: (arg: string) => void;
         detectedCameras?: { id: string; name: string }[];
         renderDriverSupport?: RenderDriverSupport;
@@ -27,6 +28,7 @@
         onStop,
         isRunning,
         isStarting = false,
+        audioStatus = 'off',
         onListOptions,
         detectedCameras = [],
         renderDriverSupport = {
@@ -50,6 +52,16 @@
         if (config.sessionMode === 'mic') return t('controlPanel.startMicBridge');
         return t('controlPanel.ejectToDesktop');
     });
+
+    const AUDIO_STATUS_LABEL: Record<AudioStatus, string> = {
+        ok: 'controlPanel.audioOk',
+        warning: 'controlPanel.audioWarning',
+        error: 'controlPanel.audioError',
+        off: 'controlPanel.audioOff'
+    };
+    const audioBadge = $derived(
+        isRunning && audioStatus !== 'off' ? t(AUDIO_STATUS_LABEL[audioStatus]) : null
+    );
 
 </script>
 
@@ -112,6 +124,9 @@
                     <span class="ds-badge">{t('controlPanel.otgOnly')}</span>
                 {/if}
                 <span class="ds-badge" data-live={isRunning}>{isRunning ? t('controlPanel.active') : t('controlPanel.ready')}</span>
+                {#if audioBadge}
+                    <span class="ds-badge" data-audio={audioStatus}>{audioBadge}</span>
+                {/if}
             </div>
         </div>
 

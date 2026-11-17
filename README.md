@@ -86,7 +86,9 @@ you. A few desktop features use host tools when available:
 | Microphone bridge and level meter | `pactl` + `parec` (PulseAudio/PipeWire) | — | — |
 
 Without them the rest of the app keeps working; the affected action logs a
-warning and falls back to the platform default.
+warning and falls back to the platform default. On **KDE Plasma Wayland**,
+window-position memory and the recentre shortcut use KWin's own scripting
+interface instead of `xdotool`, so no extra host tool is required.
 
 ---
 

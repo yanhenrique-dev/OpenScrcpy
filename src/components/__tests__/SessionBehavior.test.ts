@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import SessionBehavior from '../SessionBehavior.svelte';
 import { scrcpy, DEFAULT_CONFIG } from '../../lib/scrcpy.svelte';
 import { setLocale } from '../../i18n';
@@ -28,5 +28,20 @@ describe('SessionBehavior', () => {
         render(SessionBehavior);
 
         expect(screen.queryByText('Session behavior')).not.toBeInTheDocument();
+    });
+
+    it('offers the require-audio switch while audio is forwarded', async () => {
+        render(SessionBehavior);
+
+        const toggle = screen.getByRole('switch', { name: 'Require audio' });
+        await fireEvent.click(toggle);
+        expect(scrcpy.config.requireAudio).toBe(true);
+    });
+
+    it('hides the require-audio switch when audio forwarding is off', () => {
+        scrcpy.config = { ...DEFAULT_CONFIG, audioEnabled: false };
+        render(SessionBehavior);
+
+        expect(screen.queryByRole('switch', { name: 'Require audio' })).not.toBeInTheDocument();
     });
 });
