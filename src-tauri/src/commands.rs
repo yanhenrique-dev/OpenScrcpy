@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use tokio::process::Command as TokioCommand;
 use tokio::sync::{oneshot, Notify};
 use tokio::time::{timeout, Duration};

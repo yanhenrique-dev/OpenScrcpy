@@ -4,9 +4,6 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
 #[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
-#[cfg(target_os = "windows")]
 pub(crate) const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Builds a command without flashing a console window on Windows. Every
