@@ -12,6 +12,8 @@
 //! session; on X11 `xdotool` remains the primary path.
 
 use std::collections::HashMap;
+use std::os::unix::fs::DirBuilderExt;
+use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
@@ -105,6 +107,29 @@ fn kwin_proxy() -> Option<Proxy<'static>> {
     .ok()
 }
 
+/// Private directory for the scripts KWin reads. `XDG_RUNTIME_DIR` is owned by
+/// the user with mode 0700, so another local user cannot pre-create a symlink
+/// with our script name.
+fn script_dir() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_RUNTIME_DIR")?;
+    let dir = PathBuf::from(base).join("openscrcpy-kwin");
+    match std::fs::DirBuilder::new().mode(0o700).create(&dir) {
+        Ok(()) => Some(dir),
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Some(dir),
+        Err(error) => {
+            eprintln!(
+                "[kwin] could not create script directory {}: {error}",
+                dir.display()
+            );
+            None
+        }
+    }
+}
+
+fn script_path(name: &str) -> Option<PathBuf> {
+    script_dir().map(|dir| dir.join(format!("{name}.js")))
+}
+
 /// Loads and runs a KWin script. Returns false if KWin is unreachable or the
 /// script could not be registered.
 fn run_script(name: &str, body: &str) -> bool {
@@ -114,15 +139,19 @@ fn run_script(name: &str, body: &str) -> bool {
     };
     // Drop a stale copy from a previous run before loading the fresh script.
     let _: Result<bool, _> = proxy.call("unloadScript", &(name,));
-    let path = std::env::temp_dir().join(format!("{name}.js"));
+    let Some(path) = script_path(name) else {
+        eprintln!("[kwin] XDG_RUNTIME_DIR is not set; cannot write {name}");
+        return false;
+    };
     if let Err(error) = std::fs::write(&path, body) {
-        eprintln!("[kwin] could not write {name}: {error}");
+        eprintln!("[kwin] could not write {}: {error}", path.display());
         return false;
     }
-    let path = path.to_string_lossy().to_string();
-    let loaded: Result<i32, _> = proxy.call("loadScript", &(path.as_str(), name));
+    let load_path = path.to_string_lossy().to_string();
+    let loaded: Result<i32, _> = proxy.call("loadScript", &(load_path.as_str(), name));
     if let Err(error) = loaded {
         eprintln!("[kwin] loadScript {name} failed: {error}");
+        let _ = std::fs::remove_file(&path);
         return false;
     }
     // KWin registers the script immediately but reads/compiles the file on
@@ -140,6 +169,10 @@ fn unload_script(name: &str) {
     if let Some(proxy) = kwin_proxy() {
         let _: Result<bool, _> = proxy.call("unloadScript", &(name,));
     }
+    if let Some(path) = script_path(name) {
+        let _ = std::fs::remove_file(path);
+    }
+    // Clean up the predictable temp file left by older builds.
     let _ = std::fs::remove_file(std::env::temp_dir().join(format!("{name}.js")));
 }
 
