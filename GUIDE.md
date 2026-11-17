@@ -136,7 +136,7 @@ Audio capture has device-side requirements that the app cannot override:
 - The default source captures the whole device output and mutes the phone while mirroring.
 - In **Camera** mode the source is the phone **microphone**; scrcpy plays it on the PC's default output, so in OBS capture that audio (desktop/application audio) or use the Linux microphone bridge for a selectable input.
 
-When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable` (or `Audio failed` with **Require audio** enabled).
+When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable`. If every audio codec fails, it shows `Audio failed` while the video keeps running. When the session stops (for example with **Require audio** enabled), the error remains in the console.
 
 ### 🖥 Graphics Renderer (Render API)
 You can choose which graphics renderer the core engine should request for video display.

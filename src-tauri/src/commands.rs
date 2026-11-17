@@ -19,6 +19,20 @@ use tokio::time::{timeout, Duration};
 
 const AUDIO_FALLBACK_CHAIN: &[&str] = &["aac", "flac", "raw"];
 
+/// True when a codec failure cannot be repaired by trying another codec:
+/// automatic fallback is disabled, or the chain is exhausted.
+fn codec_failure_is_terminal(should_auto_fallback: bool, chain_index: usize) -> bool {
+    !should_auto_fallback || chain_index >= AUDIO_FALLBACK_CHAIN.len()
+}
+
+fn codec_failure_message(should_auto_fallback: bool) -> &'static str {
+    if should_auto_fallback {
+        "[SYSTEM] No compatible audio codec found. Consider disabling audio forwarding."
+    } else {
+        "[SYSTEM] The selected audio codec failed. Choose Automatic or another codec."
+    }
+}
+
 // Screen-off startup: the ADB wake must be quick, but a wireless device can
 // take a little longer to report the new display state.
 const ADB_WAKE_TIMEOUT: Duration = Duration::from_secs(5);
@@ -2702,9 +2716,10 @@ pub async fn run_scrcpy(
         let mut first_window_pos: Option<(i32, i32)> = None;
         let mut last_window_pos: Option<(i32, i32)> = None;
         let mut stop_rx = stop_rx;
-        // A capture failure is device-side and does not improve on retry, so
-        // report it once per attempt instead of every 2 s tick.
+        // Capture and terminal codec failures do not improve on retry, so
+        // report each one once per attempt instead of every 2 s tick.
         let mut capture_reported = false;
+        let mut codec_terminal_reported = false;
 
         let emit_audio_status = |status: &str| {
             let _ = window_mon.emit(
@@ -2828,6 +2843,16 @@ pub async fn run_scrcpy(
                         break;
                     }
                 }
+            } else if current_audio_state.codec_failed()
+                && codec_failure_is_terminal(should_auto_fallback, chain_index)
+                && !codec_terminal_reported
+            {
+                codec_terminal_reported = true;
+                let _ = window_mon.emit(
+                    "scrcpy-log",
+                    codec_failure_message(should_auto_fallback).to_string(),
+                );
+                emit_audio_status("error");
             }
 
             // Sample the live window position on every tick. This is the only
@@ -2978,11 +3003,13 @@ pub async fn run_scrcpy(
                         }
                     }
 
-                    if codec_failed && should_auto_fallback {
-                        let _ = window_mon.emit(
-                            "scrcpy-log",
-                            "[SYSTEM] No compatible audio codec found. Consider disabling audio forwarding.".to_string(),
-                        );
+                    if codec_failed {
+                        if !codec_terminal_reported {
+                            let _ = window_mon.emit(
+                                "scrcpy-log",
+                                codec_failure_message(should_auto_fallback).to_string(),
+                            );
+                        }
                         emit_audio_status("error");
                     } else {
                         emit_audio_status("off");
@@ -3427,6 +3454,18 @@ mod tests {
         state.note_capture();
         assert!(state.codec_failed());
         assert!(state.capture_failed());
+    }
+
+    #[test]
+    fn test_codec_failure_is_terminal_only_without_a_next_codec() {
+        // A codec chosen by the user must never trigger the automatic chain.
+        assert!(codec_failure_is_terminal(false, 0));
+
+        // Automatic fallback is repairable until the chain is exhausted.
+        assert!(!codec_failure_is_terminal(true, 0));
+        assert!(!codec_failure_is_terminal(true, 1));
+        assert!(!codec_failure_is_terminal(true, 2));
+        assert!(codec_failure_is_terminal(true, 3));
     }
 
     #[test]
