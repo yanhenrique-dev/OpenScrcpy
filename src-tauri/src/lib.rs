@@ -1,4 +1,5 @@
 mod audio;
+mod capabilities;
 mod commands;
 mod download;
 mod process;

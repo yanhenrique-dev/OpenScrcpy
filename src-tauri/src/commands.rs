@@ -2,8 +2,12 @@ use crate::audio::{
     codec_failure_is_terminal, codec_failure_message, is_audio_capture_error, is_audio_codec_error,
     AudioErrorState, AUDIO_FALLBACK_CHAIN,
 };
+use crate::capabilities::Capabilities;
 use crate::download;
 use crate::process;
+use crate::process::create_command;
+#[cfg(target_os = "windows")]
+use crate::process::CREATE_NO_WINDOW;
 use crate::validate;
 use crate::{ScrcpyState, SessionHandle, StopRequest};
 use serde::Deserialize;
@@ -17,6 +21,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
+#[cfg(test)]
 use tokio::process::Command as TokioCommand;
 use tokio::sync::{oneshot, Notify};
 use tokio::time::{timeout, Duration};
@@ -75,21 +80,6 @@ fn get_binary_path(binary_name: &str, custom_folder: Option<String>) -> String {
 
     // 5. Return simple name to rely on system PATH
     binary_name.to_string()
-}
-
-#[cfg(target_os = "windows")]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> TokioCommand {
-    let cmd = TokioCommand::new(program);
-    #[cfg(target_os = "windows")]
-    {
-        let mut cmd = cmd;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        cmd
-    }
-    #[cfg(not(target_os = "windows"))]
-    cmd
 }
 
 /// Client for the GitHub release calls. The connect deadline is what keeps a
@@ -1322,6 +1312,101 @@ fn tracks_window_position(config: &ScrcpyConfig) -> bool {
     config.session_mode == "mirror" && !config.fullscreen.unwrap_or(false)
 }
 
+fn session_mode_label(mode: &str) -> &'static str {
+    match mode {
+        "camera" => "Camera",
+        "mic" => "Microphone bridge",
+        "desktop" => "Desktop",
+        _ => "Mirror",
+    }
+}
+
+/// Fails before spawning when the selected mode needs a flag this scrcpy build
+/// does not have. Cosmetic flags are filtered separately with a warning.
+fn ensure_mode_supported(config: &ScrcpyConfig, caps: &Capabilities) -> Result<(), String> {
+    let mut required: Vec<&str> = match config.session_mode.as_str() {
+        "camera" => vec!["video-source", "camera-size"],
+        "mic" => vec!["no-window", "no-video", "audio-source"],
+        "desktop" => vec!["new-display"],
+        _ => Vec::new(),
+    };
+    if config.audio_enabled.unwrap_or(true) && config.session_mode == "camera" {
+        required.push("audio-source");
+    }
+
+    let hid = config.session_mode != "mic"
+        && (config.hid_keyboard.unwrap_or(false) || config.hid_mouse.unwrap_or(false));
+    let otg_pure = config.otg_pure.unwrap_or(false);
+    let tcp = config.device.contains('.') || config.device.contains(':');
+    if config.session_mode == "mirror" && hid && otg_pure {
+        if tcp {
+            required.extend(["no-video", "no-audio", "keyboard", "mouse"]);
+        } else {
+            required.push("otg");
+        }
+    } else if hid {
+        if config.hid_keyboard.unwrap_or(false) {
+            required.push("keyboard");
+        }
+        if config.hid_mouse.unwrap_or(false) {
+            required.push("mouse");
+        }
+    }
+
+    let missing: Vec<String> = required
+        .iter()
+        .filter(|flag| !caps.supports(flag))
+        .map(|flag| format!("--{flag}"))
+        .collect();
+    if !missing.is_empty() {
+        let hint = if config.session_mode == "mirror" {
+            "Update scrcpy to enable these options."
+        } else {
+            "Update scrcpy or use Mirror mode."
+        };
+        return Err(format!(
+            "{} mode requires options missing from scrcpy {}: {}. {hint}",
+            session_mode_label(&config.session_mode),
+            caps.version(),
+            missing.join(", ")
+        ));
+    }
+
+    if config.audio_enabled.unwrap_or(true) && !caps.supports("audio-codec") {
+        return Err(format!(
+            "Audio forwarding is not supported by scrcpy {} (missing --audio-codec). Disable audio or update scrcpy.",
+            caps.version()
+        ));
+    }
+    if config.require_audio.unwrap_or(false)
+        && config.audio_enabled.unwrap_or(true)
+        && !caps.supports("require-audio")
+    {
+        return Err(format!(
+            "Require audio is not supported by scrcpy {} (missing --require-audio). Disable it or update scrcpy.",
+            caps.version()
+        ));
+    }
+    Ok(())
+}
+
+/// Replaces the denoised microphone source when the detected build does not
+/// offer it, so an old custom binary keeps recording instead of failing.
+fn normalize_mic_source(config: &mut ScrcpyConfig, caps: &Capabilities) -> Option<String> {
+    if config.session_mode != "mic" {
+        return None;
+    }
+    let source = validate::normalize_mic_source(config.mic_source.as_deref().unwrap_or("mic"));
+    if source == "mic-voice-communication" && !caps.supports_audio_source(source) {
+        config.mic_source = Some("mic".to_string());
+        return Some(format!(
+            "[SYSTEM] scrcpy {} does not support the denoised microphone source; using the raw microphone.",
+            caps.version()
+        ));
+    }
+    None
+}
+
 /// Emits the resolved window position (when one was captured) followed by the
 /// session-stopped status. Shared by every monitor-loop exit path.
 fn emit_window_pos_and_stop(
@@ -2374,6 +2459,7 @@ struct RetryContext<'a> {
     config: &'a ScrcpyConfig,
     video_dir: &'a Option<String>,
     pulse_sink: Option<&'a str>,
+    capabilities: &'a Capabilities,
     // Only read by the KWin bridge; the field stays for a single context shape.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     track_position: bool,
@@ -2383,6 +2469,14 @@ struct RetryContext<'a> {
 enum RetryOrigin {
     Running,
     Exited,
+}
+
+fn release_starting_device(state: &ScrcpyState, device: &str) {
+    state
+        .starting_devices
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(device);
 }
 
 /// Replaces the current child with one using `next_codec`, updating the PID,
@@ -2416,6 +2510,7 @@ async fn retry_audio_codec(
     }
 
     let new_args = build_scrcpy_args(ctx.config, ctx.video_dir.clone(), Some(next_codec));
+    let (new_args, _) = crate::capabilities::filter_args(new_args, ctx.capabilities);
     let (new_child, new_state) = spawn_scrcpy_streams(
         ctx.window,
         ctx.exe_path,
@@ -2456,6 +2551,7 @@ pub async fn run_scrcpy(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     validate_scrcpy_config(&config)?;
+    let mut config = config;
 
     // Reserve the device before any await. Without this, two concurrent
     // invocations can both see no session, spawn two children, and let the
@@ -2479,6 +2575,19 @@ pub async fn run_scrcpy(
         .map(|p| p.to_string_lossy().to_string());
 
     let exe_path = get_binary_path("scrcpy", config.scrcpy_path.clone());
+
+    // Ask this exact binary which options it supports. If the help output is
+    // unrecognizable, detection stays permissive and the real scrcpy error is
+    // allowed through.
+    let capabilities = crate::capabilities::detect(&exe_path).await;
+    if let Err(error) = ensure_mode_supported(&config, &capabilities) {
+        release_starting_device(state.inner(), &config.device);
+        return Err(error);
+    }
+    if let Some(message) = normalize_mic_source(&mut config, &capabilities) {
+        let _ = window.emit("scrcpy-log", message);
+    }
+    let capabilities = Arc::new(capabilities);
 
     // Log the session details for the user
     let mode_label = match config.session_mode.as_str() {
@@ -2620,7 +2729,13 @@ pub async fn run_scrcpy(
 
     // First attempt: honour the user's audio codec choice. In "auto" mode this
     // launches without --audio-codec, matching the previous default behaviour.
-    let initial_args = build_scrcpy_args(&config, video_dir.clone(), None);
+    let (initial_args, skipped) = crate::capabilities::filter_args(
+        build_scrcpy_args(&config, video_dir.clone(), None),
+        &capabilities,
+    );
+    if let Some(message) = crate::capabilities::skipped_message(&capabilities, &skipped) {
+        let _ = window.emit("scrcpy-log", message);
+    }
 
     let spawned = spawn_scrcpy_streams(
         &window,
@@ -2635,11 +2750,7 @@ pub async fn run_scrcpy(
     let (child, audio_state) = match spawned {
         Ok(spawned) => spawned,
         Err(e) => {
-            state
-                .starting_devices
-                .lock()
-                .unwrap_or_else(|err| err.into_inner())
-                .remove(&config.device);
+            release_starting_device(state.inner(), &config.device);
             return Err(e);
         }
     };
@@ -2678,11 +2789,7 @@ pub async fn run_scrcpy(
                 done: session_done.clone(),
             },
         );
-    state
-        .starting_devices
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .remove(&config.device);
+    release_starting_device(state.inner(), &config.device);
     let _ = window.emit(
         "scrcpy-status",
         json!({ "device": config.device, "running": true }),
@@ -2762,6 +2869,7 @@ pub async fn run_scrcpy(
             config: &config_mon,
             video_dir: &video_dir_mon,
             pulse_sink: pulse_sink_mon.as_deref(),
+            capabilities: &capabilities,
             track_position,
         };
         let mut stop_rx = stop_rx;
@@ -3374,6 +3482,79 @@ mod tests {
         config.require_audio = Some(true);
         let args = build_scrcpy_args(&config, None, None);
         assert!(!args.iter().any(|a| a == "--require-audio"));
+    }
+
+    #[test]
+    fn test_capability_guard_protects_modes_and_audio() {
+        let caps = Capabilities::for_test(
+            &[
+                "video-codec",
+                "audio-codec",
+                "video-source",
+                "camera-size",
+                "audio-source",
+                "no-window",
+                "no-video",
+                "new-display",
+                "require-audio",
+            ],
+            &["mic", "mic-voice-communication"],
+        );
+        for mode in ["mirror", "camera", "mic", "desktop"] {
+            assert!(
+                ensure_mode_supported(&base_config(mode), &caps).is_ok(),
+                "{mode}"
+            );
+        }
+
+        let old = Capabilities::for_test(&["video-codec", "audio-codec", "audio-source"], &["mic"]);
+        let camera = ensure_mode_supported(&base_config("camera"), &old).unwrap_err();
+        assert!(camera.contains("Camera mode"));
+        assert!(camera.contains("--video-source"));
+        let mic = ensure_mode_supported(&base_config("mic"), &old).unwrap_err();
+        assert!(mic.contains("--no-window"));
+        let desktop = ensure_mode_supported(&base_config("desktop"), &old).unwrap_err();
+        assert!(desktop.contains("--new-display"));
+        assert!(ensure_mode_supported(&base_config("mirror"), &old).is_ok());
+
+        let no_audio = Capabilities::for_test(&["video-codec"], &[]);
+        let audio = ensure_mode_supported(&base_config("mirror"), &no_audio).unwrap_err();
+        assert!(audio.contains("Audio forwarding"));
+
+        let mut require = base_config("mirror");
+        require.require_audio = Some(true);
+        let audio_only = Capabilities::for_test(&["video-codec", "audio-codec"], &[]);
+        let require_err = ensure_mode_supported(&require, &audio_only).unwrap_err();
+        assert!(require_err.contains("Require audio"));
+
+        let mut hid = base_config("mirror");
+        hid.hid_keyboard = Some(true);
+        let no_hid = Capabilities::for_test(&["video-codec", "audio-codec"], &[]);
+        let hid_err = ensure_mode_supported(&hid, &no_hid).unwrap_err();
+        assert!(hid_err.contains("--keyboard"));
+
+        // The audio-only bridge ignores HID flags, so they must not block it.
+        let mut mic_hid = base_config("mic");
+        mic_hid.hid_keyboard = Some(true);
+        assert!(ensure_mode_supported(&mic_hid, &caps).is_ok());
+    }
+
+    #[test]
+    fn test_mic_source_falls_back_when_denoise_is_unsupported() {
+        let mut config = base_config("mic");
+        config.mic_source = Some("mic-voice-communication".to_string());
+        let old = Capabilities::for_test(&["audio-source"], &["mic"]);
+        assert!(normalize_mic_source(&mut config, &old).is_some());
+        assert_eq!(config.mic_source.as_deref(), Some("mic"));
+
+        let mut config = base_config("mic");
+        config.mic_source = Some("mic-voice-communication".to_string());
+        let new = Capabilities::for_test(&["audio-source"], &["mic", "mic-voice-communication"]);
+        assert!(normalize_mic_source(&mut config, &new).is_none());
+        assert_eq!(
+            config.mic_source.as_deref(),
+            Some("mic-voice-communication")
+        );
     }
 
     #[test]

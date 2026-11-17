@@ -163,6 +163,7 @@ Renderer choices are **capability-aware**:
 - **No audio?**: Check the `[AUDIO]` line in the console and the audio badge. Unlock the phone (Android 11), confirm it runs Android 11+, and try forcing the **AAC** codec. Some apps block audio capture; enable **Require audio** to make the failure explicit instead of silent.
 - **ADB Error?**: If commands are failing, click the **Kill ADB** button in the sidebar. This resets the connection bridge without closing the app.
 - **Binary Error?**: If the app says it cannot find the core binary, use the **Downloader** in the top right corner.
+- **Unsupported option?**: OpenScrcpy checks the configured scrcpy with `--help`. Camera, microphone and desktop modes stop with a clear message when a required option is missing; cosmetic options are skipped with a console warning. Update scrcpy or use Mirror mode.
 
 ---
 

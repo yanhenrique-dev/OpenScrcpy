@@ -3,6 +3,26 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+pub(crate) const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+/// Builds a command without flashing a console window on Windows. Every
+/// process the app spawns goes through this helper.
+pub(crate) fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    let cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        let mut cmd = cmd;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+        cmd
+    }
+    #[cfg(not(target_os = "windows"))]
+    cmd
+}
+
 /// Runs `cmd` to completion. If it exceeds `limit`, the child is killed and a
 /// timeout error is returned. `kill_on_drop` is what turns the cancelled wait
 /// into a real SIGKILL instead of an orphan process.
