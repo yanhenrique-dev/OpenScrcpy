@@ -1390,6 +1390,13 @@ fn resolve_window_pos_to_persist(
     last
 }
 
+/// Only windowed mirror sessions have a persisted window position. Camera and
+/// desktop windows must not inherit the mirror's saved position, and a
+/// fullscreen session has nothing to restore.
+fn tracks_window_position(config: &ScrcpyConfig) -> bool {
+    config.session_mode == "mirror" && !config.fullscreen.unwrap_or(false)
+}
+
 /// Emits the resolved window position (when one was captured) followed by the
 /// session-stopped status. Shared by every monitor-loop exit path.
 fn emit_window_pos_and_stop(
@@ -2623,10 +2630,15 @@ pub async fn run_scrcpy(
         && (audio_codec_mode.is_empty() || audio_codec_mode.eq_ignore_ascii_case("auto"));
 
     let initial_scrcpy_pid = child.id().unwrap_or(0);
+    // Only windowed mirror sessions have a persisted position; camera, desktop
+    // and fullscreen windows must not inherit it.
+    let track_position = tracks_window_position(&config);
     // KDE Wayland: let KWin report (and, on launch, apply) the mirror window
     // position. On X11 this is a no-op and xdotool remains in charge.
     #[cfg(target_os = "linux")]
-    crate::kwin::track_window(initial_scrcpy_pid, config.window_x.zip(config.window_y));
+    if track_position {
+        crate::kwin::track_window(initial_scrcpy_pid, config.window_x.zip(config.window_y));
+    }
     let session_pid = Arc::new(AtomicU32::new(initial_scrcpy_pid));
     let session_done = Arc::new(Notify::new());
     let (stop_tx, stop_rx) = oneshot::channel();
@@ -2639,6 +2651,7 @@ pub async fn run_scrcpy(
             SessionHandle {
                 generation: session_generation,
                 mode: config.session_mode.clone(),
+                track_position,
                 pid: session_pid.clone(),
                 stop: stop_tx,
                 done: session_done.clone(),
@@ -2703,11 +2716,8 @@ pub async fn run_scrcpy(
         (Some(x), Some(y)) => Some((x, y)),
         _ => None,
     };
-    // Only track and persist the position for windowed mirror sessions. A
-    // fullscreen session has no meaningful position (it would report the
-    // monitor origin, e.g. 0,0), and camera/desktop sessions must not overwrite
-    // the mirror window's remembered position.
-    let track_pos = config_mon.session_mode == "mirror" && !config_mon.fullscreen.unwrap_or(false);
+    // `track_position` (computed before the child was tracked) keeps sampling
+    // limited to windowed mirror sessions.
 
     tokio::spawn(async move {
         let mut current_child = child;
@@ -2811,7 +2821,7 @@ pub async fn run_scrcpy(
                         let new_pid = new_child.id().unwrap_or(0);
                         session_pid.store(new_pid, Ordering::Relaxed);
                         #[cfg(target_os = "linux")]
-                        {
+                        if track_position {
                             crate::kwin::stop_tracking(old_pid);
                             crate::kwin::track_window(
                                 new_pid,
@@ -2864,7 +2874,7 @@ pub async fn run_scrcpy(
             // all that is left to persist. Two seconds is a good trade: on
             // Linux the sample spawns xdotool, on macOS an osascript call,
             // and the stop path takes its own fresh sample anyway.
-            if track_pos {
+            if track_position {
                 if let Some(pid) = current_child.id() {
                     if let Some(pos) = try_capture_window_pos(pid) {
                         if first_window_pos.is_none() {
@@ -2963,7 +2973,7 @@ pub async fn run_scrcpy(
                                 let new_pid = new_child.id().unwrap_or(0);
                                 session_pid.store(new_pid, Ordering::Relaxed);
                                 #[cfg(target_os = "linux")]
-                                {
+                                if track_position {
                                     crate::kwin::stop_tracking(old_pid);
                                     crate::kwin::track_window(
                                         new_pid,
@@ -3057,7 +3067,9 @@ pub async fn run_scrcpy(
             unload_mic_sink(&window_mon).await;
         }
         #[cfg(target_os = "linux")]
-        crate::kwin::stop_tracking(session_pid.load(Ordering::Relaxed));
+        if track_position {
+            crate::kwin::stop_tracking(session_pid.load(Ordering::Relaxed));
+        }
         session_pid.store(0, Ordering::Relaxed);
         session_done.notify_one();
     });
@@ -3640,6 +3652,19 @@ mod tests {
     }
 
     #[test]
+    fn test_window_position_tracking_is_windowed_mirror_only() {
+        assert!(tracks_window_position(&base_config("mirror")));
+
+        let mut fullscreen = base_config("mirror");
+        fullscreen.fullscreen = Some(true);
+        assert!(!tracks_window_position(&fullscreen));
+
+        for mode in ["camera", "desktop", "mic"] {
+            assert!(!tracks_window_position(&base_config(mode)));
+        }
+    }
+
+    #[test]
     fn test_cap_terminal_output_keeps_small_output() {
         assert_eq!(cap_terminal_output("ok".to_string()), "ok");
     }
@@ -3938,15 +3963,21 @@ pub async fn stop_scrcpy(state: State<'_, ScrcpyState>, device: String) -> Resul
     };
 
     let SessionHandle {
-        pid, stop, done, ..
+        pid,
+        stop,
+        done,
+        track_position,
+        ..
     } = handle;
     let pid_value = pid.load(Ordering::Relaxed);
 
     // Grab the window's position now, one last time, before it is killed:
     // this is the only moment it is guaranteed to still be exactly where the
     // user left it. The monitor task refreshes its own sample every ~2s,
-    // but a move right before Stop could still beat it.
-    let position = if pid_value != 0 {
+    // but a move right before Stop could still beat it. Only windowed mirror
+    // sessions persist a position; camera/desktop/fullscreen must not
+    // overwrite the mirror slot.
+    let position = if track_position && pid_value != 0 {
         try_capture_window_pos(pid_value)
     } else {
         None
@@ -3977,7 +4008,9 @@ pub fn teardown_sessions(app_handle: &tauri::AppHandle) {
     for handle in handles {
         let pid = handle.pid.load(Ordering::Relaxed);
         #[cfg(target_os = "linux")]
-        crate::kwin::stop_tracking(pid);
+        if handle.track_position {
+            crate::kwin::stop_tracking(pid);
+        }
         let _ = handle.stop.send(StopRequest { position: None });
         force_kill_pid(pid);
     }

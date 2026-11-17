@@ -30,6 +30,10 @@ pub struct SessionHandle {
     /// Session mode ("mirror", "camera", "desktop" or "mic"). The mic sink
     /// lifecycle needs to know whether another mic bridge is still active.
     pub mode: String,
+    /// Whether this session owns the persisted mirror-window position. Only
+    /// windowed mirror sessions do; camera/desktop/fullscreen must not read or
+    /// overwrite it.
+    pub track_position: bool,
     pub pid: Arc<AtomicU32>,
     pub stop: oneshot::Sender<StopRequest>,
     pub done: Arc<Notify>,
