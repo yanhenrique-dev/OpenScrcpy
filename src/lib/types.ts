@@ -80,6 +80,8 @@ export type WindowPositions = Record<string, { x: number; y: number }>;
 
 export type SessionMode = 'mirror' | 'camera' | 'desktop' | 'mic';
 export type AudioCodec = 'auto' | 'opus' | 'aac' | 'flac' | 'raw';
+/** Reported by the backend as sessions start, hit audio trouble and stop. */
+export type AudioStatus = 'ok' | 'warning' | 'error' | 'off';
 export type MicSource = 'mic' | 'mic-voice-communication';
 export type MicCodec = 'opus' | 'aac';
 export type Rotation = '0' | '90' | '180' | '270';
@@ -95,6 +97,9 @@ export interface ScrcpyConfig {
     turnOff?: boolean;
     audioEnabled?: boolean;
     audioCodec?: AudioCodec;
+    /** Fail the session instead of silently mirroring video only when the
+     *  device cannot capture audio. Off by default for older-device support. */
+    requireAudio?: boolean;
     alwaysOnTop?: boolean;
     fullscreen?: boolean;
     borderless?: boolean;

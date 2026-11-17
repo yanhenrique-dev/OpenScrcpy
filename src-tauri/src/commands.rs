@@ -42,6 +42,53 @@ fn is_audio_codec_error(text: &str) -> bool {
     mentions_codec && mentions_failure
 }
 
+/// A capture failure is a device-side limitation (Android version, locked
+/// screen, an app opting out of capture). It is *not* repaired by switching
+/// audio codecs, so it must be recognised separately from
+/// [`is_audio_codec_error`] and reported to the user.
+fn is_audio_capture_error(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    // scrcpy logs a transient DEBUG line while it retries capture itself.
+    // Flagging it would produce a false warning shortly before success.
+    if lower.contains("retrying") {
+        return false;
+    }
+    lower.contains("failed to start audio capture")
+        || lower.contains("audio capture failed")
+        || lower.contains("failed to capture audio")
+        || lower.contains("could not capture audio")
+        || lower.contains("audio capture is not supported")
+        || (lower.contains("demuxer 'audio'") && lower.contains("disabled"))
+        || (lower.contains("audio") && lower.contains("foreground") && lower.contains("unlocked"))
+}
+
+/// Audio failures observed on scrcpy's stderr. The two flags drive different
+/// responses: a codec error can be repaired by retrying with another codec,
+/// while a capture failure is reported and left alone.
+#[derive(Clone, Default)]
+struct AudioErrorState {
+    codec_failed: Arc<AtomicBool>,
+    capture_failed: Arc<AtomicBool>,
+}
+
+impl AudioErrorState {
+    fn codec_failed(&self) -> bool {
+        self.codec_failed.load(Ordering::SeqCst)
+    }
+
+    fn capture_failed(&self) -> bool {
+        self.capture_failed.load(Ordering::SeqCst)
+    }
+
+    fn note_codec(&self) {
+        self.codec_failed.store(true, Ordering::SeqCst);
+    }
+
+    fn note_capture(&self) {
+        self.capture_failed.store(true, Ordering::SeqCst);
+    }
+}
+
 fn get_binary_path(binary_name: &str, custom_folder: Option<String>) -> String {
     let exe_ext = std::env::consts::EXE_EXTENSION;
     let binary_filename = if exe_ext.is_empty() {
@@ -884,6 +931,10 @@ pub struct ScrcpyConfig {
     turn_off: Option<bool>,
     audio_enabled: Option<bool>,
     audio_codec: Option<String>,
+    /// Make scrcpy fail (instead of silently mirroring video only) when the
+    /// device cannot capture audio. Off by default so older devices keep
+    /// working; the UI surfaces the failure either way.
+    require_audio: Option<bool>,
     always_on_top: Option<bool>,
     fullscreen: Option<bool>,
     borderless: Option<bool>,
@@ -1064,15 +1115,24 @@ fn try_capture_window_pos(pid: u32) -> Option<(i32, i32)> {
     #[cfg(target_os = "linux")]
     {
         let pid_str = pid.to_string();
-        let output = StdCommand::new("xdotool")
+        // X11/XWayland: xdotool can see the window directly. On native
+        // Wayland it finds nothing, so fall through to KDE's reported cache.
+        if let Ok(output) = StdCommand::new("xdotool")
             .args(["search", "--pid", &pid_str, "getwindowgeometry", "--shell"])
             .output()
-            .ok()?;
-        if output.status.success() {
-            let text = String::from_utf8_lossy(&output.stdout);
-            let x = parse_shell_var_int(&text, "X")?;
-            let y = parse_shell_var_int(&text, "Y")?;
-            return Some((x, y));
+        {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                if let (Some(x), Some(y)) = (
+                    parse_shell_var_int(&text, "X"),
+                    parse_shell_var_int(&text, "Y"),
+                ) {
+                    return Some((x, y));
+                }
+            }
+        }
+        if let Some(position) = crate::kwin::cached_position(pid) {
+            return Some(position);
         }
     }
     #[cfg(target_os = "macos")]
@@ -1158,58 +1218,11 @@ fn recenter_window(pid: u32) {
     }
     #[cfg(target_os = "linux")]
     {
-        let pid_str = pid.to_string();
-        let Ok(search_out) = StdCommand::new("xdotool")
-            .args(["search", "--pid", &pid_str])
-            .output()
-        else {
-            return;
-        };
-        let Some(window_id) = String::from_utf8_lossy(&search_out.stdout)
-            .lines()
-            .next()
-            .map(str::to_string)
-        else {
-            return;
-        };
-
-        let Ok(geom_out) = StdCommand::new("xdotool")
-            .args(["getwindowgeometry", "--shell", &window_id])
-            .output()
-        else {
-            return;
-        };
-        let geom_text = String::from_utf8_lossy(&geom_out.stdout);
-        let (Some(w), Some(h)) = (
-            parse_shell_var_int(&geom_text, "WIDTH"),
-            parse_shell_var_int(&geom_text, "HEIGHT"),
-        ) else {
-            return;
-        };
-
-        let Ok(display_out) = StdCommand::new("xdotool")
-            .arg("getdisplaygeometry")
-            .output()
-        else {
-            return;
-        };
-        let display_text = String::from_utf8_lossy(&display_out.stdout);
-        let mut parts = display_text.split_whitespace();
-        let (Some(Ok(screen_w)), Some(Ok(screen_h))) = (
-            parts.next().map(str::parse::<i32>),
-            parts.next().map(str::parse::<i32>),
-        ) else {
-            return;
-        };
-
-        let x = ((screen_w - w).max(0) / 2).to_string();
-        let y = ((screen_h - h).max(0) / 2).to_string();
-        let _ = StdCommand::new("xdotool")
-            .args(["windowmove", &window_id, &x, &y])
-            .output();
-        let _ = StdCommand::new("xdotool")
-            .args(["windowactivate", &window_id])
-            .output();
+        // X11/XWayland: xdotool is the direct path. Native Wayland hides the
+        // window from X11 tooling, so hand it to KWin's scripting interface.
+        if !recenter_window_xdotool(pid) {
+            crate::kwin::recenter(pid);
+        }
     }
     #[cfg(target_os = "macos")]
     {
@@ -1236,6 +1249,65 @@ fn recenter_window(pid: u32) {
     }
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
     let _ = pid;
+}
+
+/// X11/XWayland recentre via xdotool. Returns false when the window is not
+/// visible to X11 (native Wayland), so the caller can try KWin instead.
+#[cfg(target_os = "linux")]
+fn recenter_window_xdotool(pid: u32) -> bool {
+    let pid_str = pid.to_string();
+    let Ok(search_out) = StdCommand::new("xdotool")
+        .args(["search", "--pid", &pid_str])
+        .output()
+    else {
+        return false;
+    };
+    let Some(window_id) = String::from_utf8_lossy(&search_out.stdout)
+        .lines()
+        .next()
+        .map(str::to_string)
+    else {
+        return false;
+    };
+
+    let Ok(geom_out) = StdCommand::new("xdotool")
+        .args(["getwindowgeometry", "--shell", &window_id])
+        .output()
+    else {
+        return false;
+    };
+    let geom_text = String::from_utf8_lossy(&geom_out.stdout);
+    let (Some(w), Some(h)) = (
+        parse_shell_var_int(&geom_text, "WIDTH"),
+        parse_shell_var_int(&geom_text, "HEIGHT"),
+    ) else {
+        return false;
+    };
+
+    let Ok(display_out) = StdCommand::new("xdotool")
+        .arg("getdisplaygeometry")
+        .output()
+    else {
+        return false;
+    };
+    let display_text = String::from_utf8_lossy(&display_out.stdout);
+    let mut parts = display_text.split_whitespace();
+    let (Some(Ok(screen_w)), Some(Ok(screen_h))) = (
+        parts.next().map(str::parse::<i32>),
+        parts.next().map(str::parse::<i32>),
+    ) else {
+        return false;
+    };
+
+    let x = ((screen_w - w).max(0) / 2).to_string();
+    let y = ((screen_h - h).max(0) / 2).to_string();
+    let _ = StdCommand::new("xdotool")
+        .args(["windowmove", &window_id, &x, &y])
+        .output();
+    let _ = StdCommand::new("xdotool")
+        .args(["windowactivate", &window_id])
+        .output();
+    true
 }
 
 /// Re-centres the running mirror window for `device` on the primary screen.
@@ -1420,6 +1492,12 @@ fn build_scrcpy_args(
         if audio_enabled {
             if let Some(codec) = resolve_audio_codec_flag(config, audio_codec_override) {
                 args.push(format!("--audio-codec={}", codec));
+            }
+            // By default scrcpy degrades to video-only when audio capture
+            // fails. The opt-in makes that failure visible (scrcpy exits),
+            // which this module then reports in the console.
+            if config.require_audio.unwrap_or(false) {
+                args.push("--require-audio".to_string());
             }
         }
         if let Some(aot) = config.always_on_top {
@@ -1706,13 +1784,24 @@ async fn spawn_scrcpy_streams(
     args: &[String],
     vsync: bool,
     pulse_sink: Option<&str>,
-) -> Result<(tokio::process::Child, Arc<AtomicBool>), String> {
+) -> Result<(tokio::process::Child, AudioErrorState), String> {
     let command_str = format!("> scrcpy {}", args.join(" "));
     let _ = window.emit("scrcpy-log", command_str);
 
     let mut command = create_command(exe_path);
     command.args(args);
     command.env("ADB", adb_exe_path);
+    // Make the mirror window identify itself as OpenScrcpy instead of the
+    // bundled "scrcpy" binary. KDE then matches the launcher's desktop entry
+    // (icon, grouping, pinning) instead of logging
+    // `Failed to find service for Unity Launcher "scrcpy.desktop"`.
+    // SDL3 (scrcpy 4+) reads SDL_APP_ID; the two legacy names cover SDL2.
+    #[cfg(target_os = "linux")]
+    {
+        command.env("SDL_APP_ID", "openscrcpy");
+        command.env("SDL_VIDEO_WAYLAND_WMCLASS", "openscrcpy");
+        command.env("SDL_VIDEO_X11_WMCLASS", "openscrcpy");
+    }
     // Mic bridge on Linux: libpulse honours PULSE_SINK as the client's
     // default output, which lands scrcpy's stream inside our virtual sink.
     if let Some(sink) = pulse_sink {
@@ -1738,17 +1827,18 @@ async fn spawn_scrcpy_streams(
     let stdout = child.stdout.take().expect("Failed to capture stdout");
     let stderr = child.stderr.take().expect("Failed to capture stderr");
 
-    let audio_error_flag = Arc::new(AtomicBool::new(false));
+    let audio_state = AudioErrorState::default();
     spawn_log_reader(stdout, window.clone(), None);
-    spawn_log_reader(stderr, window.clone(), Some(audio_error_flag.clone()));
+    spawn_log_reader(stderr, window.clone(), Some(audio_state.clone()));
 
-    Ok((child, audio_error_flag))
+    Ok((child, audio_state))
 }
 
 /// Buffers scrcpy's output for 100 ms so a burst of lines reaches the GUI as
-/// one log event. The stderr reader also watches for audio codec failures,
-/// which drive the automatic fallback chain.
-fn spawn_log_reader<R>(reader: R, window: Window, audio_error_flag: Option<Arc<AtomicBool>>)
+/// one log event. The stderr reader also watches for audio failures: codec
+/// errors drive the automatic fallback chain, capture failures are surfaced
+/// to the user (scrcpy itself keeps mirroring video when capture fails).
+fn spawn_log_reader<R>(reader: R, window: Window, audio_state: Option<AudioErrorState>)
 where
     R: tokio::io::AsyncRead + Unpin + Send + 'static,
 {
@@ -1762,9 +1852,11 @@ where
                 line_res = lines.next_line() => {
                     match line_res {
                         Ok(Some(line)) => {
-                            if let Some(flag) = &audio_error_flag {
-                                if is_audio_codec_error(&line) {
-                                    flag.store(true, Ordering::SeqCst);
+                            if let Some(state) = &audio_state {
+                                if is_audio_capture_error(&line) {
+                                    state.note_capture();
+                                } else if is_audio_codec_error(&line) {
+                                    state.note_codec();
                                 }
                             }
                             buffer.push(line);
@@ -2493,7 +2585,7 @@ pub async fn run_scrcpy(
         pulse_sink.as_deref(),
     )
     .await;
-    let (child, audio_error_flag) = match spawned {
+    let (child, audio_state) = match spawned {
         Ok(spawned) => spawned,
         Err(e) => {
             state
@@ -2512,6 +2604,10 @@ pub async fn run_scrcpy(
         && (audio_codec_mode.is_empty() || audio_codec_mode.eq_ignore_ascii_case("auto"));
 
     let initial_scrcpy_pid = child.id().unwrap_or(0);
+    // KDE Wayland: let KWin report (and, on launch, apply) the mirror window
+    // position. On X11 this is a no-op and xdotool remains in charge.
+    #[cfg(target_os = "linux")]
+    crate::kwin::track_window(initial_scrcpy_pid, config.window_x.zip(config.window_y));
     let session_pid = Arc::new(AtomicU32::new(initial_scrcpy_pid));
     let session_done = Arc::new(Notify::new());
     let (stop_tx, stop_rx) = oneshot::channel();
@@ -2537,6 +2633,15 @@ pub async fn run_scrcpy(
     let _ = window.emit(
         "scrcpy-status",
         json!({ "device": config.device, "running": true }),
+    );
+    // The audio badge starts optimistic; log detection flips it to a warning
+    // (or an error with --require-audio) if capture/codec trouble shows up.
+    let _ = window.emit(
+        "scrcpy-audio-status",
+        json!({
+            "device": config.device,
+            "status": if audio_enabled { "ok" } else { "off" }
+        }),
     );
 
     // Mic bridge sidecars. Started only after the registry insert above, so
@@ -2587,16 +2692,34 @@ pub async fn run_scrcpy(
 
     tokio::spawn(async move {
         let mut current_child = child;
-        let mut current_audio_flag = audio_error_flag;
+        let mut current_audio_state = audio_state;
         let mut chain_index: usize = 0;
         let mut first_window_pos: Option<(i32, i32)> = None;
         let mut last_window_pos: Option<(i32, i32)> = None;
         let mut stop_rx = stop_rx;
+        // A capture failure is device-side and does not improve on retry, so
+        // report it once per attempt instead of every 2 s tick.
+        let mut capture_reported = false;
+
+        let emit_audio_status = |status: &str| {
+            let _ = window_mon.emit(
+                "scrcpy-audio-status",
+                json!({ "device": &device_mon, "status": status }),
+            );
+        };
+        let capture_message = || {
+            if config_mon.require_audio.unwrap_or(false) {
+                "[AUDIO] Audio capture failed and \"require audio\" is enabled: the session stops. Unlock the device (Android 11) and use Android 12+; some apps block audio capture."
+            } else {
+                "[AUDIO] Audio capture failed on the device; video keeps running without sound. Android 11+ is required, unlock the device on Android 11, and some apps block audio capture."
+            }
+        };
 
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(2000)) => {}
                 request = &mut stop_rx => {
+                    emit_audio_status("off");
                     let position = match request {
                         Ok(request) => request.position,
                         Err(_) => None,
@@ -2617,6 +2740,88 @@ pub async fn run_scrcpy(
                         ),
                     );
                     break;
+                }
+            }
+
+            // Audio can fail while scrcpy keeps mirroring the video, so the
+            // process may never exit. React while it is still running instead
+            // of only checking on exit (which made the failure silent).
+            if current_audio_state.capture_failed() {
+                if !capture_reported {
+                    capture_reported = true;
+                    let _ = window_mon.emit("scrcpy-log", capture_message().to_string());
+                    emit_audio_status(if config_mon.require_audio.unwrap_or(false) {
+                        "error"
+                    } else {
+                        "warning"
+                    });
+                }
+            } else if current_audio_state.codec_failed()
+                && should_auto_fallback
+                && chain_index < AUDIO_FALLBACK_CHAIN.len()
+            {
+                // A codec failure is repairable: restart with the next codec
+                // even though scrcpy itself carried on with video only.
+                let next_codec = AUDIO_FALLBACK_CHAIN[chain_index];
+                let _ = window_mon.emit(
+                    "scrcpy-log",
+                    format!(
+                        "[SYSTEM] Default audio codec failed, retrying with {}...",
+                        next_codec.to_uppercase()
+                    ),
+                );
+                emit_audio_status("warning");
+                #[cfg(target_os = "linux")]
+                let old_pid = current_child.id().unwrap_or(0);
+                let _ = terminate_child(&mut current_child, Duration::from_secs(2)).await;
+                let new_args =
+                    build_scrcpy_args(&config_mon, video_dir_mon.clone(), Some(next_codec));
+                match spawn_scrcpy_streams(
+                    &window_mon,
+                    &exe_path_mon,
+                    &adb_exe_path_mon,
+                    server_path_mon.as_deref(),
+                    &new_args,
+                    config_mon.vsync.unwrap_or(true),
+                    pulse_sink_mon.as_deref(),
+                )
+                .await
+                {
+                    Ok((new_child, new_state)) => {
+                        let new_pid = new_child.id().unwrap_or(0);
+                        session_pid.store(new_pid, Ordering::Relaxed);
+                        #[cfg(target_os = "linux")]
+                        {
+                            crate::kwin::stop_tracking(old_pid);
+                            crate::kwin::track_window(
+                                new_pid,
+                                config_mon.window_x.zip(config_mon.window_y),
+                            );
+                        }
+                        current_child = new_child;
+                        current_audio_state = new_state;
+                        first_window_pos = None;
+                        last_window_pos = None;
+                        capture_reported = false;
+                        chain_index += 1;
+                        emit_audio_status("ok");
+                        continue;
+                    }
+                    Err(e) => {
+                        let _ = window_mon.emit(
+                            "scrcpy-log",
+                            format!("[SYSTEM] Failed to spawn audio retry: {}", e),
+                        );
+                        emit_audio_status("error");
+                        emit_window_pos_and_stop(
+                            &window_mon,
+                            &device_mon,
+                            requested_pos,
+                            first_window_pos,
+                            last_window_pos,
+                        );
+                        break;
+                    }
                 }
             }
 
@@ -2652,6 +2857,7 @@ pub async fn run_scrcpy(
                         "scrcpy-log",
                         format!("[SYSTEM] Error waiting for scrcpy: {}", e),
                     );
+                    emit_audio_status("off");
                     emit_window_pos_and_stop(
                         &window_mon,
                         &device_mon,
@@ -2671,10 +2877,32 @@ pub async fn run_scrcpy(
                     // lines (the audio error pattern may still be in flight).
                     tokio::time::sleep(Duration::from_millis(250)).await;
 
-                    let audio_failed = current_audio_flag.load(Ordering::SeqCst);
+                    let capture_failed = current_audio_state.capture_failed();
+                    let codec_failed = current_audio_state.codec_failed();
 
-                    if should_auto_fallback
-                        && audio_failed
+                    if capture_failed {
+                        // Changing codecs cannot fix a device-side capture
+                        // failure, so stop instead of burning the fallback chain.
+                        if !capture_reported {
+                            let _ = window_mon.emit("scrcpy-log", capture_message().to_string());
+                        }
+                        emit_audio_status(if config_mon.require_audio.unwrap_or(false) {
+                            "error"
+                        } else {
+                            "warning"
+                        });
+                        emit_window_pos_and_stop(
+                            &window_mon,
+                            &device_mon,
+                            requested_pos,
+                            first_window_pos,
+                            last_window_pos,
+                        );
+                        break;
+                    }
+
+                    if codec_failed
+                        && should_auto_fallback
                         && chain_index < AUDIO_FALLBACK_CHAIN.len()
                     {
                         let next_codec = AUDIO_FALLBACK_CHAIN[chain_index];
@@ -2685,10 +2913,11 @@ pub async fn run_scrcpy(
                                 next_codec.to_uppercase()
                             ),
                         );
-
+                        emit_audio_status("warning");
+                        #[cfg(target_os = "linux")]
+                        let old_pid = session_pid.load(Ordering::Relaxed);
                         let new_args =
                             build_scrcpy_args(&config_mon, video_dir_mon.clone(), Some(next_codec));
-
                         match spawn_scrcpy_streams(
                             &window_mon,
                             &exe_path_mon,
@@ -2700,8 +2929,17 @@ pub async fn run_scrcpy(
                         )
                         .await
                         {
-                            Ok((new_child, new_flag)) => {
-                                session_pid.store(new_child.id().unwrap_or(0), Ordering::Relaxed);
+                            Ok((new_child, new_state)) => {
+                                let new_pid = new_child.id().unwrap_or(0);
+                                session_pid.store(new_pid, Ordering::Relaxed);
+                                #[cfg(target_os = "linux")]
+                                {
+                                    crate::kwin::stop_tracking(old_pid);
+                                    crate::kwin::track_window(
+                                        new_pid,
+                                        config_mon.window_x.zip(config_mon.window_y),
+                                    );
+                                }
                                 current_child = new_child;
                                 // New window: re-learn its decoration offset by
                                 // resampling this attempt from scratch. Clear the
@@ -2711,15 +2949,18 @@ pub async fn run_scrcpy(
                                 // sample.
                                 first_window_pos = None;
                                 last_window_pos = None;
-                                current_audio_flag = new_flag;
+                                current_audio_state = new_state;
+                                capture_reported = false;
                                 chain_index += 1;
+                                emit_audio_status("ok");
                                 continue;
                             }
                             Err(e) => {
                                 let _ = window_mon.emit(
                                     "scrcpy-log",
-                                    format!("[SYSTEM] Failed to spawn retry: {}", e),
+                                    format!("[SYSTEM] Failed to spawn audio retry: {}", e),
                                 );
+                                emit_audio_status("error");
                                 emit_window_pos_and_stop(
                                     &window_mon,
                                     &device_mon,
@@ -2730,29 +2971,25 @@ pub async fn run_scrcpy(
                                 break;
                             }
                         }
-                    } else if should_auto_fallback && audio_failed {
+                    }
+
+                    if codec_failed && should_auto_fallback {
                         let _ = window_mon.emit(
                             "scrcpy-log",
                             "[SYSTEM] No compatible audio codec found. Consider disabling audio forwarding.".to_string(),
                         );
-                        emit_window_pos_and_stop(
-                            &window_mon,
-                            &device_mon,
-                            requested_pos,
-                            first_window_pos,
-                            last_window_pos,
-                        );
-                        break;
+                        emit_audio_status("error");
                     } else {
-                        emit_window_pos_and_stop(
-                            &window_mon,
-                            &device_mon,
-                            requested_pos,
-                            first_window_pos,
-                            last_window_pos,
-                        );
-                        break;
+                        emit_audio_status("off");
                     }
+                    emit_window_pos_and_stop(
+                        &window_mon,
+                        &device_mon,
+                        requested_pos,
+                        first_window_pos,
+                        last_window_pos,
+                    );
+                    break;
                 }
             }
         }
@@ -2787,6 +3024,8 @@ pub async fn run_scrcpy(
             #[cfg(unix)]
             unload_mic_sink(&window_mon).await;
         }
+        #[cfg(target_os = "linux")]
+        crate::kwin::stop_tracking(session_pid.load(Ordering::Relaxed));
         session_pid.store(0, Ordering::Relaxed);
         session_done.notify_one();
     });
@@ -2916,6 +3155,7 @@ mod tests {
             turn_off: None,
             audio_enabled: None,
             audio_codec: None,
+            require_audio: None,
             always_on_top: None,
             fullscreen: None,
             borderless: None,
@@ -3093,6 +3333,76 @@ mod tests {
         let args = build_scrcpy_args(&config, None, None);
         assert!(args.contains(&"--no-audio".to_string()));
         assert!(!args.iter().any(|a| a.starts_with("--audio-codec")));
+    }
+
+    #[test]
+    fn test_require_audio_flag_is_opt_in_and_only_with_audio() {
+        let config = base_config("mirror");
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(!args.iter().any(|a| a == "--require-audio"));
+
+        let mut config = base_config("mirror");
+        config.require_audio = Some(true);
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.iter().any(|a| a == "--require-audio"));
+
+        // Contradictory combination must never reach scrcpy.
+        let mut config = base_config("mirror");
+        config.audio_enabled = Some(false);
+        config.require_audio = Some(true);
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--no-audio".to_string()));
+        assert!(!args.iter().any(|a| a == "--require-audio"));
+
+        // Mic mode has its own minimal arg set (audio is mandatory there).
+        let mut config = base_config("mic");
+        config.require_audio = Some(true);
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(!args.iter().any(|a| a == "--require-audio"));
+    }
+
+    #[test]
+    fn test_is_audio_capture_error_matches_known_patterns() {
+        assert!(is_audio_capture_error(
+            "[server] ERROR: Failed to start audio capture"
+        ));
+        assert!(is_audio_capture_error(
+            "On Android 11, audio capture must be started in the foreground, make sure that the device is unlocked"
+        ));
+        assert!(is_audio_capture_error(
+            "WARN: Demuxer 'audio': stream explicitly disabled by the device"
+        ));
+        assert!(is_audio_capture_error("audio capture failed"));
+        // Transient DEBUG line: scrcpy retries on its own, do not warn.
+        assert!(!is_audio_capture_error(
+            "[server] DEBUG: Failed to start audio capture, retrying..."
+        ));
+    }
+
+    #[test]
+    fn test_is_audio_capture_error_ignores_codec_errors() {
+        assert!(!is_audio_capture_error("Failed to initialize audio/opus"));
+        assert!(!is_audio_capture_error("audio encoder failed to start"));
+        assert!(!is_audio_capture_error("ADB disconnected"));
+        assert!(!is_audio_capture_error("INFO Audio codec selected: opus"));
+        assert!(!is_audio_codec_error(
+            "[server] ERROR: Failed to start audio capture"
+        ));
+    }
+
+    #[test]
+    fn test_audio_error_state_tracks_failures_independently() {
+        let state = AudioErrorState::default();
+        assert!(!state.codec_failed());
+        assert!(!state.capture_failed());
+
+        state.note_codec();
+        assert!(state.codec_failed());
+        assert!(!state.capture_failed());
+
+        state.note_capture();
+        assert!(state.codec_failed());
+        assert!(state.capture_failed());
     }
 
     #[test]
@@ -3603,6 +3913,8 @@ pub fn teardown_sessions(app_handle: &tauri::AppHandle) {
     };
     for handle in handles {
         let pid = handle.pid.load(Ordering::Relaxed);
+        #[cfg(target_os = "linux")]
+        crate::kwin::stop_tracking(pid);
         let _ = handle.stop.send(StopRequest { position: None });
         force_kill_pid(pid);
     }

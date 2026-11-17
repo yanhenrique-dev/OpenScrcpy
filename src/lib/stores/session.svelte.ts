@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { showAlert } from '../alerts.svelte';
 import { t } from '../../i18n';
-import type { CommandResult, ScrcpyConfig, SessionMode } from '../types';
+import type { AudioStatus, CommandResult, ScrcpyConfig, SessionMode } from '../types';
 import type { LogStore } from './logs.svelte';
 import type { SettingsStore } from './settings.svelte';
 import type { DevicesStore } from './devices.svelte';
@@ -19,6 +19,8 @@ export class SessionStore {
     runningDevices = $state<string[]>([]);
     isStarting = $state(false);
     detectedCameras = $state<{ id: string; name: string }[]>([]);
+    /** Per-device audio health, updated by `scrcpy-audio-status` events. */
+    audioStatusByDevice = $state<Record<string, AudioStatus>>({});
 
     private starting = false;
     private startedModeByDevice: Record<string, SessionMode> = {};
@@ -36,6 +38,14 @@ export class SessionStore {
     get recordingSupported(): boolean {
         return this.settings.config.sessionMode !== 'mic';
     }
+
+    setAudioStatus = (device: string, status: AudioStatus) => {
+        if (status === 'off') {
+            delete this.audioStatusByDevice[device];
+            return;
+        }
+        this.audioStatusByDevice[device] = status;
+    };
 
     runScrcpy = async (config: ScrcpyConfig) => {
         if (this.starting) return;

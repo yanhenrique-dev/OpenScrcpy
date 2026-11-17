@@ -132,6 +132,7 @@
                             onStop={scrcpy.stopSession}
                             isRunning={scrcpy.sessionRunning}
                             isStarting={scrcpy.isStarting}
+                            audioStatus={scrcpy.audioStatus[scrcpy.activeDevice] ?? 'off'}
                             detectedCameras={scrcpy.detectedCameras}
                             renderDriverSupport={scrcpy.renderDriverSupport}
                             onListOptions={handleListOptions}

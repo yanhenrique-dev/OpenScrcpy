@@ -6,6 +6,10 @@ mod validate;
 // (Ctrl+Alt+Shift+W).
 #[cfg(target_os = "windows")]
 mod grab;
+// Linux-only: KDE Plasma Wayland window position/recentre bridge (KWin
+// scripting over D-Bus); xdotool handles X11.
+#[cfg(target_os = "linux")]
+mod kwin;
 // Cross-platform global OS shortcuts (e.g. Ctrl+Alt+Shift+C to recentre the
 // active mirror window), shared with grab.rs's Windows-only drag toggle.
 mod shortcuts;
@@ -142,6 +146,11 @@ pub fn run() {
             if let Err(e) = shortcuts::register(app.handle()) {
                 eprintln!("[shortcuts] failed to register global shortcuts: {e}");
             }
+
+            // KDE Wayland: start the D-Bus service that receives window
+            // positions from KWin. Non-fatal on every other desktop.
+            #[cfg(target_os = "linux")]
+            kwin::init();
 
             // Windows-only: start the drag-follow thread backing Ctrl+Alt+Shift+W.
             #[cfg(target_os = "windows")]

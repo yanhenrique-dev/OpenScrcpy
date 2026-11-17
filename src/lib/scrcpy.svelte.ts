@@ -3,7 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from './tauri';
 import { showAlert } from './alerts.svelte';
 import { t } from '../i18n';
-import type { CommandResult, ColorMode, ScrcpyConfig, WindowPositions } from './types';
+import type { AudioStatus, CommandResult, ColorMode, ScrcpyConfig, WindowPositions } from './types';
 import { LogStore } from './stores/logs.svelte';
 import { SettingsStore } from './stores/settings.svelte';
 import { DevicesStore } from './stores/devices.svelte';
@@ -207,6 +207,10 @@ class ScrcpyStore {
         return this.sessionStore.recordingSupported;
     }
 
+    get audioStatus(): Record<string, AudioStatus> {
+        return this.sessionStore.audioStatusByDevice;
+    }
+
     // ── Lifecycle ──────────────────────────────────────────────────────────
     init = async () => {
         if (this.initialized) return;
@@ -272,6 +276,7 @@ class ScrcpyStore {
                 this.sessionStore.runningDevices = data.running
                     ? [...new Set([...this.sessionStore.runningDevices, data.device])]
                     : this.sessionStore.runningDevices.filter(d => d !== data.device);
+                if (!data.running) this.sessionStore.setAudioStatus(data.device, 'off');
             }
         });
 
@@ -289,7 +294,16 @@ class ScrcpyStore {
             }
         );
 
-        void Promise.all([status, windowPos])
+        const audioStatus = listen<{ device: string; status: AudioStatus }>(
+            'scrcpy-audio-status',
+            event => {
+                const { device, status } = event.payload;
+                if (!device || !['ok', 'warning', 'error', 'off'].includes(status)) return;
+                this.sessionStore.setAudioStatus(device, status);
+            }
+        );
+
+        void Promise.all([status, windowPos, audioStatus])
             .then(fns => {
                 if (this.mounted) this.unlisteners.push(...fns);
                 else fns.forEach(fn => fn());

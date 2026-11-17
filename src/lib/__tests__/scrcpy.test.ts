@@ -77,7 +77,8 @@ describe('scrcpy store', () => {
             bitrate: '12',
             fps: Number.NaN,
             vdWidth: Infinity,
-            windowX: '100'
+            windowX: '100',
+            requireAudio: 'yes'
         } as any);
 
         expect(config.device).toBe(DEFAULT_CONFIG.device);
@@ -87,6 +88,18 @@ describe('scrcpy store', () => {
         expect(config.fps).toBe(DEFAULT_CONFIG.fps);
         expect(config.vdWidth).toBe(DEFAULT_CONFIG.vdWidth);
         expect(config.windowX).toBeUndefined();
+        expect(config.requireAudio).toBe(false);
+        expect(normalizeConfig({ requireAudio: true } as any).requireAudio).toBe(true);
+    });
+
+    it('tracks per-device audio status and clears it when the session stops', () => {
+        scrcpy.setActiveDevice('device1');
+        scrcpy.sessionStore.setAudioStatus('device1', 'warning');
+
+        expect(scrcpy.audioStatus['device1']).toBe('warning');
+
+        scrcpy.sessionStore.setAudioStatus('device1', 'off');
+        expect(scrcpy.audioStatus['device1']).toBeUndefined();
     });
 
     it('ignores non-object persisted configs', () => {

@@ -108,6 +108,13 @@
                             </div>
                         </div>
                     </div>
+                    <SwitchRow variant="compact"
+                        checked={config.requireAudio || false}
+                        onChange={(v) => update('requireAudio', v)}
+                        icon={Volume2}
+                        label={t('sessionBehavior.requireAudio')}
+                        tooltip={t('sessionBehavior.requireAudioTooltip')}
+                    />
                 {/if}
             </div>
             <SwitchRow variant="compact"
