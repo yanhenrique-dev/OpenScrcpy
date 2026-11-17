@@ -3,25 +3,22 @@
 **Data:** 2026-11-17
 **Âmbito:** pontos onde o motor `scrcpy` não está bem ligado à aplicação, ao
 desktop ou ao ciclo de vida esperado.
-**Já corrigido nesta ronda:** identidade da janela do espelhamento no KDE
-(`SDL_APP_ID=openscrcpy`) e ponte de posição/recentragem para KDE Wayland via
-KWin scripting + D-Bus (`src-tauri/src/kwin.rs`). Os restantes pontos ficam
-registados abaixo por ordem de impacto.
+**Já corrigido:** identidade da janela do espelhamento no KDE
+(`SDL_APP_ID=openscrcpy`), ponte de posição/recentragem para KDE Wayland via
+KWin scripting + D-Bus (`src-tauri/src/kwin.rs`) e áudio do modo câmara
+(`--audio-source=mic`). Os restantes pontos ficam registados abaixo por ordem
+de impacto.
 
 ---
 
 ## 1. Áudio
 
-### 1.1 Modo câmara captura áudio de saída, não o microfone
+### 1.1 Modo câmara captura áudio de saída, não o microfone — **corrigido**
 
-`--audio-source` só é passado no modo `mic` (`src-tauri/src/commands.rs`, ramo
-do microfone). No modo câmara o scrcpy usa o default `output` — ou seja, o
-Áudio do sistema do telemóvel, não o microfone da câmara. Para webcam/OBS, o
-esperado é `--audio-source=mic`.
-
-**Correção sugerida:** no ramo `session_mode == "camera"`, adicionar
-`--audio-source=mic` (ou uma opção "Áudio da câmara: microfone / saída do
-dispositivo").
+O modo câmara passou a enviar `--audio-source=mic` (`build_scrcpy_args`), pelo
+que webcam/OBS recebe o microfone do telemóvel. O modo espelho mantém a saída
+do dispositivo. Uma opção para escolher "microfone / saída do dispositivo" no
+modo câmara fica como melhoria futura.
 
 ### 1.2 Câmara + microfone não podem coexistir
 
@@ -190,7 +187,7 @@ Algumas são decisões de produto; outras são lacunas de paridade com o scrcpy.
 
 ## 6. Prioridade sugerida
 
-1. Áudio do modo câmara (`--audio-source=mic`) e câmara+mic numa só sessão.
+1. Câmara+mic numa só sessão (o áudio da câmara já usa o microfone).
 2. Deteção de flags suportadas por versão do scrcpy.
 3. Tray + notificações nativas + modo "manter sessões".
 4. Associações de ficheiros e perfis por dispositivo.

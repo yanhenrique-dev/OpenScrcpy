@@ -239,7 +239,7 @@ export const ptBR: Translations = {
         screenOff: 'Tela Desligada',
         screenOffTooltip: 'Desliga a tela do dispositivo durante o espelhamento para economizar bateria.',
         forwardAudio: 'Encaminhar Áudio',
-        forwardAudioTooltip: 'Requer Android 11 ou mais recente. Android 12+ funciona normalmente sem configuração adicional. No Android 11, o dispositivo deve estar desbloqueado antes de iniciar. Alguns apps e dispositivos Android TV bloqueiam a captura; o console mostra um aviso [AUDIO] quando isso acontece.',
+        forwardAudioTooltip: 'Requer Android 11 ou mais recente. Android 12+ funciona normalmente sem configuração adicional. No Android 11, o dispositivo deve estar desbloqueado antes de iniciar. Alguns apps e dispositivos Android TV bloqueiam a captura; o console mostra um aviso [AUDIO] quando isso acontece. No modo Câmera, o microfone do telemóvel é encaminhado em vez da saída de áudio do dispositivo.',
         audioCodec: 'Codec de áudio',
         audioCodecTooltip: 'Tenta automaticamente codecs de áudio compatíveis se o padrão falhar.',
         requireAudio: 'Exigir áudio',

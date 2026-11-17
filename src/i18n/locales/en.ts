@@ -240,7 +240,7 @@ export const en = {
         screenOff: 'Screen off',
         screenOffTooltip: 'Turn off the device screen while mirroring to save battery.',
         forwardAudio: 'Forward audio',
-        forwardAudioTooltip: 'Requires Android 11 or newer. Android 12+ works out of the box. On Android 11, the device must be unlocked before starting. Some apps and Android TV devices block audio capture; the console shows an [AUDIO] warning when that happens.',
+        forwardAudioTooltip: 'Requires Android 11 or newer. Android 12+ works out of the box. On Android 11, the device must be unlocked before starting. Some apps and Android TV devices block audio capture; the console shows an [AUDIO] warning when that happens. In Camera mode the phone microphone is forwarded instead of the device output.',
         audioCodec: 'Audio codec',
         audioCodecTooltip: 'Automatically tries compatible audio codecs if the default one fails.',
         requireAudio: 'Require audio',

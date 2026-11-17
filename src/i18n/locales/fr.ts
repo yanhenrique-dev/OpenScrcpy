@@ -239,7 +239,7 @@ export const fr: Translations = {
         screenOff: 'Écran Éteint',
         screenOffTooltip: 'Éteint l\'écran de l\'appareil pendant la duplication pour économiser la batterie.',
         forwardAudio: 'Transférer l\'Audio',
-        forwardAudioTooltip: 'Nécessite Android 11 ou plus récent. Android 12+ fonctionne normalement directement. Sur Android 11, l\'appareil doit être déverrouillé avant le lancement, mais la capture audio peut rester indisponible sur certains appareils Android TV.',
+        forwardAudioTooltip: 'Nécessite Android 11 ou plus récent. Android 12+ fonctionne normalement directement. Sur Android 11, l\'appareil doit être déverrouillé avant le lancement, mais la capture audio peut rester indisponible sur certains appareils Android TV. En mode Caméra, le micro du téléphone est transmis au lieu de la sortie audio du téléphone.',
         audioCodec: 'Codec audio',
         audioCodecTooltip: 'Essaie automatiquement les codecs audio compatibles si celui par défaut échoue.',
         requireAudio: 'Audio obligatoire',

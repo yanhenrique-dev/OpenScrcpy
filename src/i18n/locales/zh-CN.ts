@@ -239,7 +239,7 @@ export const zhCN: Translations = {
         screenOff: '关闭屏幕',
         screenOffTooltip: '镜像时关闭手机屏幕以节省电量。',
         forwardAudio: '转发音频',
-        forwardAudioTooltip: '将音频转发到电脑。',
+        forwardAudioTooltip: '将音频转发到电脑。在相机模式下，转发手机麦克风而不是设备音频输出。',
         audioCodec: '音频编码',
         audioCodecTooltip: '如果默认编码失败，会自动尝试兼容的音频编码。',
         requireAudio: '要求音频',

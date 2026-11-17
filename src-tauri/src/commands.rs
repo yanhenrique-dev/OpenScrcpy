@@ -1490,6 +1490,11 @@ fn build_scrcpy_args(
             args.push("--no-audio".to_string());
         }
         if audio_enabled {
+            // A webcam needs the phone's microphone; the default `output`
+            // source would capture media audio and mute the device.
+            if config.session_mode == "camera" {
+                args.push("--audio-source=mic".to_string());
+            }
             if let Some(codec) = resolve_audio_codec_flag(config, audio_codec_override) {
                 args.push(format!("--audio-codec={}", codec));
             }
@@ -3282,6 +3287,25 @@ mod tests {
         assert!(args.contains(&"--camera-facing=front".to_string()));
         assert!(args.contains(&"--camera-fps".to_string()));
         assert!(args.contains(&"30".to_string()));
+    }
+
+    #[test]
+    fn test_camera_mode_forwards_the_phone_microphone() {
+        let config = base_config("camera");
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=mic".to_string()));
+
+        // Disabling audio must not leave an orphan --audio-source.
+        let mut muted = base_config("camera");
+        muted.audio_enabled = Some(false);
+        let args = build_scrcpy_args(&muted, None, None);
+        assert!(args.contains(&"--no-audio".to_string()));
+        assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
+
+        // Mirror keeps the default device-output capture.
+        let mirror = base_config("mirror");
+        let args = build_scrcpy_args(&mirror, None, None);
+        assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
     }
 
     #[test]

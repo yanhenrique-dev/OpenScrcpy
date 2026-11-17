@@ -239,7 +239,7 @@ export const zhTW: Translations = {
         screenOff: '關閉螢幕',
         screenOffTooltip: '鏡像時關閉手機螢幕。',
         forwardAudio: '傳送音訊',
-        forwardAudioTooltip: '將音訊傳送至電腦。',
+        forwardAudioTooltip: '將音訊傳送至電腦。在相機模式下，轉發手機麥克風而不是裝置音訊輸出。',
         audioCodec: '音訊編碼',
         audioCodecTooltip: '若預設編碼失敗，會自動嘗試相容的音訊編碼。',
         requireAudio: '要求音訊',

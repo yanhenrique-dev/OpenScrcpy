@@ -239,7 +239,7 @@ languages: {
         screenOff: 'Layar Mati',
         screenOffTooltip: 'Matikan layar HP saat mirror aktif untuk menghemat baterai.',
         forwardAudio: 'Teruskan Audio',
-        forwardAudioTooltip: 'Butuh Android 11+. Di Android 12+ langsung aktif. Di Android 11, HP harus dibuka kuncinya sebelum mulai. Perekaman audio mungkin tidak berfungsi di beberapa Android TV.',
+        forwardAudioTooltip: 'Butuh Android 11+. Di Android 12+ langsung aktif. Di Android 11, HP harus dibuka kuncinya sebelum mulai. Perekaman audio mungkin tidak berfungsi di beberapa Android TV. Dalam mode Kamera, mikrofon ponsel diteruskan alih-alih keluaran audio perangkat.',
         audioCodec: 'Codec audio',
         audioCodecTooltip: 'Secara otomatis mencoba codec audio yang kompatibel jika codec bawaan gagal.',
         requireAudio: 'Wajib audio',
