@@ -224,7 +224,7 @@ export const zhTW: Translations = {
         cameraZoom: '錢頭縮放',
         cameraZoomTooltip: '擒射時的縮放級別。1.0 = 不縮放。（scrcpy v4+）',
         cameraMicSink: '虛擬麥克風',
-        cameraMicSinkTooltip: '將此次攝影機會話中的手機麥克風路由到 OpenScrcpy Mic 虛擬輸入，以便 OBS 或 Discord 將其選為錄音裝置。音訊將不再從預設輸出播放。僅限 Linux。',
+        cameraMicSinkTooltip: '將此次攝影機會話中的手機麥克風路由到 OpenScrcpy Mic 輸入（在 OBS 或 Discord 中選擇「Monitor of OpenScrcpy Mic」）。音訊將離開預設輸出；如果缺少 pactl 或無法建立 sink，音訊仍從預設輸出播放，主控台會顯示 [MIC] 警告。僅限 Linux。',
         backgroundColor: '背景顏色',
         backgroundColorTooltip: '視窗背景/外邊區域的十六進位顏色（如 #1a1a1a）。留白則使用預設深灰色。（scrcpy v4+）',
         backgroundColorNone: '預設',

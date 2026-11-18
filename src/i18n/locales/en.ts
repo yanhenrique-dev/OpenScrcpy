@@ -225,7 +225,7 @@ export const en = {
         cameraZoom: 'Camera zoom',
         cameraZoomTooltip: 'Zoom level for camera capture. 1.0 = no zoom. (scrcpy v4+)',
         cameraMicSink: 'Virtual microphone',
-        cameraMicSinkTooltip: 'Route the phone microphone from this camera session into the OpenScrcpy Mic virtual input, so OBS or Discord can select it as a recording device. Audio is no longer played on the default output. Linux only.',
+        cameraMicSinkTooltip: 'Route the phone microphone from this camera session into the OpenScrcpy Mic input (select "Monitor of OpenScrcpy Mic" in OBS or Discord). Audio leaves the default output; if pactl is missing or the sink cannot be created, it stays there and the console shows an [MIC] warning. Linux only.',
         backgroundColor: 'BG color',
         backgroundColorTooltip: 'Hex color for the window background/letterbox area (e.g. #1a1a1a). Leave blank for default dark gray. (scrcpy v4+)',
         backgroundColorNone: 'Default',

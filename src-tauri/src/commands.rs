@@ -2256,9 +2256,11 @@ fn session_alive(app_handle: &tauri::AppHandle, device: &str, generation: u64) -
 }
 
 // Watcher that keeps the scrcpy stream inside the virtual sink for the
-// whole session and reports the current destination to the GUI. PULSE_SINK
-// does not reach SDL3 clients and the stream shows up only after scrcpy's
-// server handshake (seconds later), so a one-shot check is not enough.
+// whole session. The microphone bridge also reports the current destination
+// to the GUI; camera sessions only move the stream, because the `mic-route`
+// event belongs to the bridge's MicMeter and must not carry a camera's state.
+// PULSE_SINK does not reach SDL3 clients and the stream shows up only after
+// scrcpy's server handshake (seconds later), so a one-shot check is not enough.
 // Camera sessions pass a slower steady interval because they can stay open
 // for hours; the mic bridge keeps the tighter default.
 #[cfg(unix)]
@@ -2269,6 +2271,7 @@ async fn spawn_mic_route_watcher(
     session_pid: Arc<AtomicU32>,
     generation: u64,
     steady_interval: Duration,
+    report_route: bool,
 ) {
     tokio::spawn(async move {
         let mut attempts: u32 = 0;
@@ -2287,9 +2290,12 @@ async fn spawn_mic_route_watcher(
                 // Emit every pass instead of only on change: the GUI only
                 // subscribes while the mic tab is mounted, so a remounted tab
                 // would otherwise stay without destination info until the
-                // route actually changes. Traffic stays ~2 events/s at worst,
-                // and the frontend just updates two display rows.
-                let _ = window.emit("mic-route", (display, routed));
+                // route actually changes. Camera sessions skip this event:
+                // a bridge on another device owns the MicMeter, and a camera
+                // "searching" state must not overwrite its destination.
+                if report_route {
+                    let _ = window.emit("mic-route", (display, routed));
+                }
             }
             // Fast cadence while hunting the fresh stream (the handshake
             // lands in ~1.3s) or while a routed stream is MIA (<10 attempts),
@@ -2916,6 +2922,7 @@ pub async fn run_scrcpy(
             } else {
                 Duration::from_secs(2)
             },
+            config.session_mode == "mic",
         ));
         if config.session_mode == "mic" {
             tokio::spawn(spawn_mic_level_meter(

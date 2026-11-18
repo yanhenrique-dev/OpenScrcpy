@@ -227,7 +227,7 @@ export const ar: Translations = {
         cameraZoom: 'تكبير الكاميرا',
         cameraZoomTooltip: 'مستوى تكبير الكاميرا. القيمة 1.0 تعني عدم وجود تكبير (Scrcpy v4+).',
         cameraMicSink: 'ميكروفون افتراضي',
-        cameraMicSinkTooltip: 'يوجّه ميكروفون الهاتف من جلسة الكاميرا هذه إلى إدخال OpenScrcpy Mic الافتراضي، ليتمكن OBS أو Discord من اختياره كجهاز تسجيل. لن يُشغَّل الصوت بعد الآن على الإخراج الافتراضي. على Linux فقط.',
+        cameraMicSinkTooltip: 'يوجّه ميكروفون الهاتف من جلسة الكاميرا هذه إلى إدخال OpenScrcpy Mic (اختر "Monitor of OpenScrcpy Mic" في OBS أو Discord). يغادر الصوت مخرج الصوت الافتراضي؛ وإذا لم يكن pactl متوفرًا أو تعذّر إنشاء sink، يبقى هناك ويعرض الطرفية تحذير [MIC]. على Linux فقط.',
         backgroundColor: 'لون الخلفية',
         backgroundColorTooltip: 'لون الخلفية بصيغة Hex (مثل ‎#1a1a1a). اتركه فارغًا لاستخدام اللون الرمادي الداكن الافتراضي (Scrcpy v4+).',
         backgroundColorNone: 'الافتراضي',
