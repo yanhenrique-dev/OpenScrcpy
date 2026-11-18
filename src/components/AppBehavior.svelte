@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AppWindow, Settings2 } from '@lucide/svelte';
+    import { AppWindow, Bell, Settings2 } from '@lucide/svelte';
     import SwitchRow from './SwitchRow.svelte';
     import { t } from '../i18n';
     import { scrcpy } from '../lib/scrcpy.svelte';
@@ -22,6 +22,14 @@
             icon={AppWindow}
             label={t('appBehavior.keepInBackground')}
             tooltip={t('appBehavior.keepInBackgroundTooltip')}
+        />
+        <SwitchRow
+            variant="compact"
+            checked={scrcpy.notificationsEnabled}
+            onChange={(value) => void scrcpy.setNotificationsEnabled(value)}
+            icon={Bell}
+            label={t('appBehavior.notifications')}
+            tooltip={t('appBehavior.notificationsTooltip')}
         />
     </div>
 </div>

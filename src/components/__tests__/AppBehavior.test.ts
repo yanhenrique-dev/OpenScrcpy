@@ -1,14 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/svelte';
 import AppBehavior from '../AppBehavior.svelte';
 import { scrcpy } from '../../lib/scrcpy.svelte';
 import { setLocale } from '../../i18n';
+
+vi.mock('@tauri-apps/plugin-notification', () => ({
+    isPermissionGranted: vi.fn(() => Promise.resolve(true)),
+    requestPermission: vi.fn(() => Promise.resolve('granted')),
+    sendNotification: vi.fn()
+}));
 
 describe('AppBehavior', () => {
     beforeEach(async () => {
         await setLocale('en');
         localStorage.clear();
         scrcpy.backgroundMode = false;
+        scrcpy.notificationsEnabled = false;
     });
 
     it('persists the background preference', async () => {
@@ -23,6 +30,19 @@ describe('AppBehavior', () => {
 
         expect(scrcpy.backgroundMode).toBe(true);
         expect(localStorage.getItem('scrcpy_background_mode')).toBe('true');
+        expect(toggle).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('persists the notification preference', async () => {
+        render(AppBehavior);
+
+        const toggle = screen.getByRole('switch', { name: 'Native notifications' });
+        expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+        await fireEvent.click(toggle);
+
+        expect(scrcpy.notificationsEnabled).toBe(true);
+        expect(localStorage.getItem('scrcpy_notifications')).toBe('true');
         expect(toggle).toHaveAttribute('aria-checked', 'true');
     });
 });

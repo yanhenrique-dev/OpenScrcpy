@@ -35,6 +35,7 @@ sha2 = "0.10"
 tokio = { version = "1.49.0", features = ["full"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2.7.0"
+tauri-plugin-notification = "2.8.1"
 chrono = "0.4.43"
 # Global OS shortcuts: Ctrl+Alt+Shift+C to recentre the active mirror window
 # (all platforms) and Ctrl+Alt+Shift+W to drag the borderless scrcpy window

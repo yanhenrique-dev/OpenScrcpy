@@ -235,11 +235,27 @@ export const zhCN: Translations = {
     appBehavior: {
         title: '应用',
         keepInBackground: '在后台继续运行',
-        keepInBackgroundTooltip: '关闭窗口时，OpenScrcpy 会隐藏到托盘，并保持镜像和麦克风会话运行。选择托盘菜单中的“退出”可停止它们。'
+        keepInBackgroundTooltip: '关闭窗口时，OpenScrcpy 会隐藏到托盘，并保持镜像和麦克风会话运行。选择托盘菜单中的“退出”可停止它们。',
+        notifications: '原生通知',
+        notificationsTooltip: '在设备连接、会话意外结束和有可用更新时通知你。通知仅在 OpenScrcpy 运行时出现；窗口处于焦点时不会显示设备和更新通知。'
     },
     tray: {
         show: '显示 OpenScrcpy',
         quit: '退出 OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: '通知已启用',
+        enabledBody: 'OpenScrcpy 将通知你关于设备、会话和更新的信息。',
+        deviceConnectedTitle: '设备已连接',
+        deviceConnectedBody: '{device} 已可使用。',
+        deviceDisconnectedTitle: '设备已断开',
+        deviceDisconnectedBody: '{device} 已不可用。',
+        sessionEndedTitle: '会话已结束',
+        sessionEndedBody: '{device} 上的会话意外结束。',
+        sessionFailedTitle: '无法启动会话',
+        sessionFailedBody: 'OpenScrcpy 无法在 {device} 上启动会话。请查看控制台了解详情。',
+        updateTitle: '有可用更新',
+        updateBody: 'OpenScrcpy {version} 已可用。'
     },
     sessionBehavior: {
         title: '行为设置',
@@ -360,7 +376,9 @@ export const zhCN: Translations = {
         updateBtn: '立即更新',
         cancelBtn: '以后再说',
         backgroundUnavailableTitle: '后台模式不可用',
-        backgroundUnavailableMsg: '此桌面环境不支持系统托盘。请安装 Ayatana AppIndicator 库，或继续正常使用窗口。'
+        backgroundUnavailableMsg: '此桌面环境不支持系统托盘。请安装 Ayatana AppIndicator 库，或继续正常使用窗口。',
+        notificationsDeniedTitle: '通知被阻止',
+        notificationsDeniedMsg: '系统未授予通知权限。请在系统设置中为 OpenScrcpy 启用通知，然后重试。'
     },
     logs: {
         noDeviceForDragDrop: '[警告] 未选择设备，无法执行拖放操作。',

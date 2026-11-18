@@ -235,11 +235,27 @@ export const zhTW: Translations = {
     appBehavior: {
         title: '應用程式',
         keepInBackground: '在背景繼續執行',
-        keepInBackgroundTooltip: '關閉視窗時，OpenScrcpy 會隱藏到系統匣，並保持鏡像與麥克風工作階段執行。選擇系統匣選單中的「結束」可停止它們。'
+        keepInBackgroundTooltip: '關閉視窗時，OpenScrcpy 會隱藏到系統匣，並保持鏡像與麥克風工作階段執行。選擇系統匣選單中的「結束」可停止它們。',
+        notifications: '原生通知',
+        notificationsTooltip: '在裝置連線、工作階段意外結束和有可用更新時通知你。通知僅在 OpenScrcpy 執行時出現；視窗取得焦點時不會顯示裝置與更新通知。'
     },
     tray: {
         show: '顯示 OpenScrcpy',
         quit: '結束 OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: '通知已啟用',
+        enabledBody: 'OpenScrcpy 會通知你有關裝置、工作階段和更新的資訊。',
+        deviceConnectedTitle: '裝置已連線',
+        deviceConnectedBody: '{device} 已可使用。',
+        deviceDisconnectedTitle: '裝置已中斷連線',
+        deviceDisconnectedBody: '{device} 已無法使用。',
+        sessionEndedTitle: '工作階段已結束',
+        sessionEndedBody: '{device} 上的工作階段意外結束。',
+        sessionFailedTitle: '無法啟動工作階段',
+        sessionFailedBody: 'OpenScrcpy 無法在 {device} 上啟動工作階段。請查看主控台以了解詳情。',
+        updateTitle: '有可用更新',
+        updateBody: 'OpenScrcpy {version} 已可用。'
     },
     sessionBehavior: {
         title: '行為設定',
@@ -360,7 +376,9 @@ export const zhTW: Translations = {
         updateBtn: '立即更新',
         cancelBtn: '以後再說',
         backgroundUnavailableTitle: '背景模式無法使用',
-        backgroundUnavailableMsg: '此桌面環境不支援系統匣。請安裝 Ayatana AppIndicator 函式庫，或繼續正常使用視窗。'
+        backgroundUnavailableMsg: '此桌面環境不支援系統匣。請安裝 Ayatana AppIndicator 函式庫，或繼續正常使用視窗。',
+        notificationsDeniedTitle: '通知遭到封鎖',
+        notificationsDeniedMsg: '系統未授予通知權限。請在系統設定中為 OpenScrcpy 啟用通知，然後再試一次。'
     },
     logs: {
         noDeviceForDragDrop: '[警告] 未選擇裝置，無法進行拖放操作。',

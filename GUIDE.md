@@ -174,6 +174,27 @@ again or to quit.
 - Background mode keeps the sessions alive only while the app is running.
   Logging out, quitting from the tray, or stopping the app still ends them.
 
+### 🔔 Native Notifications
+
+Enable **Native notifications** in the **Application** card. OpenScrcpy then
+uses the system notification center for:
+
+- a device being connected or disconnected;
+- a session ending unexpectedly (a deliberate Stop does not notify);
+- a new application update being available.
+
+Device and update notices are suppressed while the OpenScrcpy window is
+focused, so they do not duplicate what is already on screen. Unexpected session
+ends are always reported. Notifications only arrive while the app is running;
+combine them with background mode if you want them after closing the window.
+
+- **Windows:** notifications work for installed builds. Development builds
+  appear with the PowerShell name and icon.
+- **macOS:** allow notifications for OpenScrcpy in System Settings if macOS
+  asks or if you previously denied them.
+- **Linux:** a notification daemon is required; KDE, GNOME and most desktop
+  environments provide one.
+
 ---
 
 ## 🔧 Troubleshooting

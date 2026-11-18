@@ -235,11 +235,27 @@ export const ptBR: Translations = {
     appBehavior: {
         title: 'Aplicativo',
         keepInBackground: 'Continuar em segundo plano',
-        keepInBackgroundTooltip: 'Ao fechar a janela, o OpenScrcpy fica na bandeja e mantém as sessões de espelhamento e microfone ativas. Escolha "Sair" no menu da bandeja para encerrá-las.'
+        keepInBackgroundTooltip: 'Ao fechar a janela, o OpenScrcpy fica na bandeja e mantém as sessões de espelhamento e microfone ativas. Escolha "Sair" no menu da bandeja para encerrá-las.',
+        notifications: 'Notificações nativas',
+        notificationsTooltip: 'Avisa sobre dispositivos ligados/desligados, sessões terminadas inesperadamente e atualizações disponíveis. As notificações só aparecem com o OpenScrcpy aberto; avisos de dispositivos e atualizações são suprimidos enquanto a janela está em foco.'
     },
     tray: {
         show: 'Mostrar OpenScrcpy',
         quit: 'Sair do OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: 'Notificações ativadas',
+        enabledBody: 'O OpenScrcpy vai avisar sobre dispositivos, sessões e atualizações.',
+        deviceConnectedTitle: 'Dispositivo ligado',
+        deviceConnectedBody: '{device} está pronto a usar.',
+        deviceDisconnectedTitle: 'Dispositivo desligado',
+        deviceDisconnectedBody: '{device} já não está disponível.',
+        sessionEndedTitle: 'Sessão terminada',
+        sessionEndedBody: 'A sessão em {device} terminou inesperadamente.',
+        sessionFailedTitle: 'Não foi possível iniciar a sessão',
+        sessionFailedBody: 'O OpenScrcpy não conseguiu iniciar a sessão em {device}. Consulte a consola para mais detalhes.',
+        updateTitle: 'Atualização disponível',
+        updateBody: 'O OpenScrcpy {version} está disponível.'
     },
     sessionBehavior: {
         title: 'Comportamento da Sessão',
@@ -360,7 +376,9 @@ export const ptBR: Translations = {
         updateBtn: 'Atualizar Agora',
         cancelBtn: 'Mais Tarde',
         backgroundUnavailableTitle: 'Modo em segundo plano indisponível',
-        backgroundUnavailableMsg: 'A bandeja do sistema não está disponível nesta área de trabalho. Instale a biblioteca Ayatana AppIndicator ou continue usando a janela normalmente.'
+        backgroundUnavailableMsg: 'A bandeja do sistema não está disponível nesta área de trabalho. Instale a biblioteca Ayatana AppIndicator ou continue usando a janela normalmente.',
+        notificationsDeniedTitle: 'Notificações bloqueadas',
+        notificationsDeniedMsg: 'O sistema não concedeu permissão para notificações. Ative as notificações do OpenScrcpy nas definições do sistema e tente novamente.'
     },
     logs: {
         noDeviceForDragDrop: '[WARN] Nenhum dispositivo selecionado para a operação de arrastar e soltar.',

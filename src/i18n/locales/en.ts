@@ -236,11 +236,27 @@ export const en = {
     appBehavior: {
         title: 'Application',
         keepInBackground: 'Keep running in the background',
-        keepInBackgroundTooltip: 'Closing the window hides OpenScrcpy to the tray and keeps mirror and microphone sessions running. Choose Quit in the tray menu to stop them.'
+        keepInBackgroundTooltip: 'Closing the window hides OpenScrcpy to the tray and keeps mirror and microphone sessions running. Choose Quit in the tray menu to stop them.',
+        notifications: 'Native notifications',
+        notificationsTooltip: 'Notify you about device connections, unexpected session ends and available updates. Notifications only appear while OpenScrcpy is running, and device/update notices are suppressed while the window is focused.'
     },
     tray: {
         show: 'Show OpenScrcpy',
         quit: 'Quit OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: 'Notifications enabled',
+        enabledBody: 'OpenScrcpy will notify you about devices, sessions and updates.',
+        deviceConnectedTitle: 'Device connected',
+        deviceConnectedBody: '{device} is ready to use.',
+        deviceDisconnectedTitle: 'Device disconnected',
+        deviceDisconnectedBody: '{device} is no longer available.',
+        sessionEndedTitle: 'Session ended',
+        sessionEndedBody: 'The session on {device} ended unexpectedly.',
+        sessionFailedTitle: 'Session could not start',
+        sessionFailedBody: 'OpenScrcpy could not start the session on {device}. Check the console for details.',
+        updateTitle: 'Update available',
+        updateBody: 'OpenScrcpy {version} is available.'
     },
     sessionBehavior: {
         title: 'Session behavior',
@@ -361,7 +377,9 @@ export const en = {
         updateBtn: 'Update Now',
         cancelBtn: 'Later',
         backgroundUnavailableTitle: 'Background Mode Unavailable',
-        backgroundUnavailableMsg: 'The system tray is not available on this desktop. Install the Ayatana AppIndicator library or keep using the window normally.'
+        backgroundUnavailableMsg: 'The system tray is not available on this desktop. Install the Ayatana AppIndicator library or keep using the window normally.',
+        notificationsDeniedTitle: 'Notifications Blocked',
+        notificationsDeniedMsg: 'The system did not grant notification permission. Enable notifications for OpenScrcpy in the system settings and try again.'
     },
     logs: {
         noDeviceForDragDrop: '[WARN] No device selected for drag-and-drop operation.',

@@ -3,9 +3,17 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { isTauri } from './tauri';
 import { showAlert } from './alerts.svelte';
 import { t } from '../i18n';
-import type { AudioStatus, CommandResult, ColorMode, ScrcpyConfig, WindowPositions } from './types';
+import type {
+    AudioStatus,
+    CommandResult,
+    ColorMode,
+    ScrcpyConfig,
+    SessionStatusEvent,
+    WindowPositions
+} from './types';
 import { LogStore } from './stores/logs.svelte';
 import { SettingsStore } from './stores/settings.svelte';
+import { NotificationService } from './notifications';
 import { DevicesStore } from './stores/devices.svelte';
 import { SessionStore } from './stores/session.svelte';
 import { EngineStore } from './stores/engine.svelte';
@@ -21,9 +29,15 @@ export { DEFAULT_CONFIG, normalizeConfig } from './config';
 class ScrcpyStore {
     readonly logStore = new LogStore();
     readonly settings = new SettingsStore();
-    readonly deviceStore = new DevicesStore(this.settings, this.logStore);
-    readonly sessionStore = new SessionStore(this.settings, this.logStore, this.deviceStore);
-    readonly engineStore = new EngineStore(this.settings, this.logStore);
+    readonly notifications = new NotificationService(this.settings);
+    readonly deviceStore = new DevicesStore(this.settings, this.logStore, this.notifications);
+    readonly sessionStore = new SessionStore(
+        this.settings,
+        this.logStore,
+        this.deviceStore,
+        this.notifications
+    );
+    readonly engineStore = new EngineStore(this.settings, this.logStore, this.notifications);
 
     ready = $state(false);
 
@@ -54,6 +68,13 @@ class ScrcpyStore {
     }
     set backgroundMode(value: boolean) {
         this.settings.setBackgroundMode(value);
+    }
+
+    get notificationsEnabled(): boolean {
+        return this.settings.notificationsEnabled;
+    }
+    set notificationsEnabled(value: boolean) {
+        this.settings.setNotificationsEnabled(value);
     }
 
     get historyDevices(): string[] {
@@ -249,6 +270,16 @@ class ScrcpyStore {
 
         this.setupEventListeners();
         this.startPolling();
+        if (this.settings.notificationsEnabled) {
+            void this.notifications.ensurePermission().then(granted => {
+                if (!granted && this.mounted) {
+                    this.settings.setNotificationsEnabled(false);
+                    console.warn(
+                        'Notification permission is no longer granted; notifications disabled.'
+                    );
+                }
+            });
+        }
         void this.engineStore.checkScrcpyUpdate();
     };
 
@@ -262,31 +293,42 @@ class ScrcpyStore {
         for (const interval of this.intervals) clearInterval(interval);
         this.intervals = [];
         this.settings.destroy();
+        this.notifications.reset();
         this.deviceStore.dispose();
     };
 
+    /** Applies one `scrcpy-status` payload; exported for tests. */
+    applySessionStatus = (data: SessionStatusEvent) => {
+        if (data.type === 'downloading') {
+            this.engineStore.isDownloading = true;
+            this.engineStore.downloadError = null;
+            this.engineStore.downloadProgress = 0;
+        } else if (data.type === 'download-progress') {
+            this.engineStore.downloadProgress = data.percent ?? 0;
+        } else if (data.type === 'download-complete') {
+            this.engineStore.isDownloading = false;
+            this.engineStore.downloadError = null;
+            this.engineStore.downloadProgress = 100;
+            void this.deviceStore.refreshDevicesUntilSettled();
+            void this.engineStore.checkScrcpy();
+        }
+        if (!data.device || typeof data.running !== 'boolean') return;
+
+        const device = data.device;
+        this.sessionStore.runningDevices = data.running
+            ? [...new Set([...this.sessionStore.runningDevices, device])]
+            : this.sessionStore.runningDevices.filter(d => d !== device);
+        if (data.running) return;
+
+        this.sessionStore.setAudioStatus(device, 'off');
+        if (data.reason === 'error' || (data.reason === 'exited' && data.success === false)) {
+            this.notifications.sessionEnded(device);
+        }
+    };
+
     private setupEventListeners = () => {
-        const status = listen<any>('scrcpy-status', event => {
-            const data = event.payload;
-            if (data.type === 'downloading') {
-                this.engineStore.isDownloading = true;
-                this.engineStore.downloadError = null;
-                this.engineStore.downloadProgress = 0;
-            } else if (data.type === 'download-progress') {
-                this.engineStore.downloadProgress = data.percent;
-            } else if (data.type === 'download-complete') {
-                this.engineStore.isDownloading = false;
-                this.engineStore.downloadError = null;
-                this.engineStore.downloadProgress = 100;
-                void this.deviceStore.refreshDevicesUntilSettled();
-                void this.engineStore.checkScrcpy();
-            }
-            if (data.device && typeof data.running === 'boolean') {
-                this.sessionStore.runningDevices = data.running
-                    ? [...new Set([...this.sessionStore.runningDevices, data.device])]
-                    : this.sessionStore.runningDevices.filter(d => d !== data.device);
-                if (!data.running) this.sessionStore.setAudioStatus(data.device, 'off');
-            }
+        const status = listen<SessionStatusEvent>('scrcpy-status', event => {
+            this.applySessionStatus(event.payload);
         });
 
         const windowPos = listen<{ device: string; x: number; y: number }>(
@@ -322,15 +364,37 @@ class ScrcpyStore {
             });
     };
 
+    private shouldPollInBackground = (): boolean =>
+        document.visibilityState !== 'hidden' ||
+        this.settings.backgroundMode ||
+        this.settings.notificationsEnabled ||
+        this.sessionStore.runningDevices.length > 0;
+
     private startPolling = () => {
         this.intervals.push(
             setInterval(() => {
-                if (document.visibilityState === 'hidden' || this.deviceStore.isRefreshing) return;
+                if (!this.shouldPollInBackground() || this.deviceStore.isRefreshing) return;
                 void this.deviceStore.poll();
             }, 5000)
         );
 
-        this.intervals.push(setInterval(() => this.deviceStore.tryReconnectHistory(), 25000));
+        this.intervals.push(
+            setInterval(() => {
+                if (this.shouldPollInBackground()) this.deviceStore.tryReconnectHistory();
+            }, 25000)
+        );
+        // A long-running tray app must keep checking for updates; otherwise
+        // the update notification could never fire after the startup check.
+        this.intervals.push(
+            setInterval(
+                () => {
+                    if (this.settings.backgroundMode || this.settings.notificationsEnabled) {
+                        void this.engineStore.checkForAppUpdate(true);
+                    }
+                },
+                6 * 60 * 60 * 1000
+            )
+        );
         this.deviceStore.tryReconnectHistory();
     };
 
@@ -362,6 +426,27 @@ class ScrcpyStore {
 
     setBackgroundMode = (enabled: boolean) => {
         this.settings.setBackgroundMode(enabled);
+    };
+
+    setNotificationsEnabled = async (enabled: boolean) => {
+        if (!enabled) {
+            this.settings.setNotificationsEnabled(false);
+            return;
+        }
+        if (isTauri()) {
+            const granted = await this.notifications.ensurePermission();
+            if (!granted) {
+                this.settings.setNotificationsEnabled(false);
+                showAlert({
+                    title: t('alerts.notificationsDeniedTitle'),
+                    message: t('alerts.notificationsDeniedMsg'),
+                    kind: 'warning'
+                });
+                return;
+            }
+        }
+        this.settings.setNotificationsEnabled(true);
+        if (isTauri()) this.notifications.notifyEnabled();
     };
 
     /**

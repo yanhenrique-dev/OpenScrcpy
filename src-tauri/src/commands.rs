@@ -1407,6 +1407,32 @@ fn normalize_mic_source(config: &mut ScrcpyConfig, caps: &Capabilities) -> Optio
     None
 }
 
+/// Why the monitor loop is ending. The frontend uses this to distinguish a
+/// deliberate stop from a crash or a user closing the scrcpy window.
+#[derive(Clone, Copy)]
+enum SessionEndReason {
+    Stopped,
+    Exited { success: bool },
+    Error,
+}
+
+fn session_end_payload(device: &str, reason: SessionEndReason) -> serde_json::Value {
+    match reason {
+        SessionEndReason::Stopped => {
+            json!({ "device": device, "running": false, "reason": "stopped" })
+        }
+        SessionEndReason::Exited { success } => json!({
+            "device": device,
+            "running": false,
+            "reason": "exited",
+            "success": success
+        }),
+        SessionEndReason::Error => {
+            json!({ "device": device, "running": false, "reason": "error" })
+        }
+    }
+}
+
 /// Emits the resolved window position (when one was captured) followed by the
 /// session-stopped status. Shared by every monitor-loop exit path.
 fn emit_window_pos_and_stop(
@@ -1415,6 +1441,7 @@ fn emit_window_pos_and_stop(
     requested: Option<(i32, i32)>,
     first: Option<(i32, i32)>,
     last: Option<(i32, i32)>,
+    reason: SessionEndReason,
 ) {
     if let Some(last) = last {
         let (x, y) = resolve_window_pos_to_persist(requested, first, last);
@@ -1423,10 +1450,7 @@ fn emit_window_pos_and_stop(
             json!({ "device": device, "x": x, "y": y }),
         );
     }
-    let _ = window.emit(
-        "scrcpy-status",
-        json!({ "device": device, "running": false }),
-    );
+    let _ = window.emit("scrcpy-status", session_end_payload(device, reason));
 }
 
 fn build_scrcpy_args(
@@ -1916,7 +1940,7 @@ where
 }
 
 enum AttemptOutcome {
-    Exited(String),
+    Exited { description: String, success: bool },
     WaitError(String),
 }
 
@@ -2905,6 +2929,7 @@ pub async fn run_scrcpy(
                         requested_pos,
                         runtime.first_window_pos,
                         position.or(runtime.last_window_pos),
+                        SessionEndReason::Stopped,
                     );
                     let _ = window_mon.emit(
                         "scrcpy-log",
@@ -2954,6 +2979,7 @@ pub async fn run_scrcpy(
                                 requested_pos,
                                 runtime.first_window_pos,
                                 runtime.last_window_pos,
+                                SessionEndReason::Error,
                             );
                             break;
                         }
@@ -2989,7 +3015,10 @@ pub async fn run_scrcpy(
             }
 
             let outcome = match runtime.child.try_wait() {
-                Ok(Some(status)) => AttemptOutcome::Exited(status.to_string()),
+                Ok(Some(status)) => AttemptOutcome::Exited {
+                    description: status.to_string(),
+                    success: status.success(),
+                },
                 Ok(None) => continue,
                 Err(e) => AttemptOutcome::WaitError(e.to_string()),
             };
@@ -3007,10 +3036,14 @@ pub async fn run_scrcpy(
                         requested_pos,
                         runtime.first_window_pos,
                         runtime.last_window_pos,
+                        SessionEndReason::Error,
                     );
                     break;
                 }
-                AttemptOutcome::Exited(status) => {
+                AttemptOutcome::Exited {
+                    description: status,
+                    success,
+                } => {
                     let _ = window_mon.emit(
                         "scrcpy-log",
                         format!("[SYSTEM] Scrcpy process exited with status: {}", status),
@@ -3040,6 +3073,7 @@ pub async fn run_scrcpy(
                             requested_pos,
                             runtime.first_window_pos,
                             runtime.last_window_pos,
+                            SessionEndReason::Error,
                         );
                         break;
                     }
@@ -3068,6 +3102,7 @@ pub async fn run_scrcpy(
                                         requested_pos,
                                         runtime.first_window_pos,
                                         runtime.last_window_pos,
+                                        SessionEndReason::Error,
                                     );
                                     break;
                                 }
@@ -3084,12 +3119,20 @@ pub async fn run_scrcpy(
                     } else {
                         emit_audio_status("off");
                     }
+                    // A terminal codec failure is an error even when the
+                    // process happens to exit with status 0.
+                    let reason = if codec_failed {
+                        SessionEndReason::Error
+                    } else {
+                        SessionEndReason::Exited { success }
+                    };
                     emit_window_pos_and_stop(
                         &window_mon,
                         &device_mon,
                         requested_pos,
                         runtime.first_window_pos,
                         runtime.last_window_pos,
+                        reason,
                     );
                     break;
                 }
@@ -3140,6 +3183,26 @@ pub async fn run_scrcpy(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_end_payload_distinguishes_stop_exit_and_error() {
+        let stopped = session_end_payload("device1", SessionEndReason::Stopped);
+        assert_eq!(stopped["device"], "device1");
+        assert_eq!(stopped["running"], false);
+        assert_eq!(stopped["reason"], "stopped");
+        assert!(stopped.get("success").is_none());
+
+        let crashed = session_end_payload("device1", SessionEndReason::Exited { success: false });
+        assert_eq!(crashed["reason"], "exited");
+        assert_eq!(crashed["success"], false);
+
+        let closed = session_end_payload("device1", SessionEndReason::Exited { success: true });
+        assert_eq!(closed["success"], true);
+
+        let error = session_end_payload("device1", SessionEndReason::Error);
+        assert_eq!(error["reason"], "error");
+        assert!(error.get("success").is_none());
+    }
 
     #[test]
     fn session_generation_bumps_per_run_and_rejects_stale_sidecars() {

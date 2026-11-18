@@ -4,6 +4,9 @@ import { alert, closeAlert } from '../alerts.svelte';
 import { setLocale } from '../../i18n';
 
 const mockInvoke = vi.hoisted(() => vi.fn());
+const mockIsPermissionGranted = vi.hoisted(() => vi.fn());
+const mockRequestPermission = vi.hoisted(() => vi.fn());
+const mockSendNotification = vi.hoisted(() => vi.fn());
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
 vi.mock('@tauri-apps/api/event', () => ({
@@ -13,6 +16,11 @@ vi.mock('@tauri-apps/api/app', () => ({
     getVersion: vi.fn(() => Promise.resolve('2.0.0'))
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
+vi.mock('@tauri-apps/plugin-notification', () => ({
+    isPermissionGranted: mockIsPermissionGranted,
+    requestPermission: mockRequestPermission,
+    sendNotification: mockSendNotification
+}));
 
 describe('background mode sync', () => {
     beforeEach(async () => {
@@ -20,9 +28,13 @@ describe('background mode sync', () => {
         closeAlert();
         localStorage.clear();
         mockInvoke.mockReset().mockResolvedValue(null);
+        mockIsPermissionGranted.mockReset().mockResolvedValue(true);
+        mockRequestPermission.mockReset().mockResolvedValue('granted');
+        mockSendNotification.mockReset();
         (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
         scrcpy.ready = true;
         scrcpy.backgroundMode = false;
+        scrcpy.notificationsEnabled = false;
     });
 
     afterEach(() => {
@@ -52,5 +64,23 @@ describe('background mode sync', () => {
         await vi.waitFor(() => expect(scrcpy.backgroundMode).toBe(false));
         expect(alert.isOpen).toBe(true);
         expect(alert.title).toBe('Background Mode Unavailable');
+    });
+
+    it('enables notifications and sends a confirmation', async () => {
+        await scrcpy.setNotificationsEnabled(true);
+
+        expect(scrcpy.notificationsEnabled).toBe(true);
+        expect(mockSendNotification).toHaveBeenCalledOnce();
+    });
+
+    it('reverts the notification preference when permission is denied', async () => {
+        mockIsPermissionGranted.mockResolvedValueOnce(false);
+        mockRequestPermission.mockResolvedValueOnce('denied');
+
+        await scrcpy.setNotificationsEnabled(true);
+
+        expect(scrcpy.notificationsEnabled).toBe(false);
+        expect(alert.isOpen).toBe(true);
+        expect(alert.title).toBe('Notifications Blocked');
     });
 });
