@@ -272,7 +272,7 @@ export const fr: Translations = {
         requireAudio: 'Audio obligatoire',
         requireAudioTooltip: 'Arrête la session si l\'appareil ne peut pas capturer l\'audio au lieu de ne diffuser que la vidéo. Désactivé par défaut pour les appareils anciens.',
         audioSource: 'Source audio',
-        audioSourceTooltip: "Audio capturé par le PC en mode miroir. La sortie de l'appareil coupe le son du téléphone pendant le miroir. La lecture multimédia capture l'audio des applications (certaines peuvent s'y opposer). Le micro du téléphone capture le micro. L'appel vocal et la performance vocale dépendent d'Android et de la prise en charge des applications.",
+        audioSourceTooltip: "Audio capturé par le PC en mode miroir. La sortie de l'appareil coupe le son du téléphone pendant le miroir. La lecture multimédia capture l'audio des applications (Android 13+ ; certaines peuvent s'y opposer). Le micro du téléphone capture le micro. L'appel vocal et la performance vocale dépendent d'Android et de la prise en charge des applications.",
         audioSourceOutput: "Sortie de l'appareil (par défaut)",
         audioSourcePlayback: 'Lecture multimédia',
         audioSourceMic: 'Micro du téléphone',

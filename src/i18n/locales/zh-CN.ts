@@ -272,7 +272,7 @@ export const zhCN: Translations = {
         requireAudio: '要求音频',
         requireAudioTooltip: '当设备无法捕获音频时结束会话，而不是仅镜像视频。默认关闭以兼容旧设备。',
         audioSource: '音频来源',
-        audioSourceTooltip: '镜像模式下电脑采集的音频。设备输出会在镜像时静音手机。媒体播放采集应用音频（部分应用可选择退出）。手机麦克风采集手机麦克风。语音通话和语音表演取决于 Android 和应用支持。',
+        audioSourceTooltip: '镜像模式下电脑采集的音频。设备输出会在镜像时静音手机。媒体播放采集应用音频（Android 13+；部分应用可选择退出）。手机麦克风采集手机麦克风。语音通话和语音表演取决于 Android 和应用支持。',
         audioSourceOutput: '设备输出（默认）',
         audioSourcePlayback: '媒体播放',
         audioSourceMic: '手机麦克风',

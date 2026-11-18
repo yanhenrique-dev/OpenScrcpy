@@ -272,7 +272,7 @@ export const zhTW: Translations = {
         requireAudio: '要求音訊',
         requireAudioTooltip: '當裝置無法擷取音訊時結束工作階段，而不是僅鏡像影片。預設關閉以相容舊裝置。',
         audioSource: '音訊來源',
-        audioSourceTooltip: '鏡像模式下電腦擷取的音訊。裝置輸出會在鏡像時將手機靜音。媒體播放擷取應用程式音訊（部分應用程式可選擇退出）。手機麥克風擷取手機麥克風。語音通話和語音表演取決於 Android 和應用程式支援。',
+        audioSourceTooltip: '鏡像模式下電腦擷取的音訊。裝置輸出會在鏡像時將手機靜音。媒體播放擷取應用程式音訊（Android 13+；部分應用程式可選擇退出）。手機麥克風擷取手機麥克風。語音通話和語音表演取決於 Android 和應用程式支援。',
         audioSourceOutput: '裝置輸出（預設）',
         audioSourcePlayback: '媒體播放',
         audioSourceMic: '手機麥克風',

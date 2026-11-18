@@ -272,7 +272,7 @@ languages: {
         requireAudio: 'Wajib audio',
         requireAudioTooltip: 'Hentikan sesi jika perangkat tidak dapat menangkap audio, alih-alih hanya mencerminkan video. Nonaktif secara default agar perangkat lama tetap berfungsi.',
         audioSource: 'Sumber audio',
-        audioSourceTooltip: 'Audio yang ditangkap PC dalam mode mirror. Output perangkat membisukan ponsel saat mirroring. Pemutaran media menangkap audio aplikasi (sebagian aplikasi dapat memilih keluar). Mikrofon ponsel menangkap mikrofon ponsel. Panggilan suara dan performa suara bergantung pada Android dan dukungan aplikasi.',
+        audioSourceTooltip: 'Audio yang ditangkap PC dalam mode mirror. Output perangkat membisukan ponsel saat mirroring. Pemutaran media menangkap audio aplikasi (Android 13+; sebagian aplikasi dapat memilih keluar). Mikrofon ponsel menangkap mikrofon ponsel. Panggilan suara dan performa suara bergantung pada Android dan dukungan aplikasi.',
         audioSourceOutput: 'Output perangkat (bawaan)',
         audioSourcePlayback: 'Pemutaran media',
         audioSourceMic: 'Mikrofon ponsel',

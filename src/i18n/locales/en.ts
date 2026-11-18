@@ -273,7 +273,7 @@ export const en = {
         requireAudio: 'Require audio',
         requireAudioTooltip: 'Stop the session if the device cannot capture audio instead of mirroring video only. Off by default so older devices still work.',
         audioSource: 'Audio source',
-        audioSourceTooltip: 'Audio captured by the PC in Mirror mode. Device output mutes the phone while mirroring. Media playback captures app audio (apps can opt out). Phone microphone captures the phone mic. Voice call and voice performance depend on Android and app support.',
+        audioSourceTooltip: 'Audio captured by the PC in Mirror mode. Device output mutes the phone while mirroring. Media playback captures app audio (Android 13+; apps can opt out). Phone microphone captures the phone mic. Voice call and voice performance depend on Android and app support.',
         audioSourceOutput: 'Device output (default)',
         audioSourcePlayback: 'Media playback',
         audioSourceMic: 'Phone microphone',

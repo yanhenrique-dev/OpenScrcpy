@@ -272,7 +272,7 @@ export const ptBR: Translations = {
         requireAudio: 'Exigir áudio',
         requireAudioTooltip: 'Encerra a sessão se o dispositivo não capturar áudio, em vez de espelhar apenas vídeo. Desativado por padrão para funcionar em dispositivos antigos.',
         audioSource: 'Fonte de áudio',
-        audioSourceTooltip: 'Áudio capturado pelo PC no modo espelho. A saída do dispositivo silencia o telemóvel enquanto espelha. A reprodução de media capta o áudio das apps (algumas podem optar por não). O microfone do telemóvel capta o mic. A chamada de voz e o desempenho de voz dependem do Android e do suporte das apps.',
+        audioSourceTooltip: 'Áudio capturado pelo PC no modo espelho. A saída do dispositivo silencia o telemóvel enquanto espelha. A reprodução de media capta o áudio das apps (Android 13+; algumas podem optar por não). O microfone do telemóvel capta o mic. A chamada de voz e o desempenho de voz dependem do Android e do suporte das apps.',
         audioSourceOutput: 'Saída do dispositivo (padrão)',
         audioSourcePlayback: 'Reprodução de media',
         audioSourceMic: 'Microfone do telemóvel',
