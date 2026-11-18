@@ -208,13 +208,9 @@ pub fn run() {
         // bring it back on macOS, where no window is visible.
         #[cfg(target_os = "macos")]
         tauri::RunEvent::Reopen {
-            has_visible_windows,
+            has_visible_windows: false,
             ..
-        } => {
-            if !has_visible_windows {
-                tray::show_main_window(app_handle);
-            }
-        }
+        } => tray::show_main_window(app_handle),
         _ => {}
     });
 }
