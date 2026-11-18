@@ -235,11 +235,27 @@ export const fr: Translations = {
     appBehavior: {
         title: 'Application',
         keepInBackground: 'Continuer en arrière-plan',
-        keepInBackgroundTooltip: 'Fermer la fenêtre masque OpenScrcpy dans la zone de notification et garde les sessions de miroir et de microphone actives. Choisissez « Quitter » dans le menu pour les arrêter.'
+        keepInBackgroundTooltip: 'Fermer la fenêtre masque OpenScrcpy dans la zone de notification et garde les sessions de miroir et de microphone actives. Choisissez « Quitter » dans le menu pour les arrêter.',
+        notifications: 'Notifications natives',
+        notificationsTooltip: 'Vous avertit des connexions de périphériques, des fins de session inattendues et des mises à jour disponibles. Les notifications ne s’affichent que lorsque OpenScrcpy est en cours d’exécution ; les avis de périphérique et de mise à jour sont masqués lorsque la fenêtre a le focus.'
     },
     tray: {
         show: 'Afficher OpenScrcpy',
         quit: 'Quitter OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: 'Notifications activées',
+        enabledBody: 'OpenScrcpy vous avertira des appareils, sessions et mises à jour.',
+        deviceConnectedTitle: 'Appareil connecté',
+        deviceConnectedBody: '{device} est prêt à être utilisé.',
+        deviceDisconnectedTitle: 'Appareil déconnecté',
+        deviceDisconnectedBody: "{device} n'est plus disponible.",
+        sessionEndedTitle: 'Session terminée',
+        sessionEndedBody: 'La session sur {device} s’est terminée de manière inattendue.',
+        sessionFailedTitle: 'Impossible de démarrer la session',
+        sessionFailedBody: 'OpenScrcpy n’a pas pu démarrer la session sur {device}. Consultez la console pour plus de détails.',
+        updateTitle: 'Mise à jour disponible',
+        updateBody: 'OpenScrcpy {version} est disponible.'
     },
     sessionBehavior: {
         title: 'Comportement de la Session',
@@ -360,7 +376,9 @@ export const fr: Translations = {
         updateBtn: 'Mettre à jour',
         cancelBtn: 'Plus tard',
         backgroundUnavailableTitle: 'Mode arrière-plan indisponible',
-        backgroundUnavailableMsg: "La zone de notification n'est pas disponible sur ce bureau. Installez la bibliothèque Ayatana AppIndicator ou continuez à utiliser la fenêtre normalement."
+        backgroundUnavailableMsg: "La zone de notification n'est pas disponible sur ce bureau. Installez la bibliothèque Ayatana AppIndicator ou continuez à utiliser la fenêtre normalement.",
+        notificationsDeniedTitle: 'Notifications bloquées',
+        notificationsDeniedMsg: "Le système n'a pas accordé l'autorisation de notification. Activez les notifications pour OpenScrcpy dans les paramètres du système, puis réessayez."
     },
     logs: {
         noDeviceForDragDrop: '[WARN] Aucun appareil sélectionné pour l\'opération de glisser-déposer.',

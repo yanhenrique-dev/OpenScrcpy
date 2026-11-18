@@ -36,6 +36,7 @@
 - **Render driver selection** — capability-aware graphics backends, filtered by OS.
 - **Drag and drop files** — drop an APK to install it, or push any file to `/sdcard/Download/`.
 - **Runs in the background** — close the window to the tray and keep mirror, camera, desktop and microphone sessions alive; quit from the tray to stop them.
+- **Native notifications** — device connections, unexpected session ends and update notices through the system notification center.
 - **In-app update notices** — checks the GitHub releases and installs the signed update from inside the app.
 
 ---

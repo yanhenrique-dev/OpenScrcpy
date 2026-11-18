@@ -238,11 +238,27 @@ export const ar: Translations = {
     appBehavior: {
         title: 'التطبيق',
         keepInBackground: 'الاستمرار في الخلفية',
-        keepInBackgroundTooltip: 'عند إغلاق النافذة يختفي OpenScrcpy إلى شريط النظام وتبقى جلسات النسخ والمايكروفون قيد التشغيل. اختر «خروج» من قائمة شريط النظام لإيقافها.'
+        keepInBackgroundTooltip: 'عند إغلاق النافذة يختفي OpenScrcpy إلى شريط النظام وتبقى جلسات النسخ والمايكروفون قيد التشغيل. اختر «خروج» من قائمة شريط النظام لإيقافها.',
+        notifications: 'إشعارات النظام',
+        notificationsTooltip: 'ينبهك عند توصيل الأجهزة أو انتهاء الجلسات بشكل غير متوقع أو توفر تحديثات. تظهر الإشعارات فقط أثناء تشغيل OpenScrcpy، وتُخفى إشعارات الأجهزة والتحديثات عندما تكون النافذة في المقدمة.'
     },
     tray: {
         show: 'إظهار OpenScrcpy',
         quit: 'الخروج من OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: 'تم تفعيل الإشعارات',
+        enabledBody: 'سينبهك OpenScrcpy بالأجهزة والجلسات والتحديثات.',
+        deviceConnectedTitle: 'تم توصيل الجهاز',
+        deviceConnectedBody: '{device} جاهز للاستخدام.',
+        deviceDisconnectedTitle: 'تم فصل الجهاز',
+        deviceDisconnectedBody: '{device} لم يعد متاحًا.',
+        sessionEndedTitle: 'انتهت الجلسة',
+        sessionEndedBody: 'انتهت الجلسة على {device} بشكل غير متوقع.',
+        sessionFailedTitle: 'تعذّر بدء الجلسة',
+        sessionFailedBody: 'تعذّر على OpenScrcpy بدء الجلسة على {device}. راجع وحدة التحكم للحصول على التفاصيل.',
+        updateTitle: 'يتوفر تحديث',
+        updateBody: 'يتوفر OpenScrcpy {version}.'
     },
     sessionBehavior: {
         title: 'سلوك الجلسة',
@@ -363,7 +379,9 @@ export const ar: Translations = {
         updateBtn: 'تحديث الآن',
         cancelBtn: 'لاحقًا',
         backgroundUnavailableTitle: 'وضع الخلفية غير متاح',
-        backgroundUnavailableMsg: 'شريط النظام غير متاح على سطح المكتب هذا. ثبّت مكتبة Ayatana AppIndicator أو تابع استخدام النافذة كالمعتاد.'
+        backgroundUnavailableMsg: 'شريط النظام غير متاح على سطح المكتب هذا. ثبّت مكتبة Ayatana AppIndicator أو تابع استخدام النافذة كالمعتاد.',
+        notificationsDeniedTitle: 'الإشعارات محظورة',
+        notificationsDeniedMsg: 'لم يمنح النظام إذن الإشعارات. فعّل إشعارات OpenScrcpy من إعدادات النظام ثم حاول مجددًا.'
     },
     logs: {
         noDeviceForDragDrop: '[تحذير] لم يتم تحديد جهاز لعملية السحب والإفلات.',

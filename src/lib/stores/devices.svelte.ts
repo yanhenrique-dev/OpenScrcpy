@@ -8,6 +8,7 @@ import type {
     UnavailableDevice
 } from '../types';
 import type { LogStore } from './logs.svelte';
+import type { NotificationService } from '../notifications';
 import type { SettingsStore } from './settings.svelte';
 
 type ReconnectBackoff = Record<string, { attempts: number; nextAt: number }>;
@@ -25,6 +26,9 @@ export class DevicesStore {
 
     private active = true;
     private prevDevices: string[] = [];
+    /** The first listing seeds the diff; it must not notify for every device
+     *  that was already connected when the app started. */
+    private hasBaseline = false;
     private mdnsCache: MdnsDevice[] = [];
     private fetchedFriendlyNames = new Set<string>();
     private reconnectInFlight = new Set<string>();
@@ -33,7 +37,8 @@ export class DevicesStore {
 
     constructor(
         private readonly settings: SettingsStore,
-        private readonly logs: LogStore
+        private readonly logs: LogStore,
+        private readonly notifications: NotificationService
     ) {}
 
     activate() {
@@ -68,6 +73,16 @@ export class DevicesStore {
                 removed.forEach(device =>
                     this.logs.add(t('logs.deviceDisconnected', { device }), 'warn')
                 );
+                if (this.hasBaseline) {
+                    added.forEach(device =>
+                        this.notifications.deviceAdded(this.friendlyName(device))
+                    );
+                    removed.forEach(device =>
+                        this.notifications.deviceRemoved(this.friendlyName(device))
+                    );
+                } else {
+                    this.hasBaseline = true;
+                }
 
                 this.devices = newDevices;
                 this.unavailableDevices = res.unavailable ?? [];
@@ -121,6 +136,10 @@ export class DevicesStore {
             this.logs.add(t('logs.errorRefreshingDevices', { error: String(e) }), 'err');
         }
     };
+
+    private friendlyName(device: string): string {
+        return this.deviceFriendlyNames[device] ?? device;
+    }
 
     private ensureFriendlyNames = async (serials: string[]) => {
         for (const serial of serials) {
@@ -216,7 +235,6 @@ export class DevicesStore {
     };
 
     tryReconnectHistory = () => {
-        if (document.visibilityState === 'hidden') return;
         const now = Date.now();
         this.settings.historyDevices.forEach(ip => {
             if (this.prevDevices.includes(ip)) return;

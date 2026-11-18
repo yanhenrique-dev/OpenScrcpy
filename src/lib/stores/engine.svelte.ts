@@ -7,6 +7,7 @@ import { t } from '../../i18n';
 import type { DownloadStatus, RenderDriverSupport } from '../types';
 import { safeGetItem, safeSetItem } from '../storage';
 import type { LogStore } from './logs.svelte';
+import type { NotificationService } from '../notifications';
 import type { SettingsStore } from './settings.svelte';
 
 /** Scrcpy binary lifecycle, downloads and application updates. */
@@ -32,7 +33,8 @@ export class EngineStore {
 
     constructor(
         private readonly settings: SettingsStore,
-        private readonly logs: LogStore
+        private readonly logs: LogStore,
+        private readonly notifications: NotificationService
     ) {}
 
     async loadVersion() {
@@ -162,7 +164,11 @@ export class EngineStore {
             const { check } = await import('@tauri-apps/plugin-updater');
             const update = await check();
             const info = update ? { latest: update.version, notes: update.body ?? '' } : null;
+            const previous = this.appUpdate?.latest;
             this.appUpdate = info;
+            if (info && info.latest !== previous) {
+                this.notifications.updateAvailable(info.latest);
+            }
             if (!silent) {
                 if (info) this.openAppUpdateModal(info);
                 else {

@@ -4,6 +4,7 @@ import { showAlert } from '../alerts.svelte';
 import { t } from '../../i18n';
 import type { AudioStatus, CommandResult, ScrcpyConfig, SessionMode } from '../types';
 import type { LogStore } from './logs.svelte';
+import type { NotificationService } from '../notifications';
 import type { SettingsStore } from './settings.svelte';
 import type { DevicesStore } from './devices.svelte';
 
@@ -28,7 +29,8 @@ export class SessionStore {
     constructor(
         private readonly settings: SettingsStore,
         private readonly logs: LogStore,
-        private readonly devices: DevicesStore
+        private readonly devices: DevicesStore,
+        private readonly notifications: NotificationService
     ) {}
 
     get sessionRunning(): boolean {
@@ -62,6 +64,7 @@ export class SessionStore {
             });
         } catch (e) {
             this.logs.add(t('logs.failedToStartScrcpy', { error: String(e) }), 'err');
+            this.notifications.sessionFailed(config.device);
         } finally {
             this.starting = false;
             this.isStarting = false;

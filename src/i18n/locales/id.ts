@@ -235,11 +235,27 @@ languages: {
     appBehavior: {
         title: 'Aplikasi',
         keepInBackground: 'Tetap berjalan di latar belakang',
-        keepInBackgroundTooltip: 'Menutup jendela akan menyembunyikan OpenScrcpy ke tray dan menjaga sesi cermin serta mikrofon tetap berjalan. Pilih Keluar di menu tray untuk menghentikannya.'
+        keepInBackgroundTooltip: 'Menutup jendela akan menyembunyikan OpenScrcpy ke tray dan menjaga sesi cermin serta mikrofon tetap berjalan. Pilih Keluar di menu tray untuk menghentikannya.',
+        notifications: 'Notifikasi bawaan',
+        notificationsTooltip: 'Memberi tahu tentang perangkat yang terhubung, sesi yang berakhir tak terduga, dan pembaruan yang tersedia. Notifikasi hanya muncul saat OpenScrcpy berjalan; pemberitahuan perangkat dan pembaruan disembunyikan saat jendela difokuskan.'
     },
     tray: {
         show: 'Tampilkan OpenScrcpy',
         quit: 'Keluar dari OpenScrcpy'
+    },
+    notifications: {
+        enabledTitle: 'Notifikasi diaktifkan',
+        enabledBody: 'OpenScrcpy akan memberi tahu tentang perangkat, sesi, dan pembaruan.',
+        deviceConnectedTitle: 'Perangkat terhubung',
+        deviceConnectedBody: '{device} siap digunakan.',
+        deviceDisconnectedTitle: 'Perangkat terputus',
+        deviceDisconnectedBody: '{device} tidak lagi tersedia.',
+        sessionEndedTitle: 'Sesi berakhir',
+        sessionEndedBody: 'Sesi di {device} berakhir secara tak terduga.',
+        sessionFailedTitle: 'Sesi tidak dapat dimulai',
+        sessionFailedBody: 'OpenScrcpy tidak dapat memulai sesi di {device}. Periksa konsol untuk detailnya.',
+        updateTitle: 'Pembaruan tersedia',
+        updateBody: 'OpenScrcpy {version} tersedia.'
     },
     sessionBehavior: {
         title: 'Pengaturan Sesi',
@@ -360,7 +376,9 @@ languages: {
         updateBtn: 'Update Sekarang',
         cancelBtn: 'Nanti',
         backgroundUnavailableTitle: 'Mode Latar Belakang Tidak Tersedia',
-        backgroundUnavailableMsg: 'Tray sistem tidak tersedia di desktop ini. Instal pustaka Ayatana AppIndicator atau terus gunakan jendela seperti biasa.'
+        backgroundUnavailableMsg: 'Tray sistem tidak tersedia di desktop ini. Instal pustaka Ayatana AppIndicator atau terus gunakan jendela seperti biasa.',
+        notificationsDeniedTitle: 'Notifikasi Diblokir',
+        notificationsDeniedMsg: 'Sistem tidak memberikan izin notifikasi. Aktifkan notifikasi untuk OpenScrcpy di pengaturan sistem, lalu coba lagi.'
     },
     logs: {
         noDeviceForDragDrop: '[PERINGATAN] Pilih perangkat dulu sebelum drag & drop file.',

@@ -32,4 +32,19 @@ describe('SettingsStore background mode', () => {
         settings.load();
         expect(settings.backgroundMode).toBe(false);
     });
+
+    it('persists notification preferences separately', () => {
+        const settings = new SettingsStore();
+        settings.setNotificationsEnabled(true);
+
+        const reloaded = new SettingsStore();
+        reloaded.load();
+        expect(reloaded.notificationsEnabled).toBe(true);
+        expect(reloaded.backgroundMode).toBe(false);
+
+        reloaded.setNotificationsEnabled(false);
+        const again = new SettingsStore();
+        again.load();
+        expect(again.notificationsEnabled).toBe(false);
+    });
 });

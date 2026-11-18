@@ -241,11 +241,27 @@ export const ru: Translations = {
   appBehavior: {
     title: 'Приложение',
     keepInBackground: 'Продолжать работу в фоне',
-    keepInBackgroundTooltip: 'При закрытии окна OpenScrcpy скрывается в трей, а сеансы зеркалирования и микрофона продолжают работать. Чтобы остановить их, выберите «Выход» в меню трея.'
+    keepInBackgroundTooltip: 'При закрытии окна OpenScrcpy скрывается в трей, а сеансы зеркалирования и микрофона продолжают работать. Чтобы остановить их, выберите «Выход» в меню трея.',
+    notifications: 'Системные уведомления',
+    notificationsTooltip: 'Уведомляет о подключении устройств, неожиданном завершении сеансов и доступных обновлениях. Уведомления появляются только при запущенном OpenScrcpy; уведомления об устройствах и обновлениях скрываются, когда окно в фокусе.'
   },
   tray: {
     show: 'Показать OpenScrcpy',
     quit: 'Выйти из OpenScrcpy'
+  },
+  notifications: {
+    enabledTitle: 'Уведомления включены',
+    enabledBody: 'OpenScrcpy будет уведомлять об устройствах, сеансах и обновлениях.',
+    deviceConnectedTitle: 'Устройство подключено',
+    deviceConnectedBody: '{device} готово к использованию.',
+    deviceDisconnectedTitle: 'Устройство отключено',
+    deviceDisconnectedBody: '{device} больше недоступно.',
+    sessionEndedTitle: 'Сеанс завершён',
+    sessionEndedBody: 'Сеанс на устройстве {device} завершился неожиданно.',
+    sessionFailedTitle: 'Не удалось запустить сеанс',
+    sessionFailedBody: 'OpenScrcpy не удалось запустить сеанс на устройстве {device}. Подробности в консоли.',
+    updateTitle: 'Доступно обновление',
+    updateBody: 'Доступен OpenScrcpy {version}.'
   },
   sessionBehavior: {
     title: 'Поведение сессии',
@@ -371,7 +387,9 @@ export const ru: Translations = {
     updateBtn: 'Обновить сейчас',
     cancelBtn: 'Позже',
     backgroundUnavailableTitle: 'Фоновый режим недоступен',
-    backgroundUnavailableMsg: 'Системный трей недоступен в этой среде. Установите библиотеку Ayatana AppIndicator или продолжайте использовать окно как обычно.'
+    backgroundUnavailableMsg: 'Системный трей недоступен в этой среде. Установите библиотеку Ayatana AppIndicator или продолжайте использовать окно как обычно.',
+    notificationsDeniedTitle: 'Уведомления заблокированы',
+    notificationsDeniedMsg: 'Система не предоставила разрешение на уведомления. Включите уведомления для OpenScrcpy в настройках системы и повторите попытку.'
   },
 
   logs: {

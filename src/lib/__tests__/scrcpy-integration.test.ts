@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scrcpy, DEFAULT_CONFIG } from '../scrcpy.svelte';
 
 const mockInvoke = vi.hoisted(() => vi.fn());
@@ -11,6 +11,11 @@ vi.mock('@tauri-apps/api/app', () => ({
     getVersion: vi.fn(() => Promise.resolve('2.0.0'))
 }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
+vi.mock('@tauri-apps/plugin-notification', () => ({
+    isPermissionGranted: vi.fn(() => Promise.resolve(true)),
+    requestPermission: vi.fn(() => Promise.resolve('granted')),
+    sendNotification: vi.fn()
+}));
 
 function resetStore() {
     scrcpy.config = { ...DEFAULT_CONFIG };
@@ -33,6 +38,9 @@ function resetStore() {
     scrcpy.isDownloading = false;
     scrcpy.downloadError = null;
     scrcpy.isOnboardingOpen = false;
+    scrcpy.backgroundMode = false;
+    scrcpy.notificationsEnabled = false;
+    scrcpy.notifications.reset();
 }
 
 describe('scrcpy store — integration', () => {
@@ -40,6 +48,39 @@ describe('scrcpy store — integration', () => {
         localStorage.clear();
         mockInvoke.mockReset();
         resetStore();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('notifies only for unexpected session endings', () => {
+        const ended = vi
+            .spyOn(scrcpy.notifications, 'sessionEnded')
+            .mockImplementation(() => {});
+
+        scrcpy.applySessionStatus({ device: 'device1', running: false, reason: 'stopped' });
+        expect(ended).not.toHaveBeenCalled();
+
+        scrcpy.applySessionStatus({
+            device: 'device1',
+            running: false,
+            reason: 'exited',
+            success: true
+        });
+        expect(ended).not.toHaveBeenCalled();
+
+        scrcpy.applySessionStatus({
+            device: 'device1',
+            running: false,
+            reason: 'exited',
+            success: false
+        });
+        expect(ended).toHaveBeenCalledWith('device1');
+
+        ended.mockClear();
+        scrcpy.applySessionStatus({ device: 'device1', running: false, reason: 'error' });
+        expect(ended).toHaveBeenCalledWith('device1');
     });
 
     it('guards against a second concurrent start', async () => {
@@ -186,6 +227,10 @@ describe('scrcpy store — actions', () => {
         localStorage.clear();
         mockInvoke.mockReset();
         resetStore();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     it('installs APKs and pushes other files through the right command', async () => {

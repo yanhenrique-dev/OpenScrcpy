@@ -130,6 +130,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         // The global-shortcut plugin must be registered on the builder (its
         // setup wires the OS hotkey manager on the main thread). Individual
         // shortcuts are registered below in setup.

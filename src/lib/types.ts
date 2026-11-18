@@ -59,6 +59,20 @@ export interface DownloadStatus {
     message: string;
 }
 
+export type SessionEndReason = 'stopped' | 'exited' | 'error';
+
+/** Payload of the shared `scrcpy-status` event. Download progress and session
+ *  state share the channel; only one group of fields is present at a time. */
+export interface SessionStatusEvent {
+    type?: 'downloading' | 'download-progress' | 'download-complete';
+    percent?: number;
+    device?: string;
+    running?: boolean;
+    reason?: SessionEndReason;
+    /** Set when reason is "exited"; false means scrcpy failed or was killed. */
+    success?: boolean;
+}
+
 export function mdnsHostIp(address: string): string {
     const value = address.trim();
     // Bracketed IPv6 keeps the brackets (the pairing flow matches addresses
