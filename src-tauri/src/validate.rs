@@ -76,6 +76,17 @@ pub fn bitrate(value: Option<u32>) -> Result<(), String> {
     }
 }
 
+/// Tray menu labels come from the webview (localized strings), so they are
+/// untrusted like any other IPC payload. Keep them single-line and short
+/// enough for native menus without rejecting non-Latin scripts.
+pub fn tray_label(value: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > 64 || trimmed.chars().any(char::is_control) {
+        return Err("Invalid tray label".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
 /// Device serials become the argument after `-s`. A leading `-` would let a
 /// value be parsed as another adb/scrcpy flag.
 pub fn device(value: &str) -> Result<(), String> {
@@ -201,5 +212,24 @@ mod tests {
         assert!(adb_address("192.168.1.50:").is_err());
         assert!(adb_address("not-an-ip").is_err());
         assert!(adb_address("-bad.local:5555").is_err());
+    }
+
+    #[test]
+    fn tray_label_accepts_localized_text() {
+        assert_eq!(
+            tray_label("  Mostrar OpenScrcpy  ").unwrap(),
+            "Mostrar OpenScrcpy"
+        );
+        assert!(tray_label("إظهار OpenScrcpy").is_ok());
+        assert!(tray_label(&"x".repeat(64)).is_ok());
+    }
+
+    #[test]
+    fn tray_label_rejects_empty_control_and_long_text() {
+        assert!(tray_label("").is_err());
+        assert!(tray_label("   ").is_err());
+        assert!(tray_label("a\nb").is_err());
+        assert!(tray_label("a\0b").is_err());
+        assert!(tray_label(&"x".repeat(65)).is_err());
     }
 }

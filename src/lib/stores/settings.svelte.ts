@@ -15,6 +15,8 @@ export class SettingsStore {
     historyDevices = $state<string[]>([]);
     defaultRecordPath = $state('');
     windowPositions = $state<WindowPositions>({});
+    /** Keep the app (and its scrcpy sessions) alive when the window closes. */
+    backgroundMode = $state(false);
 
     private colorMediaQuery: MediaQueryList | null = null;
     private colorMediaHandler: ((event: MediaQueryListEvent) => void) | null = null;
@@ -27,6 +29,7 @@ export class SettingsStore {
         this.windowPositions = sanitizeWindowPositions(
             loadStoredJSON<unknown>('scrcpy_window_positions', {})
         );
+        this.backgroundMode = safeGetItem('scrcpy_background_mode') === 'true';
     }
 
     updateConfig(patch: Partial<ScrcpyConfig>) {
@@ -47,6 +50,11 @@ export class SettingsStore {
 
     persistWindowPositions() {
         safeSetItem('scrcpy_window_positions', JSON.stringify(this.windowPositions));
+    }
+
+    setBackgroundMode(enabled: boolean) {
+        this.backgroundMode = enabled;
+        safeSetItem('scrcpy_background_mode', enabled ? 'true' : 'false');
     }
 
     persistHistory() {

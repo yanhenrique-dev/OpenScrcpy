@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from '@testing-library/svelte';
 import axe from 'axe-core';
+import AppBehavior from '../AppBehavior.svelte';
 import ControlPanel from '../ControlPanel.svelte';
 import Header from '../Header.svelte';
 import LogPanel from '../LogPanel.svelte';
@@ -84,6 +85,11 @@ describe('accessibility', () => {
 
     it('keeps the session behavior panel free of axe violations', async () => {
         const { container } = render(SessionBehavior);
+        await expectNoViolations(container);
+    });
+
+    it('keeps the application behavior panel free of axe violations', async () => {
+        const { container } = render(AppBehavior);
         await expectNoViolations(container);
     });
 

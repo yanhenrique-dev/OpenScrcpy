@@ -4029,6 +4029,45 @@ mod tests {
     }
 }
 
+/// Applies the persisted background preference and (re)builds the tray menu
+/// with the labels for the active locale. Keeping the flag in backend state
+/// lets the window close handler decide without a round-trip to the webview.
+#[tauri::command]
+pub fn configure_background_mode(
+    app: tauri::AppHandle,
+    state: State<'_, ScrcpyState>,
+    enabled: bool,
+    show_label: String,
+    quit_label: String,
+) -> Result<(), String> {
+    // Turning background mode off must never depend on labels: otherwise a
+    // bad translation could leave the backend hiding a window without a tray.
+    let labels = if enabled {
+        crate::tray::TrayLabels {
+            show: validate::tray_label(&show_label)?,
+            quit: validate::tray_label(&quit_label)?,
+        }
+    } else {
+        crate::tray::TrayLabels {
+            show: String::new(),
+            quit: String::new(),
+        }
+    };
+    match crate::tray::configure(&app, enabled, &labels) {
+        Ok(()) => {
+            state.background_mode.store(enabled, Ordering::Relaxed);
+            Ok(())
+        }
+        Err(error) if !enabled => {
+            // Never keep hiding the window if the preference was turned off,
+            // even if hiding the tray icon itself failed.
+            state.background_mode.store(false, Ordering::Relaxed);
+            Err(error)
+        }
+        Err(error) => Err(error),
+    }
+}
+
 #[tauri::command]
 pub async fn stop_scrcpy(state: State<'_, ScrcpyState>, device: String) -> Result<(), String> {
     let handle = {

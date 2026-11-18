@@ -154,6 +154,26 @@ Renderer choices are **capability-aware**:
 - **Install Apps**: Just drag an `.apk` file from your PC and drop it anywhere into the OpenScrcpy window.
 - **Transfer Files**: Drag any file into the window to automatically push it to your device's `/sdcard/Download/` folder.
 
+### 🪟 Background Mode and Tray
+
+Enable **Keep running in the background** in the **Application** card. Closing the
+window then hides OpenScrcpy to the system tray and leaves mirror, camera,
+desktop and microphone sessions running. Use the tray menu to show the window
+again or to quit.
+
+- **Quit always stops the sessions.** Hiding the window does not.
+- The tray icon is present while the setting is enabled; turning the setting off
+  removes it and restores the normal "close exits" behavior.
+- On **Linux**, the tray uses the Ayatana AppIndicator library
+  (`libayatana-appindicator3` on Debian/Ubuntu, `libayatana-appindicator` on
+  Arch). If it is missing, OpenScrcpy turns the setting back off and explains
+  instead of hiding a window you cannot restore. GNOME may also need the
+  AppIndicator extension.
+- If the tray icon is not visible for any reason, launch OpenScrcpy again: the
+  second launch brings the hidden window back.
+- Background mode keeps the sessions alive only while the app is running.
+  Logging out, quitting from the tray, or stopping the app still ends them.
+
 ---
 
 ## 🔧 Troubleshooting

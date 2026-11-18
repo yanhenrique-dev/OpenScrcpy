@@ -1,0 +1,27 @@
+<script lang="ts">
+    import { AppWindow, Settings2 } from '@lucide/svelte';
+    import SwitchRow from './SwitchRow.svelte';
+    import { t } from '../i18n';
+    import { scrcpy } from '../lib/scrcpy.svelte';
+</script>
+
+<div class="ds-card p-3 space-y-2">
+    <div
+        class="flex items-center gap-2"
+        style="border-bottom: 1px solid var(--border-base); padding-bottom: 8px"
+    >
+        <Settings2 size={12} style="color: var(--text-muted)" />
+        <h2 class="ds-label ds-strong">{t('appBehavior.title')}</h2>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <SwitchRow
+            variant="compact"
+            checked={scrcpy.backgroundMode}
+            onChange={(value) => scrcpy.setBackgroundMode(value)}
+            icon={AppWindow}
+            label={t('appBehavior.keepInBackground')}
+            tooltip={t('appBehavior.keepInBackgroundTooltip')}
+        />
+    </div>
+</div>

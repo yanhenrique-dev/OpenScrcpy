@@ -6,11 +6,12 @@
     import { isLinux, isTauri } from './lib/tauri';
     import { showAlert } from './lib/alerts.svelte';
     import { setupMainWindowState } from './lib/windowState';
-    import { t } from './i18n';
+    import { i18n, t } from './i18n';
     import Header from './components/Header.svelte';
     import Sidebar from './components/Sidebar.svelte';
     import ControlPanel from './components/ControlPanel.svelte';
     import LogPanel from './components/LogPanel.svelte';
+    import AppBehavior from './components/AppBehavior.svelte';
     import SessionBehavior from './components/SessionBehavior.svelte';
     import ShortcutsPanel from './components/ShortcutsPanel.svelte';
     import WindowResizeEdges from './components/WindowResizeEdges.svelte';
@@ -65,6 +66,13 @@
                 ? scrcpy.activeDevice
                 : null;
         void invoke('set_active_device', { device }).catch(() => {});
+    });
+
+    $effect(() => {
+        if (!scrcpy.ready) return;
+        // Read the locale so the tray menu follows language changes.
+        void i18n.locale;
+        scrcpy.syncBackgroundMode(scrcpy.backgroundMode);
     });
 
     onMount(() => {
@@ -141,6 +149,7 @@
                     </div>
 
                     <div class="lg:col-span-3 flex flex-col gap-6">
+                        <AppBehavior />
                         <SessionBehavior />
                         <ShortcutsPanel />
                     </div>

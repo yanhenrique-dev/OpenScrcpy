@@ -232,6 +232,15 @@ export const ptBR: Translations = {
         ignoreEncoderConstraints: 'Ignore Encoder Constraints',
         ignoreEncoderConstraintsTooltip: 'Skip video encoder size constraints entirely. Use this if scrcpy fails to start or has resolution issues due to the device reporting incorrect encoder limits (scrcpy v4.1+).',
     },
+    appBehavior: {
+        title: 'Aplicativo',
+        keepInBackground: 'Continuar em segundo plano',
+        keepInBackgroundTooltip: 'Ao fechar a janela, o OpenScrcpy fica na bandeja e mantém as sessões de espelhamento e microfone ativas. Escolha "Sair" no menu da bandeja para encerrá-las.'
+    },
+    tray: {
+        show: 'Mostrar OpenScrcpy',
+        quit: 'Sair do OpenScrcpy'
+    },
     sessionBehavior: {
         title: 'Comportamento da Sessão',
         stayAwake: 'Dispositivo Desperto',
@@ -349,7 +358,9 @@ export const ptBR: Translations = {
         updateAvailableTitle: 'Atualização Disponível',
         updateAvailableMessage: 'Uma nova versão do Scrcpy (v{latest}) está disponível. Sua versão instalada é v{local}. Deseja atualizar agora?',
         updateBtn: 'Atualizar Agora',
-        cancelBtn: 'Mais Tarde'
+        cancelBtn: 'Mais Tarde',
+        backgroundUnavailableTitle: 'Modo em segundo plano indisponível',
+        backgroundUnavailableMsg: 'A bandeja do sistema não está disponível nesta área de trabalho. Instale a biblioteca Ayatana AppIndicator ou continue usando a janela normalmente.'
     },
     logs: {
         noDeviceForDragDrop: '[WARN] Nenhum dispositivo selecionado para a operação de arrastar e soltar.',
@@ -362,6 +373,7 @@ export const ptBR: Translations = {
         errorRefreshingDevices: '[SYSTEM] Erro ao atualizar dispositivos: {error}',
         initializingScrcpy: '[SYSTEM] Inicializando sessão scrcpy para {device}...',
         failedToStartScrcpy: '[ERROR] Falha ao iniciar o scrcpy: {error}',
+        backgroundModeFailed: '[ERROR] Não foi possível atualizar o modo em segundo plano: {error}',
         failedToStopScrcpy: '[ERROR] Falha ao parar o scrcpy: {error}',
         downloadError: 'Erro de Download: {error}',
         downloadComplete: 'Download Concluído',
