@@ -97,6 +97,13 @@ export type AudioCodec = 'auto' | 'opus' | 'aac' | 'flac' | 'raw';
 /** Reported by the backend as sessions start, hit audio trouble and stop. */
 export type AudioStatus = 'ok' | 'warning' | 'error' | 'off';
 export type MicSource = 'mic' | 'mic-voice-communication';
+/** Mirror-mode audio source exposed by scrcpy's --audio-source. */
+export type MirrorAudioSource =
+    | 'output'
+    | 'playback'
+    | 'mic'
+    | 'voice-call'
+    | 'voice-performance';
 export type MicCodec = 'opus' | 'aac';
 export type Rotation = '0' | '90' | '180' | '270';
 export type ColorMode = 'light' | 'dark' | 'system';
@@ -111,6 +118,11 @@ export interface ScrcpyConfig {
     turnOff?: boolean;
     audioEnabled?: boolean;
     audioCodec?: AudioCodec;
+    /** Mirror mode: device audio captured by scrcpy. The default output mutes
+     *  the phone while mirroring; playback captures app media audio. */
+    mirrorAudioSource?: MirrorAudioSource;
+    /** Mirror + playback only: keep the audio playing on the phone. */
+    audioDup?: boolean;
     /** Fail the session instead of silently mirroring video only when the
      *  device cannot capture audio. Off by default for older-device support. */
     requireAudio?: boolean;

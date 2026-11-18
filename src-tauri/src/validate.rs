@@ -6,6 +6,16 @@
 
 pub const VIDEO_CODECS: &[&str] = &["h264", "h265", "av1"];
 pub const AUDIO_CODECS: &[&str] = &["auto", "opus", "aac", "flac", "raw"];
+/// Mirror-mode audio sources exposed in the UI. Keep this aligned with
+/// `MirrorAudioSource` in the frontend and with `--audio-source` values
+/// understood by the supported scrcpy versions.
+pub const MIRROR_AUDIO_SOURCES: &[&str] = &[
+    "output",
+    "playback",
+    "mic",
+    "voice-call",
+    "voice-performance",
+];
 // scrcpy names the VOICE_COMMUNICATION source "mic-voice-communication".
 // "voice-communication" is the value persisted by older OpenScrcpy builds;
 // it stays accepted here and is normalized before it reaches the command
@@ -36,6 +46,10 @@ pub fn video_codec(value: Option<&str>) -> Result<(), String> {
 
 pub fn audio_codec(value: Option<&str>) -> Result<(), String> {
     allowlisted("audio codec", value, AUDIO_CODECS)
+}
+
+pub fn mirror_audio_source(value: Option<&str>) -> Result<(), String> {
+    allowlisted("mirror audio source", value, MIRROR_AUDIO_SOURCES)
 }
 
 pub fn mic_source(value: Option<&str>) -> Result<(), String> {
@@ -149,6 +163,9 @@ mod tests {
         for codec in AUDIO_CODECS {
             assert!(audio_codec(Some(codec)).is_ok(), "{codec}");
         }
+        for source in MIRROR_AUDIO_SOURCES {
+            assert!(mirror_audio_source(Some(source)).is_ok(), "{source}");
+        }
         for source in MIC_SOURCES {
             assert!(mic_source(Some(source)).is_ok(), "{source}");
         }
@@ -172,6 +189,9 @@ mod tests {
         assert!(video_codec(Some("")).is_err());
         assert!(audio_codec(Some("AAC")).is_err());
         assert!(audio_codec(Some("")).is_err());
+        assert!(mirror_audio_source(Some("speaker")).is_err());
+        assert!(mirror_audio_source(Some("playback")).is_ok());
+        assert!(mirror_audio_source(Some("voice-performance")).is_ok());
         assert!(mic_source(Some("speaker")).is_err());
         assert!(mic_source(Some("mic-voice-communication")).is_ok());
         assert_eq!(

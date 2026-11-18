@@ -862,6 +862,11 @@ pub struct ScrcpyConfig {
     turn_off: Option<bool>,
     audio_enabled: Option<bool>,
     audio_codec: Option<String>,
+    /// Mirror mode: which device audio scrcpy captures. `output` is the
+    /// default and mutes the phone; `playback` captures app media audio.
+    mirror_audio_source: Option<String>,
+    /// Mirror + playback only: keep the audio playing on the device.
+    audio_dup: Option<bool>,
     /// Make scrcpy fail (instead of silently mirroring video only) when the
     /// device cannot capture audio. Off by default so older devices keep
     /// working; the UI surfaces the failure either way.
@@ -1412,6 +1417,39 @@ fn normalize_mic_source(config: &mut ScrcpyConfig, caps: &Capabilities) -> Optio
     None
 }
 
+/// Falls back to the device output when the selected mirror audio source is
+/// not offered by this scrcpy build. `--audio-dup` is only meaningful with
+/// `--audio-source=playback`, so it is disabled when the source falls back or
+/// the binary does not support the flag.
+fn normalize_mirror_audio(config: &mut ScrcpyConfig, caps: &Capabilities) -> Option<String> {
+    if config.session_mode != "mirror" || !config.audio_enabled.unwrap_or(true) {
+        return None;
+    }
+    let source = config
+        .mirror_audio_source
+        .as_deref()
+        .unwrap_or("output")
+        .trim()
+        .to_string();
+    if source != "output" && !caps.supports_audio_source(&source) {
+        config.mirror_audio_source = Some("output".to_string());
+        config.audio_dup = Some(false);
+        return Some(format!(
+            "[AUDIO] scrcpy {} does not support audio source '{}'; using the device output instead.",
+            caps.version(),
+            source
+        ));
+    }
+    if source == "playback" && config.audio_dup.unwrap_or(false) && !caps.supports("audio-dup") {
+        config.audio_dup = Some(false);
+        return Some(format!(
+            "[AUDIO] scrcpy {} does not support --audio-dup; playback will mute the device while mirroring.",
+            caps.version()
+        ));
+    }
+    None
+}
+
 /// Why the monitor loop is ending. The frontend uses this to distinguish a
 /// deliberate stop from a crash or a user closing the scrcpy window.
 #[derive(Clone, Copy)]
@@ -1565,6 +1603,21 @@ fn build_scrcpy_args(
             // source would capture media audio and mute the device.
             if config.session_mode == "camera" {
                 args.push("--audio-source=mic".to_string());
+            }
+            if config.session_mode == "mirror" {
+                let source = config
+                    .mirror_audio_source
+                    .as_deref()
+                    .unwrap_or("output")
+                    .trim();
+                if source != "output" && validate::MIRROR_AUDIO_SOURCES.contains(&source) {
+                    args.push(format!("--audio-source={}", source));
+                }
+                // scrcpy only accepts --audio-dup together with
+                // --audio-source=playback.
+                if source == "playback" && config.audio_dup.unwrap_or(false) {
+                    args.push("--audio-dup".to_string());
+                }
             }
             if let Some(codec) = resolve_audio_codec_flag(config, audio_codec_override) {
                 args.push(format!("--audio-codec={}", codec));
@@ -2512,6 +2565,7 @@ fn validate_scrcpy_config(config: &ScrcpyConfig) -> Result<(), String> {
     validate::device(&config.device)?;
     validate::video_codec(config.codec.as_deref())?;
     validate::audio_codec(config.audio_codec.as_deref())?;
+    validate::mirror_audio_source(config.mirror_audio_source.as_deref())?;
     validate::mic_source(config.mic_source.as_deref())?;
     validate::mic_codec(config.mic_codec.as_deref())?;
     validate::rotation(config.rotation.as_deref())?;
@@ -2670,6 +2724,9 @@ pub async fn run_scrcpy(
     if let Some(message) = normalize_mic_source(&mut config, &capabilities) {
         let _ = window.emit("scrcpy-log", message);
     }
+    if let Some(message) = normalize_mirror_audio(&mut config, &capabilities) {
+        let _ = window.emit("scrcpy-log", message);
+    }
     let capabilities = Arc::new(capabilities);
 
     // Log the session details for the user
@@ -2711,6 +2768,22 @@ pub async fn run_scrcpy(
                 config.device, res_label, bitrate_label, fps_label
             ),
         );
+        if config.session_mode == "mirror" && config.audio_enabled.unwrap_or(true) {
+            let source = config
+                .mirror_audio_source
+                .as_deref()
+                .unwrap_or("output")
+                .trim();
+            let dup = source == "playback" && config.audio_dup.unwrap_or(false);
+            let _ = window.emit(
+                "scrcpy-log",
+                format!(
+                    "[SYSTEM] Audio source: {}{}.",
+                    source,
+                    if dup { " (kept on device)" } else { "" }
+                ),
+            );
+        }
     }
 
     if config.record.unwrap_or(false) {
@@ -3396,6 +3469,8 @@ mod tests {
             turn_off: None,
             audio_enabled: None,
             audio_codec: None,
+            mirror_audio_source: None,
+            audio_dup: None,
             require_audio: None,
             always_on_top: None,
             fullscreen: None,
@@ -3484,6 +3559,10 @@ mod tests {
 
         let mut config = base_config("mirror");
         config.fps = Some(0);
+        assert!(validate_scrcpy_config(&config).is_err());
+
+        let mut config = base_config("mirror");
+        config.mirror_audio_source = Some("speaker".to_string());
         assert!(validate_scrcpy_config(&config).is_err());
     }
 
@@ -3575,6 +3654,60 @@ mod tests {
         let mirror = base_config("mirror");
         let args = build_scrcpy_args(&mirror, None, None);
         assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
+    }
+
+    #[test]
+    fn test_mirror_audio_source_and_dup_flags() {
+        let mut config = base_config("mirror");
+        config.mirror_audio_source = Some("playback".to_string());
+        config.audio_dup = Some(true);
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=playback".to_string()));
+        assert!(args.contains(&"--audio-dup".to_string()));
+
+        // --audio-dup is only valid with playback.
+        config.mirror_audio_source = Some("mic".to_string());
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=mic".to_string()));
+        assert!(!args.contains(&"--audio-dup".to_string()));
+
+        // The default source is implicit, matching scrcpy's default.
+        config.mirror_audio_source = Some("output".to_string());
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
+        assert!(!args.contains(&"--audio-dup".to_string()));
+
+        // Disabling audio removes both flags.
+        config.mirror_audio_source = Some("playback".to_string());
+        config.audio_dup = Some(true);
+        config.audio_enabled = Some(false);
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--no-audio".to_string()));
+        assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
+        assert!(!args.contains(&"--audio-dup".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_mirror_audio_falls_back_on_unsupported_values() {
+        let mut config = base_config("mirror");
+        config.mirror_audio_source = Some("voice-call".to_string());
+        let caps = Capabilities::for_test(&["audio-source"], &["output", "playback", "mic"]);
+        assert!(normalize_mirror_audio(&mut config, &caps).is_some());
+        assert_eq!(config.mirror_audio_source.as_deref(), Some("output"));
+
+        let mut config = base_config("mirror");
+        config.mirror_audio_source = Some("playback".to_string());
+        config.audio_dup = Some(true);
+        let caps = Capabilities::for_test(&["audio-source"], &["output", "playback"]);
+        assert!(normalize_mirror_audio(&mut config, &caps).is_some());
+        assert_eq!(config.audio_dup, Some(false));
+
+        let mut config = base_config("mirror");
+        config.mirror_audio_source = Some("playback".to_string());
+        config.audio_dup = Some(true);
+        let caps = Capabilities::for_test(&["audio-source", "audio-dup"], &["output", "playback"]);
+        assert!(normalize_mirror_audio(&mut config, &caps).is_none());
+        assert_eq!(config.audio_dup, Some(true));
     }
 
     #[test]
