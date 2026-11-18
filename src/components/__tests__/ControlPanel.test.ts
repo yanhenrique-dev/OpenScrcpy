@@ -5,6 +5,13 @@ import { DEFAULT_CONFIG } from '../../lib/scrcpy.svelte';
 import { setLocale } from '../../i18n';
 import type { ScrcpyConfig } from '../../lib/types';
 
+// The camera virtual-microphone control is Linux-only. Pin the platform so
+// this component test behaves the same on the Windows/macOS CI runners.
+vi.mock('../../lib/tauri', async importOriginal => {
+    const actual = await importOriginal<typeof import('../../lib/tauri')>();
+    return { ...actual, isLinux: () => true };
+});
+
 function props(config: ScrcpyConfig = { ...DEFAULT_CONFIG }) {
     return {
         config,
