@@ -888,6 +888,9 @@ pub struct ScrcpyConfig {
     flex_display: Option<bool>,
     camera_torch: Option<bool>,
     camera_zoom: Option<f32>,
+    /// Camera mode: route the phone microphone into the OpenScrcpy Mic virtual
+    /// sink so OBS/Discord can select it as a recording device.
+    camera_mic_sink: Option<bool>,
     background_color: Option<String>,
     keep_active: Option<bool>,
     /// Force SDL renderer VSync on/off (anti-tearing). scrcpy 4.0 (SDL3)
@@ -1451,6 +1454,17 @@ fn emit_window_pos_and_stop(
         );
     }
     let _ = window.emit("scrcpy-status", session_end_payload(device, reason));
+}
+
+/// True when this session should send audio into the shared virtual sink.
+/// Camera mode already captures the microphone; opting into the sink makes it
+/// selectable as a recording device instead of only playing on the default
+/// output. The microphone bridge always uses the sink on Linux.
+fn wants_virtual_mic(config: &ScrcpyConfig) -> bool {
+    config.session_mode == "mic"
+        || (config.session_mode == "camera"
+            && config.camera_mic_sink.unwrap_or(false)
+            && config.audio_enabled.unwrap_or(true))
 }
 
 fn build_scrcpy_args(
@@ -2158,7 +2172,7 @@ async fn unload_mic_sink(window: &Window) {
         let _ = pactl_run(&["unload-module", &idx]).await;
         let _ = window.emit(
             "scrcpy-log",
-            "[MIC] Virtual sink unloaded (bridge stopped).".to_string(),
+            "[MIC] Virtual sink unloaded (no active session is using it).".to_string(),
         );
     }
 }
@@ -2724,18 +2738,42 @@ pub async fn run_scrcpy(
         wake_display_before_screen_off(&window, &adb_exe_path, &config.device).await;
     }
 
-    // Mic bridge on Linux: create/refresh the virtual sink and hand the
-    // scrcpy client to it through the libpulse default-sink env. Other
-    // platforms get an honest console note for now.
+    // Drop a sink left behind by an earlier camera/mic session before this
+    // start, unless another device is still using it.
+    #[cfg(unix)]
+    {
+        let sink_in_use = state
+            .sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .values()
+            .any(|session| session.uses_mic_sink);
+        if !sink_in_use {
+            unload_mic_sink(&window).await;
+        }
+    }
+
+    let audio_enabled = config.audio_enabled.unwrap_or(true);
+    let wants_virtual_mic = wants_virtual_mic(&config);
+
+    // Virtual microphone on Linux: create/refresh the shared sink and hand
+    // the scrcpy client to it through the libpulse default-sink env. Camera
+    // mode can use the same route, so webcam video and a selectable phone
+    // microphone come from one session. Other platforms get an honest note.
     // The sink is (re)created only after the previous session has stopped.
     // Otherwise its monitor can unload the sink while the new session is
     // preparing to reuse it.
-    let pulse_sink: Option<String> = if config.session_mode == "mic" {
+    let pulse_sink: Option<String> = if wants_virtual_mic {
         #[allow(unused_mut, unused_variables)]
         let mut pulse: Option<String> = None;
 
         #[cfg(unix)]
-        if ensure_mic_sink(&window, config.mic_denoise.unwrap_or(false)).await {
+        if ensure_mic_sink(
+            &window,
+            config.session_mode == "mic" && config.mic_denoise.unwrap_or(false),
+        )
+        .await
+        {
             pulse = Some(MIC_SINK_NAME.to_string());
         }
 
@@ -2743,13 +2781,19 @@ pub async fn run_scrcpy(
         {
             let _ = window.emit(
                 "scrcpy-log",
-                "[MIC] Virtual-microphone routing ships for Linux in this build; audio goes to the default output.".to_string(),
+                "[MIC] Virtual-microphone routing requires Linux; audio goes to the default output."
+                    .to_string(),
             );
         }
         pulse
     } else {
         None
     };
+
+    #[cfg(unix)]
+    let uses_mic_sink = wants_virtual_mic && pulse_sink.is_some();
+    #[cfg(not(unix))]
+    let uses_mic_sink = false;
 
     // First attempt: honour the user's audio codec choice. In "auto" mode this
     // launches without --audio-codec, matching the previous default behaviour.
@@ -2775,12 +2819,25 @@ pub async fn run_scrcpy(
         Ok(spawned) => spawned,
         Err(e) => {
             release_starting_device(state.inner(), &config.device);
+            // The sink was created before the spawn attempt; remove it when
+            // no other session is using it.
+            #[cfg(unix)]
+            if uses_mic_sink {
+                let sink_in_use = state
+                    .sessions
+                    .lock()
+                    .unwrap_or_else(|err| err.into_inner())
+                    .values()
+                    .any(|session| session.uses_mic_sink);
+                if !sink_in_use {
+                    unload_mic_sink(&window).await;
+                }
+            }
             return Err(e);
         }
     };
 
     // Decide whether automatic audio codec fallback should kick in on errors.
-    let audio_enabled = config.audio_enabled.unwrap_or(true);
     let audio_codec_mode = config.audio_codec.as_deref().unwrap_or("auto").trim();
     let should_auto_fallback = audio_enabled
         && (audio_codec_mode.is_empty() || audio_codec_mode.eq_ignore_ascii_case("auto"));
@@ -2806,7 +2863,7 @@ pub async fn run_scrcpy(
             config.device.clone(),
             SessionHandle {
                 generation: session_generation,
-                mode: config.session_mode.clone(),
+                uses_mic_sink,
                 track_position,
                 pid: session_pid.clone(),
                 stop: stop_tx,
@@ -2828,19 +2885,21 @@ pub async fn run_scrcpy(
         }),
     );
 
-    // Mic bridge sidecars. Started only after the registry insert above, so
+    // Virtual-sink sidecars. Started only after the registry insert above, so
     // their contains_key liveness checks see this session on the first poll
     // (spawning them earlier raced the insert and the loops died instantly).
-    if config.session_mode == "mic" {
-        #[cfg(unix)]
-        if pulse_sink.is_some() {
-            tokio::spawn(spawn_mic_route_watcher(
-                window.clone(),
-                config.device.clone(),
-                app_handle.clone(),
-                session_pid.clone(),
-                session_generation,
-            ));
+    // The route watcher is needed for camera sessions too: SDL3 does not
+    // reliably honour PULSE_SINK, so the stream is moved after it appears.
+    #[cfg(unix)]
+    if uses_mic_sink {
+        tokio::spawn(spawn_mic_route_watcher(
+            window.clone(),
+            config.device.clone(),
+            app_handle.clone(),
+            session_pid.clone(),
+            session_generation,
+        ));
+        if config.session_mode == "mic" {
             tokio::spawn(spawn_mic_level_meter(
                 window.clone(),
                 config.device.clone(),
@@ -3142,7 +3201,7 @@ pub async fn run_scrcpy(
         // Remove only this generation's entry: a newer session may already own
         // the key after a replacement. Unload the shared mic sink only when no
         // mic session remains.
-        let remaining_mic = {
+        let remaining_sink_users = {
             let state_lock = app_handle_mon.state::<ScrcpyState>();
             let mut sessions = state_lock
                 .sessions
@@ -3151,9 +3210,9 @@ pub async fn run_scrcpy(
             if sessions.get(&device_mon).map(|s| s.generation) == Some(session_generation) {
                 sessions.remove(&device_mon);
             }
-            // A mirror session may still be running; the shared virtual sink
-            // belongs to the mic bridges, not to every scrcpy session.
-            sessions.values().any(|session| session.mode == "mic")
+            // The shared virtual sink belongs to every session that opted into
+            // it: microphone bridges and camera sessions with virtual mic.
+            sessions.values().any(|session| session.uses_mic_sink)
         };
         // A newer run for this device bumped the generation and will manage
         // the shared sink itself. Skipping the unload here prevents a slow
@@ -3165,7 +3224,7 @@ pub async fn run_scrcpy(
             .unwrap_or_else(|e| e.into_inner())
             .get(&device_mon)
             .is_some_and(|current| *current == session_generation);
-        if config_mon.session_mode == "mic" && generation_is_current && !remaining_mic {
+        if uses_mic_sink && generation_is_current && !remaining_sink_users {
             #[cfg(unix)]
             unload_mic_sink(&window_mon).await;
         }
@@ -3346,6 +3405,7 @@ mod tests {
             flex_display: None,
             camera_torch: None,
             camera_zoom: None,
+            camera_mic_sink: None,
             background_color: None,
             keep_active: None,
             vsync: None,
@@ -3357,6 +3417,22 @@ mod tests {
             window_y: None,
             ignore_video_encoder_constraints: None,
         }
+    }
+
+    #[test]
+    fn camera_can_route_its_microphone_into_the_virtual_sink() {
+        let mut camera = base_config("camera");
+        assert!(!wants_virtual_mic(&camera));
+
+        camera.camera_mic_sink = Some(true);
+        assert!(wants_virtual_mic(&camera));
+
+        // Turning audio off removes the route even when the saved toggle is on.
+        camera.audio_enabled = Some(false);
+        assert!(!wants_virtual_mic(&camera));
+
+        assert!(!wants_virtual_mic(&base_config("mirror")));
+        assert!(wants_virtual_mic(&base_config("mic")));
     }
 
     #[test]

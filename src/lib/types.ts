@@ -138,6 +138,9 @@ export interface ScrcpyConfig {
     flexDisplay?: boolean;
     cameraTorch?: boolean;
     cameraZoom?: number;
+    /** Linux: route the camera session's microphone into the OpenScrcpy Mic
+     *  virtual sink so OBS/Discord can select it as a recording device. */
+    cameraMicSink?: boolean;
     backgroundColor?: string;
     keepActive?: boolean;
     vsync?: boolean;

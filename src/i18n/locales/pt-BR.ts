@@ -223,6 +223,8 @@ export const ptBR: Translations = {
         cameraTorchTooltip: 'Ativa a lanterna do dispositivo enquanto transmite a câmera (scrcpy v4+).',
         cameraZoom: 'Zoom da Câmera',
         cameraZoomTooltip: 'Nível de zoom para captura da câmera. 1.0 = sem zoom. (scrcpy v4+)',
+        cameraMicSink: 'Microfone virtual',
+        cameraMicSinkTooltip: 'Encaminha o microfone do telemóvel desta sessão de câmara para a entrada virtual OpenScrcpy Mic, para que o OBS ou o Discord a possam escolher como dispositivo de gravação. O áudio deixa de tocar na saída padrão. Apenas no Linux.',
         backgroundColor: 'Cor do Fundo',
         backgroundColorTooltip: 'Cor hex para o fundo/letterbox da janela (ex. #1a1a1a). Deixe vazio para cinza escuro padrão. (scrcpy v4+)',
         backgroundColorNone: 'Padrão',

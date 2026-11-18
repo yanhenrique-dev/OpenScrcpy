@@ -134,7 +134,7 @@ Audio capture has device-side requirements that the app cannot override:
 - On **Android 11**, unlock the device before starting the session.
 - Some apps (streaming services, DRM-protected content) opt out of capture, so their sound is not forwarded.
 - The default source captures the whole device output and mutes the phone while mirroring.
-- In **Camera** mode the source is the phone **microphone**; scrcpy plays it on the PC's default output, so in OBS capture that audio (desktop/application audio) or use the Linux microphone bridge for a selectable input.
+- In **Camera** mode the source is the phone **microphone**. On **Linux**, enable **Virtual microphone** in the camera panel to route that audio into the `OpenScrcpy Mic` input, so OBS or Discord can select it as a recording device while the camera video stays in its own window. The audio then leaves the default output; this is one camera session, not a second microphone bridge. On Windows/macOS, capture the default output or use a system-provided virtual audio device.
 
 When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable`. If every audio codec fails, it shows `Audio failed` while the video keeps running. When the session stops (for example with **Require audio** enabled), the error remains in the console.
 

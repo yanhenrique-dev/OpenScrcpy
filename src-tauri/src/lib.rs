@@ -30,9 +30,10 @@ use std::os::unix::process::CommandExt;
 /// task to stop, and a notification that it finished.
 pub struct SessionHandle {
     pub generation: u64,
-    /// Session mode ("mirror", "camera", "desktop" or "mic"). The mic sink
-    /// lifecycle needs to know whether another mic bridge is still active.
-    pub mode: String,
+    /// Whether this session has audio routed into the shared OpenScrcpy Mic
+    /// sink. The sink is unloaded only after the last user is gone; camera
+    /// sessions can opt into it as well as the microphone bridge.
+    pub uses_mic_sink: bool,
     /// Whether this session owns the persisted mirror-window position. Only
     /// windowed mirror sessions do; camera/desktop/fullscreen must not read or
     /// overwrite it.

@@ -223,6 +223,8 @@ languages: {
         cameraTorchTooltip: 'Aktifkan lampu kilat perangkat saat streaming kamera (scrcpy v4+).',
         cameraZoom: 'Zoom Kamera',
         cameraZoomTooltip: 'Tingkat zoom untuk tangkapan kamera. 1.0 = tanpa zoom. (scrcpy v4+)',
+        cameraMicSink: 'Mikrofon virtual',
+        cameraMicSinkTooltip: 'Mengarahkan mikrofon ponsel dari sesi kamera ini ke input virtual OpenScrcpy Mic, sehingga OBS atau Discord dapat memilihnya sebagai perangkat perekam. Audio tidak lagi diputar di output default. Hanya Linux.',
         backgroundColor: 'Warna BG',
         backgroundColorTooltip: 'Warna hex untuk latar belakang jendela/area letterbox (mis. #1a1a1a). Kosongkan untuk abu-abu gelap bawaan. (scrcpy v4+)',
         backgroundColorNone: 'Bawaan',

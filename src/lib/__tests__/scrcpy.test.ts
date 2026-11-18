@@ -78,7 +78,8 @@ describe('scrcpy store', () => {
             fps: Number.NaN,
             vdWidth: Infinity,
             windowX: '100',
-            requireAudio: 'yes'
+            requireAudio: 'yes',
+            cameraMicSink: 'yes'
         } as any);
 
         expect(config.device).toBe(DEFAULT_CONFIG.device);
@@ -89,7 +90,9 @@ describe('scrcpy store', () => {
         expect(config.vdWidth).toBe(DEFAULT_CONFIG.vdWidth);
         expect(config.windowX).toBeUndefined();
         expect(config.requireAudio).toBe(false);
+        expect(config.cameraMicSink).toBe(false);
         expect(normalizeConfig({ requireAudio: true } as any).requireAudio).toBe(true);
+        expect(normalizeConfig({ cameraMicSink: true } as any).cameraMicSink).toBe(true);
     });
 
     it('tracks per-device audio status and clears it when the session stops', () => {

@@ -37,6 +37,30 @@ describe('ControlPanel', () => {
         expect(screen.queryByText('Input enhancements')).not.toBeInTheDocument();
     });
 
+    it('offers the virtual microphone route in camera mode on Linux', () => {
+        render(ControlPanel, {
+            props: props({ ...DEFAULT_CONFIG, sessionMode: 'camera' })
+        });
+
+        expect(
+            screen.getByRole('switch', { name: 'Virtual microphone' })
+        ).toBeInTheDocument();
+    });
+
+    it('hides the virtual microphone route when camera audio is off', () => {
+        render(ControlPanel, {
+            props: props({
+                ...DEFAULT_CONFIG,
+                sessionMode: 'camera',
+                audioEnabled: false
+            })
+        });
+
+        expect(
+            screen.queryByRole('switch', { name: 'Virtual microphone' })
+        ).not.toBeInTheDocument();
+    });
+
     it('renders the mic panel for mic sessions', () => {
         render(ControlPanel, {
             props: props({ ...DEFAULT_CONFIG, sessionMode: 'mic' })

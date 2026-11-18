@@ -9,6 +9,7 @@
     import BitrateSlider from './BitrateSlider.svelte';
     import type { ConfigFieldSetter, ScrcpyConfig } from '../../lib/types';
     import type { RendererOption } from './rendererOptions';
+    import { isLinux } from '../../lib/tauri';
     import { t } from '../../i18n';
 
     interface Props {
@@ -111,6 +112,17 @@
             onChange={(v) => handleChange('cameraZoom', v)}
         />
     </div>
+
+    {#if isLinux() && config.audioEnabled !== false}
+        <div class="ds-panel p-2.5">
+            <SwitchRow
+                checked={!!config.cameraMicSink}
+                onChange={(v) => handleChange('cameraMicSink', v)}
+                label={t('controlPanel.cameraMicSink')}
+                tooltip={t('controlPanel.cameraMicSinkTooltip')}
+            />
+        </div>
+    {/if}
 
     <div class="space-y-2.5">
         <PerformanceGrid
