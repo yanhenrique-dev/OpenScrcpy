@@ -6,7 +6,8 @@
     import SwitchRow from './SwitchRow.svelte';
     import { t } from '../i18n';
     import { scrcpy } from '../lib/scrcpy.svelte';
-    import type { ScrcpyConfig } from '../lib/types';
+    import { MIRROR_AUDIO_SOURCES } from '../lib/types';
+    import type { MirrorAudioSource, ScrcpyConfig } from '../lib/types';
 
     const AUDIO_CODEC_VALUES = ['auto', 'opus', 'aac', 'flac', 'raw'] as const;
     type AudioCodec = (typeof AUDIO_CODEC_VALUES)[number];
@@ -19,15 +20,36 @@
         raw: 'sessionBehavior.audioCodecRaw'
     };
 
+    const MIRROR_AUDIO_LABEL_KEY: Record<MirrorAudioSource, string> = {
+        output: 'sessionBehavior.audioSourceOutput',
+        playback: 'sessionBehavior.audioSourcePlayback',
+        mic: 'sessionBehavior.audioSourceMic',
+        'voice-call': 'sessionBehavior.audioSourceVoiceCall',
+        'voice-performance': 'sessionBehavior.audioSourceVoicePerformance'
+    };
+
     const config = $derived(scrcpy.config);
     const audioCodec = $derived(
         AUDIO_CODEC_VALUES.includes(config.audioCodec as AudioCodec)
             ? (config.audioCodec as AudioCodec)
             : 'auto'
     );
+    const mirrorAudioSource = $derived(
+        MIRROR_AUDIO_SOURCES.includes(config.mirrorAudioSource as MirrorAudioSource)
+            ? (config.mirrorAudioSource as MirrorAudioSource)
+            : 'output'
+    );
 
     function update<K extends keyof ScrcpyConfig>(field: K, value: ScrcpyConfig[K]) {
         scrcpy.updateConfig({ [field]: value });
+    }
+
+    function updateMirrorAudioSource(value: MirrorAudioSource) {
+        scrcpy.updateConfig({ mirrorAudioSource: value });
+        // --audio-dup is only valid with --audio-source=playback.
+        if (value !== 'playback' && config.audioDup) {
+            scrcpy.updateConfig({ audioDup: false });
+        }
     }
 
     async function pickFolder() {
@@ -108,6 +130,38 @@
                             </div>
                         </div>
                     </div>
+                    {#if config.sessionMode === 'mirror'}
+                        <div class="pe-2 pb-1" style="margin-top: 2px; padding-left: 28px">
+                            <div class="flex items-center gap-1.5">
+                                <span class="ds-caption" style="color: var(--text-muted)">
+                                    {t('sessionBehavior.audioSource')}
+                                </span>
+                                <Tooltip text={t('sessionBehavior.audioSourceTooltip')} />
+                                <div class="relative ms-auto">
+                                    <Select
+                                        value={mirrorAudioSource}
+                                        onChange={updateMirrorAudioSource}
+                                        options={MIRROR_AUDIO_SOURCES.map((opt) => ({
+                                            value: opt,
+                                            label: t(MIRROR_AUDIO_LABEL_KEY[opt])
+                                        }))}
+                                        ariaLabel={t('sessionBehavior.audioSource')}
+                                        triggerClassName="sb-select"
+                                        optionClassName="sb-opt"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        {#if mirrorAudioSource === 'playback'}
+                            <SwitchRow variant="compact"
+                                checked={config.audioDup || false}
+                                onChange={(v) => update('audioDup', v)}
+                                icon={Volume2}
+                                label={t('sessionBehavior.audioDup')}
+                                tooltip={t('sessionBehavior.audioDupTooltip')}
+                            />
+                        {/if}
+                    {/if}
                     <SwitchRow variant="compact"
                         checked={config.requireAudio || false}
                         onChange={(v) => update('requireAudio', v)}

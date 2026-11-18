@@ -31,6 +31,7 @@
 
 - **Mirror, camera, desktop and microphone modes** — screen mirroring, phone-as-webcam with lens, torch and zoom controls, a virtual display with flex resize, and audio routing.
 - **Webcam with a virtual microphone** — route the camera session's phone mic into a selectable input on Linux for OBS or Discord.
+- **Selectable mirror audio** — capture device output, media playback, the phone microphone, voice-call audio or voice performance, with an optional keep-playing duplicate for playback.
 - **Precision input over OTG/HID** — hardware keyboard and mouse simulation, side by side.
 - **Wireless pairing with history** — pair Android 11+ devices over Wi-Fi and reconnect in one click.
 - **One-click core setup** — automatic core binary download and update checks, right from the header.

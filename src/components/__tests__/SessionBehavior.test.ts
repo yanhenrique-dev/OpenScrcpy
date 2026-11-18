@@ -43,5 +43,54 @@ describe('SessionBehavior', () => {
         render(SessionBehavior);
 
         expect(screen.queryByRole('switch', { name: 'Require audio' })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('combobox', { name: 'Audio source' })
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers the mirror audio source and only shows device duplication for playback', async () => {
+        render(SessionBehavior);
+
+        expect(
+            screen.getByRole('combobox', { name: 'Audio source' })
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('switch', { name: 'Keep playing on device' })
+        ).not.toBeInTheDocument();
+
+        await fireEvent.click(screen.getByRole('combobox', { name: 'Audio source' }));
+        await fireEvent.click(screen.getByRole('option', { name: 'Media playback' }));
+
+        expect(scrcpy.config.mirrorAudioSource).toBe('playback');
+        expect(
+            screen.getByRole('switch', { name: 'Keep playing on device' })
+        ).toBeInTheDocument();
+    });
+
+    it('hides the mirror audio source outside mirror mode', () => {
+        scrcpy.config = { ...DEFAULT_CONFIG, sessionMode: 'camera' };
+        render(SessionBehavior);
+
+        expect(
+            screen.queryByRole('combobox', { name: 'Audio source' })
+        ).not.toBeInTheDocument();
+    });
+
+    it('clears device duplication when leaving playback', async () => {
+        scrcpy.config = {
+            ...DEFAULT_CONFIG,
+            mirrorAudioSource: 'playback',
+            audioDup: true
+        };
+        render(SessionBehavior);
+
+        await fireEvent.click(screen.getByRole('combobox', { name: 'Audio source' }));
+        await fireEvent.click(screen.getByRole('option', { name: 'Phone microphone' }));
+
+        expect(scrcpy.config.mirrorAudioSource).toBe('mic');
+        expect(scrcpy.config.audioDup).toBe(false);
+        expect(
+            screen.queryByRole('switch', { name: 'Keep playing on device' })
+        ).not.toBeInTheDocument();
     });
 });

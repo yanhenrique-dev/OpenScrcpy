@@ -55,6 +55,7 @@ describe('scrcpy store', () => {
         const config = normalizeConfig({
             sessionMode: 'invalid',
             audioCodec: 'mp3',
+            mirrorAudioSource: 'speaker',
             micSource: 'voice-communication',
             micCodec: 'flac',
             rotation: '45',
@@ -63,6 +64,7 @@ describe('scrcpy store', () => {
 
         expect(config.sessionMode).toBe('mirror');
         expect(config.audioCodec).toBe('auto');
+        expect(config.mirrorAudioSource).toBe('output');
         expect(config.micSource).toBe('mic-voice-communication');
         expect(config.micCodec).toBe('opus');
         expect(config.rotation).toBe('0');
@@ -79,7 +81,8 @@ describe('scrcpy store', () => {
             vdWidth: Infinity,
             windowX: '100',
             requireAudio: 'yes',
-            cameraMicSink: 'yes'
+            cameraMicSink: 'yes',
+            audioDup: 'yes'
         } as any);
 
         expect(config.device).toBe(DEFAULT_CONFIG.device);
@@ -91,8 +94,29 @@ describe('scrcpy store', () => {
         expect(config.windowX).toBeUndefined();
         expect(config.requireAudio).toBe(false);
         expect(config.cameraMicSink).toBe(false);
+        expect(config.audioDup).toBe(false);
         expect(normalizeConfig({ requireAudio: true } as any).requireAudio).toBe(true);
         expect(normalizeConfig({ cameraMicSink: true } as any).cameraMicSink).toBe(true);
+    });
+
+    it('keeps audio duplication only for the playback source', () => {
+        const playback = normalizeConfig({
+            mirrorAudioSource: 'playback',
+            audioDup: true
+        } as any);
+        expect(playback.mirrorAudioSource).toBe('playback');
+        expect(playback.audioDup).toBe(true);
+
+        const mic = normalizeConfig({
+            mirrorAudioSource: 'mic',
+            audioDup: true
+        } as any);
+        expect(mic.audioDup).toBe(false);
+
+        const performance = normalizeConfig({
+            mirrorAudioSource: 'voice-performance'
+        } as any);
+        expect(performance.mirrorAudioSource).toBe('voice-performance');
     });
 
     it('tracks per-device audio status and clears it when the session stops', () => {

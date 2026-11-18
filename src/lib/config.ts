@@ -1,5 +1,7 @@
+import { MIRROR_AUDIO_SOURCES } from './types';
 import type {
     MicSource,
+    MirrorAudioSource,
     ScrcpyConfig,
     SessionMode
 } from './types';
@@ -13,6 +15,8 @@ export const DEFAULT_CONFIG: ScrcpyConfig = {
     turnOff: false,
     audioEnabled: true,
     audioCodec: 'auto',
+    mirrorAudioSource: 'output',
+    audioDup: false,
     requireAudio: false,
     alwaysOnTop: false,
     res: '0',
@@ -48,6 +52,7 @@ const BOOLEAN_FIELDS = [
     'stayAwake',
     'turnOff',
     'audioEnabled',
+    'audioDup',
     'requireAudio',
     'alwaysOnTop',
     'fullscreen',
@@ -122,6 +127,11 @@ export function normalizeConfig(raw: Partial<ScrcpyConfig> | null): ScrcpyConfig
 
     if (!SESSION_MODES.includes(config.sessionMode)) config.sessionMode = 'mirror';
     if (!config.audioCodec || !AUDIO_CODECS.includes(config.audioCodec)) config.audioCodec = 'auto';
+    if (!MIRROR_AUDIO_SOURCES.includes(config.mirrorAudioSource as MirrorAudioSource)) {
+        config.mirrorAudioSource = 'output';
+    }
+    // --audio-dup is only valid with --audio-source=playback.
+    if (config.mirrorAudioSource !== 'playback') config.audioDup = false;
 
     // Older builds persisted "voice-communication"; the raw value can be any
     // string because localStorage is not typed.

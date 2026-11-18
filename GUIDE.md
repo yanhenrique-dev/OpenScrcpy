@@ -127,6 +127,7 @@ The phone's audio is forwarded to the PC by default (scrcpy enables it since v2.
 - **Forward audio**: turn device-audio capture on or off.
 - **Audio codec**: leave it on **Automatic** (Opus with an automatic fallback to AAC/FLAC/raw), or force a codec if your device lacks an Opus encoder.
 - **Require audio**: off by default. When on, the session stops with a visible error instead of silently mirroring video only if the device cannot capture audio. Useful when sound is essential, but it will prevent mirroring on devices that cannot capture audio at all.
+- **Audio source** (Mirror mode): choose **Device output** (default; mutes the phone while mirroring), **Media playback** (Android 13+; apps can opt out), **Phone microphone**, **Voice call**, or **Voice performance** (microphone + playback). **Keep playing on device** duplicates the playback audio to the phone and only appears for **Media playback**; it requires Android 13+ and a scrcpy build with `--audio-dup`. If the selected source is not supported by the configured scrcpy binary, the app falls back to the device output and logs an `[AUDIO]` warning.
 
 Audio capture has device-side requirements that the app cannot override:
 
