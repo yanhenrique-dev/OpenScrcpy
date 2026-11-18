@@ -1,3 +1,4 @@
+import { MIRROR_AUDIO_SOURCES } from './types';
 import type {
     MicSource,
     MirrorAudioSource,
@@ -39,13 +40,6 @@ export const DEFAULT_CONFIG: ScrcpyConfig = {
 
 const SESSION_MODES: SessionMode[] = ['mirror', 'camera', 'desktop', 'mic'];
 const AUDIO_CODECS = ['auto', 'opus', 'aac', 'flac', 'raw'] as const;
-const MIRROR_AUDIO_SOURCES = [
-    'output',
-    'playback',
-    'mic',
-    'voice-call',
-    'voice-performance'
-] as const satisfies readonly MirrorAudioSource[];
 const MIC_SOURCES = ['mic', 'mic-voice-communication'] as const;
 const MIC_CODECS = ['opus', 'aac'] as const;
 const ROTATIONS = ['0', '90', '180', '270'] as const;

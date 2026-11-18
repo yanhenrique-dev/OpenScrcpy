@@ -6,6 +6,7 @@
     import SwitchRow from './SwitchRow.svelte';
     import { t } from '../i18n';
     import { scrcpy } from '../lib/scrcpy.svelte';
+    import { MIRROR_AUDIO_SOURCES } from '../lib/types';
     import type { MirrorAudioSource, ScrcpyConfig } from '../lib/types';
 
     const AUDIO_CODEC_VALUES = ['auto', 'opus', 'aac', 'flac', 'raw'] as const;
@@ -18,14 +19,6 @@
         flac: 'sessionBehavior.audioCodecFlac',
         raw: 'sessionBehavior.audioCodecRaw'
     };
-
-    const MIRROR_AUDIO_SOURCE_VALUES = [
-        'output',
-        'playback',
-        'mic',
-        'voice-call',
-        'voice-performance'
-    ] as const satisfies readonly MirrorAudioSource[];
 
     const MIRROR_AUDIO_LABEL_KEY: Record<MirrorAudioSource, string> = {
         output: 'sessionBehavior.audioSourceOutput',
@@ -42,7 +35,7 @@
             : 'auto'
     );
     const mirrorAudioSource = $derived(
-        MIRROR_AUDIO_SOURCE_VALUES.includes(config.mirrorAudioSource as MirrorAudioSource)
+        MIRROR_AUDIO_SOURCES.includes(config.mirrorAudioSource as MirrorAudioSource)
             ? (config.mirrorAudioSource as MirrorAudioSource)
             : 'output'
     );
@@ -148,7 +141,7 @@
                                     <Select
                                         value={mirrorAudioSource}
                                         onChange={updateMirrorAudioSource}
-                                        options={MIRROR_AUDIO_SOURCE_VALUES.map((opt) => ({
+                                        options={MIRROR_AUDIO_SOURCES.map((opt) => ({
                                             value: opt,
                                             label: t(MIRROR_AUDIO_LABEL_KEY[opt])
                                         }))}

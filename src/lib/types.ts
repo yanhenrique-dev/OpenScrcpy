@@ -98,12 +98,14 @@ export type AudioCodec = 'auto' | 'opus' | 'aac' | 'flac' | 'raw';
 export type AudioStatus = 'ok' | 'warning' | 'error' | 'off';
 export type MicSource = 'mic' | 'mic-voice-communication';
 /** Mirror-mode audio source exposed by scrcpy's --audio-source. */
-export type MirrorAudioSource =
-    | 'output'
-    | 'playback'
-    | 'mic'
-    | 'voice-call'
-    | 'voice-performance';
+export const MIRROR_AUDIO_SOURCES = [
+    'output',
+    'playback',
+    'mic',
+    'voice-call',
+    'voice-performance'
+] as const;
+export type MirrorAudioSource = (typeof MIRROR_AUDIO_SOURCES)[number];
 export type MicCodec = 'opus' | 'aac';
 export type Rotation = '0' | '90' | '180' | '270';
 export type ColorMode = 'light' | 'dark' | 'system';
