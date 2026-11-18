@@ -228,6 +228,8 @@ export const ru: Translations = {
     cameraTorchTooltip: 'Включает фонарик устройства во время трансляции камеры (scrcpy v4+).',
     cameraZoom: 'Приближение камеры',
     cameraZoomTooltip: 'Уровень приближения для захвата камеры. 1.0 = без приближения. (scrcpy v4+)',
+    cameraMicSink: 'Виртуальный микрофон',
+    cameraMicSinkTooltip: 'Направляет микрофон телефона из этого сеанса камеры во вход OpenScrcpy Mic (выберите «Monitor of OpenScrcpy Mic» в OBS или Discord). Звук уходит с устройства вывода по умолчанию; если pactl отсутствует или sink не удаётся создать, он остаётся там, а в консоли появляется предупреждение [MIC]. Только Linux.',
     backgroundColor: 'Цвет фона',
     backgroundColorTooltip: 'HEX-цвет фона/полос окна (ex. #1a1a1a). Оставьте пустым для тёмно-серого по умолчанию. (scrcpy v4+)',
     backgroundColorNone: 'По умолчанию',

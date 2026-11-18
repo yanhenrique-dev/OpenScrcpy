@@ -17,7 +17,7 @@ mod kwin;
 // active mirror window), shared with grab.rs's Windows-only drag toggle.
 mod shortcuts;
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicU32};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::sync::{oneshot, Notify};
@@ -30,9 +30,6 @@ use std::os::unix::process::CommandExt;
 /// task to stop, and a notification that it finished.
 pub struct SessionHandle {
     pub generation: u64,
-    /// Session mode ("mirror", "camera", "desktop" or "mic"). The mic sink
-    /// lifecycle needs to know whether another mic bridge is still active.
-    pub mode: String,
     /// Whether this session owns the persisted mirror-window position. Only
     /// windowed mirror sessions do; camera/desktop/fullscreen must not read or
     /// overwrite it.
@@ -56,6 +53,16 @@ pub struct ScrcpyState {
     /// Serializes the binary update swap with the "reserve a device" step of
     /// run_scrcpy, closing the check-then-start race in download_scrcpy.
     pub binary_swap: tokio::sync::Mutex<()>,
+    /// Serializes virtual-sink creation/unload with the per-session user
+    /// count. Without it, a stopping session could unload the sink between
+    /// another session's `ensure_mic_sink` and its reservation, silently
+    /// sending the new audio stream to the default output.
+    pub mic_sink_lock: tokio::sync::Mutex<()>,
+    /// Number of sessions holding a reservation on the shared OpenScrcpy Mic
+    /// sink (microphone bridge or camera with virtual mic). A start reserves
+    /// before spawning, so the count can briefly include a session that is
+    /// still preparing. The sink is unloaded when it reaches zero.
+    pub mic_sink_users: AtomicUsize,
     /// Logical session generation per device serial, bumped by every
     /// run_scrcpy. Mic sidecar loops (route watcher, level meter) capture the
     /// value at spawn and exit once it moves past theirs: a replaced session
@@ -146,6 +153,8 @@ pub fn run() {
                 sessions: Mutex::new(HashMap::new()),
                 starting_devices: Mutex::new(HashSet::new()),
                 binary_swap: tokio::sync::Mutex::new(()),
+                mic_sink_lock: tokio::sync::Mutex::new(()),
+                mic_sink_users: AtomicUsize::new(0),
                 session_generations: Mutex::new(HashMap::new()),
                 active_device: Mutex::new(None),
                 background_mode: AtomicBool::new(false),
