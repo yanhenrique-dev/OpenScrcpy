@@ -43,6 +43,9 @@ describe('SessionBehavior', () => {
         render(SessionBehavior);
 
         expect(screen.queryByRole('switch', { name: 'Require audio' })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('combobox', { name: 'Audio source' })
+        ).not.toBeInTheDocument();
     });
 
     it('offers the mirror audio source and only shows device duplication for playback', async () => {
@@ -86,5 +89,8 @@ describe('SessionBehavior', () => {
 
         expect(scrcpy.config.mirrorAudioSource).toBe('mic');
         expect(scrcpy.config.audioDup).toBe(false);
+        expect(
+            screen.queryByRole('switch', { name: 'Keep playing on device' })
+        ).not.toBeInTheDocument();
     });
 });

@@ -3677,6 +3677,10 @@ mod tests {
         assert!(!args.iter().any(|a| a.starts_with("--audio-source")));
         assert!(!args.contains(&"--audio-dup".to_string()));
 
+        config.mirror_audio_source = Some("voice-performance".to_string());
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=voice-performance".to_string()));
+
         // Disabling audio removes both flags.
         config.mirror_audio_source = Some("playback".to_string());
         config.audio_dup = Some(true);
