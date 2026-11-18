@@ -232,6 +232,15 @@ export const zhCN: Translations = {
         ignoreEncoderConstraints: '忽略编码器限制',
         ignoreEncoderConstraintsTooltip: '完全跳过视频编码器尺寸限制。如果 scrcpy 因设备报告错误的编码器限制而无法启动或出现分辨率问题，请使用此选项（scrcpy v4.1+）。'
     },
+    appBehavior: {
+        title: '应用',
+        keepInBackground: '在后台继续运行',
+        keepInBackgroundTooltip: '关闭窗口时，OpenScrcpy 会隐藏到托盘，并保持镜像和麦克风会话运行。选择托盘菜单中的“退出”可停止它们。'
+    },
+    tray: {
+        show: '显示 OpenScrcpy',
+        quit: '退出 OpenScrcpy'
+    },
     sessionBehavior: {
         title: '行为设置',
         stayAwake: '保持设备唤醒',
@@ -349,7 +358,9 @@ export const zhCN: Translations = {
         updateAvailableTitle: '有可用更新',
         updateAvailableMessage: 'Scrcpy 新版本 (v{latest}) 已发布。您当前安装的版本是 v{local}。是否现在更新？',
         updateBtn: '立即更新',
-        cancelBtn: '以后再说'
+        cancelBtn: '以后再说',
+        backgroundUnavailableTitle: '后台模式不可用',
+        backgroundUnavailableMsg: '此桌面环境不支持系统托盘。请安装 Ayatana AppIndicator 库，或继续正常使用窗口。'
     },
     logs: {
         noDeviceForDragDrop: '[警告] 未选择设备，无法执行拖放操作。',
@@ -362,6 +373,7 @@ export const zhCN: Translations = {
         errorRefreshingDevices: '[系统] 刷新设备时出错：{error}',
         initializingScrcpy: '[系统] 正在为 {device} 初始化 scrcpy 会话...',
         failedToStartScrcpy: '[错误] 启动 scrcpy 失败：{error}',
+        backgroundModeFailed: '[错误] 无法更新后台模式：{error}',
         failedToStopScrcpy: '[错误] 停止 scrcpy 失败：{error}',
         downloadError: '下载错误：{error}',
         downloadComplete: '下载完成',

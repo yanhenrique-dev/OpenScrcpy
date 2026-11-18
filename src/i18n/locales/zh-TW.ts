@@ -232,6 +232,15 @@ export const zhTW: Translations = {
         ignoreEncoderConstraints: '忽略編碼器限制',
         ignoreEncoderConstraintsTooltip: '完全跳過視訊編碼器尺寸限制。若因裝置回報錯誤的編碼器限制導致 scrcpy 無法啟動或解析度問題，請使用此項 (scrcpy v4.1+)。',
     },
+    appBehavior: {
+        title: '應用程式',
+        keepInBackground: '在背景繼續執行',
+        keepInBackgroundTooltip: '關閉視窗時，OpenScrcpy 會隱藏到系統匣，並保持鏡像與麥克風工作階段執行。選擇系統匣選單中的「結束」可停止它們。'
+    },
+    tray: {
+        show: '顯示 OpenScrcpy',
+        quit: '結束 OpenScrcpy'
+    },
     sessionBehavior: {
         title: '行為設定',
         stayAwake: '保持裝置喚醒',
@@ -349,7 +358,9 @@ export const zhTW: Translations = {
         updateAvailableTitle: '有可用更新',
         updateAvailableMessage: 'Scrcpy 新版本 (v{latest}) 已發布。您目前安裝的版本是 v{local}。是否現在更新？',
         updateBtn: '立即更新',
-        cancelBtn: '以後再說'
+        cancelBtn: '以後再說',
+        backgroundUnavailableTitle: '背景模式無法使用',
+        backgroundUnavailableMsg: '此桌面環境不支援系統匣。請安裝 Ayatana AppIndicator 函式庫，或繼續正常使用視窗。'
     },
     logs: {
         noDeviceForDragDrop: '[警告] 未選擇裝置，無法進行拖放操作。',
@@ -362,6 +373,7 @@ export const zhTW: Translations = {
         errorRefreshingDevices: '[系統] 重新整理裝置錯誤：{error}',
         initializingScrcpy: '[系統] 正在為 {device} 初始化 scrcpy 工作階段...',
         failedToStartScrcpy: '[錯誤] 啟動 scrcpy 失敗：{error}',
+        backgroundModeFailed: '[錯誤] 無法更新背景模式：{error}',
         failedToStopScrcpy: '[錯誤] 停止 scrcpy 失敗：{error}',
         downloadError: '下載錯誤：{error}',
         downloadComplete: '下載完成',

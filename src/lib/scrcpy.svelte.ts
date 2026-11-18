@@ -31,6 +31,8 @@ class ScrcpyStore {
     private mounted = true;
     private unlisteners: UnlistenFn[] = [];
     private intervals: ReturnType<typeof setInterval>[] = [];
+    /** Serializes tray updates so a fast toggle cannot land out of order. */
+    private backgroundSync: Promise<void> = Promise.resolve();
 
     // ── State facade ───────────────────────────────────────────────────────
     get config(): ScrcpyConfig {
@@ -45,6 +47,13 @@ class ScrcpyStore {
     }
     set colorMode(value: ColorMode) {
         this.settings.colorMode = value;
+    }
+
+    get backgroundMode(): boolean {
+        return this.settings.backgroundMode;
+    }
+    set backgroundMode(value: boolean) {
+        this.settings.setBackgroundMode(value);
     }
 
     get historyDevices(): string[] {
@@ -349,6 +358,49 @@ class ScrcpyStore {
 
     setActiveDevice = (device: string) => {
         this.deviceStore.setActiveDevice(device);
+    };
+
+    setBackgroundMode = (enabled: boolean) => {
+        this.settings.setBackgroundMode(enabled);
+    };
+
+    /**
+     * Applies the background preference to the native tray. Called by the
+     * settings panel on every change and by an App effect when the locale
+     * changes, so the menu follows the interface language.
+     */
+    syncBackgroundMode = (enabled: boolean) => {
+        if (!isTauri() || !this.ready) return;
+
+        this.backgroundSync = this.backgroundSync.then(async () => {
+            try {
+                await invoke('configure_background_mode', {
+                    enabled,
+                    showLabel: t('tray.show'),
+                    quitLabel: t('tray.quit')
+                });
+            } catch (error) {
+                if (!enabled) {
+                    // Disabling is the safe path and cannot depend on labels;
+                    // log it instead of retrying in a loop.
+                    this.logStore.add(
+                        t('logs.backgroundModeFailed', { error: String(error) }),
+                        'err'
+                    );
+                    return;
+                }
+                this.settings.setBackgroundMode(false);
+                this.logStore.add(
+                    t('logs.backgroundModeFailed', { error: String(error) }),
+                    'err'
+                );
+                showAlert({
+                    title: t('alerts.backgroundUnavailableTitle'),
+                    message: t('alerts.backgroundUnavailableMsg'),
+                    kind: 'error'
+                });
+            }
+        });
     };
 
     setColorMode = (mode: ColorMode) => {

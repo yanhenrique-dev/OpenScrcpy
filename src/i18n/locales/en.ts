@@ -233,6 +233,15 @@ export const en = {
         ignoreEncoderConstraints: 'Ignore encoder constraints',
         ignoreEncoderConstraintsTooltip: 'Skip video encoder size constraints entirely. Use this if scrcpy fails to start or has resolution issues due to the device reporting incorrect encoder limits (scrcpy v4.1+).',
     },
+    appBehavior: {
+        title: 'Application',
+        keepInBackground: 'Keep running in the background',
+        keepInBackgroundTooltip: 'Closing the window hides OpenScrcpy to the tray and keeps mirror and microphone sessions running. Choose Quit in the tray menu to stop them.'
+    },
+    tray: {
+        show: 'Show OpenScrcpy',
+        quit: 'Quit OpenScrcpy'
+    },
     sessionBehavior: {
         title: 'Session behavior',
         stayAwake: 'Device awake',
@@ -350,7 +359,9 @@ export const en = {
         updateAvailableTitle: 'Update Available',
         updateAvailableMessage: 'A new version of Scrcpy (v{latest}) is available. Your installed version is v{local}. Would you like to update now?',
         updateBtn: 'Update Now',
-        cancelBtn: 'Later'
+        cancelBtn: 'Later',
+        backgroundUnavailableTitle: 'Background Mode Unavailable',
+        backgroundUnavailableMsg: 'The system tray is not available on this desktop. Install the Ayatana AppIndicator library or keep using the window normally.'
     },
     logs: {
         noDeviceForDragDrop: '[WARN] No device selected for drag-and-drop operation.',
@@ -363,6 +374,7 @@ export const en = {
         errorRefreshingDevices: '[SYSTEM] Error refreshing devices: {error}',
         initializingScrcpy: '[SYSTEM] Initializing scrcpy session for {device}...',
         failedToStartScrcpy: '[ERROR] Failed to start scrcpy: {error}',
+        backgroundModeFailed: '[ERROR] Could not update background mode: {error}',
         failedToStopScrcpy: '[ERROR] Failed to stop scrcpy: {error}',
         downloadError: 'Download Error: {error}',
         downloadComplete: 'Download Complete',

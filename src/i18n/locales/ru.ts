@@ -238,6 +238,15 @@ export const ru: Translations = {
     ignoreEncoderConstraintsTooltip: 'Полностью пропустить ограничения размера видеоэнкодера. Используйте, если scrcpy не запускается или возникают проблемы с разрешением из-за некорректных данных об ограничениях, сообщаемых устройством (scrcpy v4.1+).',
   },
 
+  appBehavior: {
+    title: 'Приложение',
+    keepInBackground: 'Продолжать работу в фоне',
+    keepInBackgroundTooltip: 'При закрытии окна OpenScrcpy скрывается в трей, а сеансы зеркалирования и микрофона продолжают работать. Чтобы остановить их, выберите «Выход» в меню трея.'
+  },
+  tray: {
+    show: 'Показать OpenScrcpy',
+    quit: 'Выйти из OpenScrcpy'
+  },
   sessionBehavior: {
     title: 'Поведение сессии',
     stayAwake: 'Устройство не спит',
@@ -360,7 +369,9 @@ export const ru: Translations = {
     updateAvailableTitle: 'Доступно обновление',
     updateAvailableMessage: 'Доступна новая версия Scrcpy (v{latest}). Ваша установленная версия, v{local}. Хотите обновить сейчас?',
     updateBtn: 'Обновить сейчас',
-    cancelBtn: 'Позже'
+    cancelBtn: 'Позже',
+    backgroundUnavailableTitle: 'Фоновый режим недоступен',
+    backgroundUnavailableMsg: 'Системный трей недоступен в этой среде. Установите библиотеку Ayatana AppIndicator или продолжайте использовать окно как обычно.'
   },
 
   logs: {
@@ -374,6 +385,7 @@ export const ru: Translations = {
     errorRefreshingDevices: '[SYSTEM] Ошибка при обновлении устройств: {error}',
     initializingScrcpy: '[SYSTEM] Инициализация сессии scrcpy для {device}...',
     failedToStartScrcpy: '[ERROR] Не удалось запустить scrcpy: {error}',
+    backgroundModeFailed: '[ERROR] Не удалось обновить фоновый режим: {error}',
     failedToStopScrcpy: '[ERROR] Не удалось остановить scrcpy: {error}',
     downloadError: 'Ошибка загрузки: {error}',
     downloadComplete: 'Загрузка завершена',

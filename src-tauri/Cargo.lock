@@ -2605,6 +2605,7 @@ version = "2.0.0"
 dependencies = [
  "chrono",
  "flate2",
+ "libloading",
  "reqwest",
  "serde",
  "serde_json",

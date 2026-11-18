@@ -232,6 +232,15 @@ export const fr: Translations = {
         ignoreEncoderConstraints: 'Ignore Encoder Constraints',
         ignoreEncoderConstraintsTooltip: 'Skip video encoder size constraints entirely. Use this if scrcpy fails to start or has resolution issues due to the device reporting incorrect encoder limits (scrcpy v4.1+).',
     },
+    appBehavior: {
+        title: 'Application',
+        keepInBackground: 'Continuer en arrière-plan',
+        keepInBackgroundTooltip: 'Fermer la fenêtre masque OpenScrcpy dans la zone de notification et garde les sessions de miroir et de microphone actives. Choisissez « Quitter » dans le menu pour les arrêter.'
+    },
+    tray: {
+        show: 'Afficher OpenScrcpy',
+        quit: 'Quitter OpenScrcpy'
+    },
     sessionBehavior: {
         title: 'Comportement de la Session',
         stayAwake: 'Appareil éveillé',
@@ -349,7 +358,9 @@ export const fr: Translations = {
         updateAvailableTitle: 'Mise à jour disponible',
         updateAvailableMessage: 'Une nouvelle version de Scrcpy (v{latest}) est disponible. Votre version installée est v{local}. Voulez-vous mettre à jour maintenant ?',
         updateBtn: 'Mettre à jour',
-        cancelBtn: 'Plus tard'
+        cancelBtn: 'Plus tard',
+        backgroundUnavailableTitle: 'Mode arrière-plan indisponible',
+        backgroundUnavailableMsg: "La zone de notification n'est pas disponible sur ce bureau. Installez la bibliothèque Ayatana AppIndicator ou continuez à utiliser la fenêtre normalement."
     },
     logs: {
         noDeviceForDragDrop: '[WARN] Aucun appareil sélectionné pour l\'opération de glisser-déposer.',
@@ -362,6 +373,7 @@ export const fr: Translations = {
         errorRefreshingDevices: '[SYSTEM] Erreur lors de l\'actualisation des appareils : {error}',
         initializingScrcpy: '[SYSTEM] Initialisation de la session scrcpy pour {device}...',
         failedToStartScrcpy: '[ERROR] Échec du démarrage de scrcpy : {error}',
+        backgroundModeFailed: '[ERROR] Impossible de mettre à jour le mode arrière-plan : {error}',
         failedToStopScrcpy: '[ERROR] Échec de l’arrêt de scrcpy : {error}',
         downloadError: 'Erreur de Téléchargement : {error}',
         downloadComplete: 'Téléchargement Terminé',

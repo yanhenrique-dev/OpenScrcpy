@@ -232,6 +232,15 @@ languages: {
         ignoreEncoderConstraints: 'Ignore Encoder Constraints',
         ignoreEncoderConstraintsTooltip: 'Skip video encoder size constraints entirely. Use this if scrcpy fails to start or has resolution issues due to the device reporting incorrect encoder limits (scrcpy v4.1+).',
     },
+    appBehavior: {
+        title: 'Aplikasi',
+        keepInBackground: 'Tetap berjalan di latar belakang',
+        keepInBackgroundTooltip: 'Menutup jendela akan menyembunyikan OpenScrcpy ke tray dan menjaga sesi cermin serta mikrofon tetap berjalan. Pilih Keluar di menu tray untuk menghentikannya.'
+    },
+    tray: {
+        show: 'Tampilkan OpenScrcpy',
+        quit: 'Keluar dari OpenScrcpy'
+    },
     sessionBehavior: {
         title: 'Pengaturan Sesi',
         stayAwake: 'Perangkat Terjaga',
@@ -349,7 +358,9 @@ languages: {
         updateAvailableTitle: 'Ada Update',
         updateAvailableMessage: 'Versi baru Scrcpy (v{latest}) tersedia. Versi yang terpasang adalah v{local}. Mau update sekarang?',
         updateBtn: 'Update Sekarang',
-        cancelBtn: 'Nanti'
+        cancelBtn: 'Nanti',
+        backgroundUnavailableTitle: 'Mode Latar Belakang Tidak Tersedia',
+        backgroundUnavailableMsg: 'Tray sistem tidak tersedia di desktop ini. Instal pustaka Ayatana AppIndicator atau terus gunakan jendela seperti biasa.'
     },
     logs: {
         noDeviceForDragDrop: '[PERINGATAN] Pilih perangkat dulu sebelum drag & drop file.',
@@ -362,6 +373,7 @@ languages: {
         errorRefreshingDevices: '[SISTEM] Gagal menemukan perangkat: {error}',
         initializingScrcpy: '[SISTEM] Menginisialisasi sesi scrcpy untuk {device}...',
         failedToStartScrcpy: '[ERROR] Gagal memulai scrcpy: {error}',
+        backgroundModeFailed: '[ERROR] Tidak dapat memperbarui mode latar belakang: {error}',
         failedToStopScrcpy: '[ERROR] Gagal menghentikan scrcpy: {error}',
         downloadError: 'Gagal download: {error}',
         downloadComplete: 'Download Selesai',

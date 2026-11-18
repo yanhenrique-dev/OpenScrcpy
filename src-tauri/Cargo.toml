@@ -23,7 +23,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
@@ -50,6 +50,10 @@ tauri-plugin-single-instance = "2.5.4"
 # Already in the tree via tauri-plugin-opener/single-instance.
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "5"
+# libappindicator loads the Ayatana library at runtime and panics when it is
+# missing. Probe it first so enabling the tray can fail with a clear error
+# instead of crashing the whole app. Already in the tree via tray-icon.
+libloading = "0.7"
 
 # Windows-only: read the scrcpy mirror window's client-area position natively
 # (EnumWindows + ClientToScreen) to persist it across sessions. Pinned to the

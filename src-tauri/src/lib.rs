@@ -3,6 +3,7 @@ mod capabilities;
 mod commands;
 mod download;
 mod process;
+mod tray;
 mod validate;
 // Windows-only: drag the borderless scrcpy window with the mouse
 // (Ctrl+Alt+Shift+W).
@@ -16,7 +17,7 @@ mod kwin;
 // active mirror window), shared with grab.rs's Windows-only drag toggle.
 mod shortcuts;
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::AtomicU32;
+use std::sync::atomic::{AtomicBool, AtomicU32};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tokio::sync::{oneshot, Notify};
@@ -62,6 +63,9 @@ pub struct ScrcpyState {
     /// cannot tell the previous session's loops apart from the new one.
     pub session_generations: Mutex<HashMap<String, u64>>,
     pub active_device: Mutex<Option<String>>,
+    /// Mirrors the persisted "keep running in the background" preference.
+    /// When set, closing the main window hides it instead of exiting.
+    pub background_mode: AtomicBool,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -118,10 +122,9 @@ pub fn run() {
         // Must be the first plugin: a second launch exits here, after asking
         // the running instance to surface its window.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            // A second launch is also the recovery path when the main window
+            // is hidden in the tray.
+            tray::show_main_window(app);
         }))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -144,6 +147,7 @@ pub fn run() {
                 binary_swap: tokio::sync::Mutex::new(()),
                 session_generations: Mutex::new(HashMap::new()),
                 active_device: Mutex::new(None),
+                background_mode: AtomicBool::new(false),
             });
 
             // Ctrl+Alt+Shift+C (recentre the active mirror window) on every
@@ -187,16 +191,30 @@ pub fn run() {
             commands::run_terminal_command,
             commands::check_scrcpy_update,
             commands::open_app_release,
-            commands::goto_wireless
+            commands::goto_wireless,
+            commands::configure_background_mode
         ])
+        .on_window_event(tray::on_window_event)
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    // Kill every registered child + drop the mic sink on exit, so closing
-    // the app cannot leave sessions (or audio) running in the background.
-    app.run(|app_handle, event| {
-        if let tauri::RunEvent::Exit = event {
-            commands::teardown_sessions(app_handle);
+    // Kill every registered child + drop the mic sink on exit. Closing the
+    // main window only hides it while background mode is on; a real exit
+    // (tray Quit, OS quit, or close with background mode off) must never
+    // leave a mirror or audio bridge behind.
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::Exit => commands::teardown_sessions(app_handle),
+        // Clicking the Dock icon after the window was hidden to the tray must
+        // bring it back on macOS, where no window is visible.
+        #[cfg(target_os = "macos")]
+        tauri::RunEvent::Reopen {
+            has_visible_windows,
+            ..
+        } => {
+            if !has_visible_windows {
+                tray::show_main_window(app_handle);
+            }
         }
+        _ => {}
     });
 }

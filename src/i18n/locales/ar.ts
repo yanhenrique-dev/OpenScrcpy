@@ -235,6 +235,15 @@ export const ar: Translations = {
         ignoreEncoderConstraints: 'Ignore Encoder Constraints',
         ignoreEncoderConstraintsTooltip: 'Skip video encoder size constraints entirely. Use this if scrcpy fails to start or has resolution issues due to the device reporting incorrect encoder limits (scrcpy v4.1+).'
     },
+    appBehavior: {
+        title: 'التطبيق',
+        keepInBackground: 'الاستمرار في الخلفية',
+        keepInBackgroundTooltip: 'عند إغلاق النافذة يختفي OpenScrcpy إلى شريط النظام وتبقى جلسات النسخ والمايكروفون قيد التشغيل. اختر «خروج» من قائمة شريط النظام لإيقافها.'
+    },
+    tray: {
+        show: 'إظهار OpenScrcpy',
+        quit: 'الخروج من OpenScrcpy'
+    },
     sessionBehavior: {
         title: 'سلوك الجلسة',
         stayAwake: 'إبقاء الجهاز مستيقظًا',
@@ -352,7 +361,9 @@ export const ar: Translations = {
         updateAvailableTitle: 'يتوفر تحديث',
         updateAvailableMessage: 'يتوفر إصدار جديد من Scrcpy (v{latest}). الإصدار المثبت لديك هو v{local}. هل ترغب في التحديث الآن؟',
         updateBtn: 'تحديث الآن',
-        cancelBtn: 'لاحقًا'
+        cancelBtn: 'لاحقًا',
+        backgroundUnavailableTitle: 'وضع الخلفية غير متاح',
+        backgroundUnavailableMsg: 'شريط النظام غير متاح على سطح المكتب هذا. ثبّت مكتبة Ayatana AppIndicator أو تابع استخدام النافذة كالمعتاد.'
     },
     logs: {
         noDeviceForDragDrop: '[تحذير] لم يتم تحديد جهاز لعملية السحب والإفلات.',
@@ -365,6 +376,7 @@ export const ar: Translations = {
         errorRefreshingDevices: '[النظام] خطأ أثناء تحديث الأجهزة: {error}',
         initializingScrcpy: '[النظام] جارٍ تهيئة جلسة Scrcpy للجهاز {device}...',
         failedToStartScrcpy: '[خطأ] تعذر تشغيل Scrcpy: {error}',
+        backgroundModeFailed: '[ERROR] تعذّر تحديث وضع الخلفية: {error}',
         failedToStopScrcpy: '[خطأ] تعذر إيقاف Scrcpy: {error}',
         downloadError: 'خطأ في التنزيل: {error}',
         downloadComplete: 'اكتمل التنزيل',
