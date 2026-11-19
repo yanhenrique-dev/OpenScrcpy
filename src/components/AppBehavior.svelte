@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { AppWindow, Bell, Settings2 } from '@lucide/svelte';
+    import { AppWindow, Bell, RefreshCw, Settings2 } from '@lucide/svelte';
     import SwitchRow from './SwitchRow.svelte';
     import { t } from '../i18n';
     import { scrcpy } from '../lib/scrcpy.svelte';
@@ -30,6 +30,14 @@
             icon={Bell}
             label={t('appBehavior.notifications')}
             tooltip={t('appBehavior.notificationsTooltip')}
+        />
+        <SwitchRow
+            variant="compact"
+            checked={scrcpy.config.autoReconnect || false}
+            onChange={(value) => scrcpy.updateConfig({ autoReconnect: value })}
+            icon={RefreshCw}
+            label={t('appBehavior.autoReconnect')}
+            tooltip={t('appBehavior.autoReconnectTooltip')}
         />
     </div>
 </div>

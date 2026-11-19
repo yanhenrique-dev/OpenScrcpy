@@ -239,7 +239,9 @@ export const zhTW: Translations = {
         keepInBackground: '在背景繼續執行',
         keepInBackgroundTooltip: '關閉視窗時，OpenScrcpy 會隱藏到系統匣，並保持鏡像與麥克風工作階段執行。選擇系統匣選單中的「結束」可停止它們。',
         notifications: '原生通知',
-        notificationsTooltip: '在裝置連線、工作階段意外結束和有可用更新時通知你。通知僅在 OpenScrcpy 執行時出現；視窗取得焦點時不會顯示裝置與更新通知。'
+        notificationsTooltip: '在裝置連線、工作階段意外結束和有可用更新時通知你。通知僅在 OpenScrcpy 執行時出現；視窗取得焦點時不會顯示裝置與更新通知。',
+        autoReconnect: '自動重新連線',
+        autoReconnectTooltip: '如果 scrcpy 意外結束（USB/ADB 中斷或當機），使用指數退避（最長 30 秒）重試工作階段。主動停止或關閉 scrcpy 視窗不會重新連線。僅適用於新工作階段；主控台會記錄每次嘗試。'
     },
     tray: {
         show: '顯示 OpenScrcpy',

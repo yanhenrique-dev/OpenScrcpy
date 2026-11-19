@@ -239,7 +239,9 @@ export const ptBR: Translations = {
         keepInBackground: 'Continuar em segundo plano',
         keepInBackgroundTooltip: 'Ao fechar a janela, o OpenScrcpy fica na bandeja e mantém as sessões de espelhamento e microfone ativas. Escolha "Sair" no menu da bandeja para encerrá-las.',
         notifications: 'Notificações nativas',
-        notificationsTooltip: 'Avisa sobre dispositivos ligados/desligados, sessões terminadas inesperadamente e atualizações disponíveis. As notificações só aparecem com o OpenScrcpy aberto; avisos de dispositivos e atualizações são suprimidos enquanto a janela está em foco.'
+        notificationsTooltip: 'Avisa sobre dispositivos ligados/desligados, sessões terminadas inesperadamente e atualizações disponíveis. As notificações só aparecem com o OpenScrcpy aberto; avisos de dispositivos e atualizações são suprimidos enquanto a janela está em foco.',
+        autoReconnect: 'Reconectar automaticamente',
+        autoReconnectTooltip: 'Se o scrcpy terminar inesperadamente (queda do USB/ADB ou crash), tenta reiniciar a sessão com backoff exponencial até 30 segundos. Uma paragem deliberada ou o fecho da janela do scrcpy não são reconectados. Aplica-se a novas sessões; o console registra cada tentativa.'
     },
     tray: {
         show: 'Mostrar OpenScrcpy',

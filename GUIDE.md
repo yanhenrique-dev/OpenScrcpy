@@ -196,6 +196,19 @@ combine them with background mode if you want them after closing the window.
 - **Linux:** a notification daemon is required; KDE, GNOME and most desktop
   environments provide one.
 
+### 🔄 Automatic Reconnection
+
+Enable **Reconnect automatically** in the **Application** card. If scrcpy ends
+unexpectedly (USB/ADB drop or a crash), OpenScrcpy retries the session with
+exponential backoff from 2 seconds up to 30 seconds while the device is
+missing. It reopens the session when the device becomes available again.
+
+- A deliberate **Stop** or closing the scrcpy window is not reconnected.
+- The session stays active while it waits; the console shows `[RECONNECT]`
+  lines for each attempt.
+- This also works with **Keep running in the background**.
+- The setting applies to new sessions; change it before starting one.
+
 ---
 
 ## 🔧 Troubleshooting
