@@ -2614,19 +2614,22 @@ fn reconnect_delay(attempt: u32) -> Duration {
 /// would repeat identically.
 fn should_auto_reconnect(
     enabled: bool,
+    has_serial: bool,
     success: bool,
     capture_failed: bool,
     codec_failed: bool,
 ) -> bool {
-    enabled && !success && !capture_failed && !codec_failed
+    enabled && has_serial && !success && !capture_failed && !codec_failed
 }
 
 /// Parses `adb devices` output. Only a ready device is online; `offline` and
-/// `unauthorized` entries keep the reconnect loop waiting.
+/// `unauthorized` entries keep the reconnect loop waiting. `parse_adb_device_line`
+/// handles mDNS serials that contain spaces.
 fn adb_device_is_online(output: &str, serial: &str) -> bool {
     output.lines().any(|line| {
-        let mut parts = line.split_whitespace();
-        parts.next() == Some(serial) && parts.next() == Some("device")
+        parse_adb_device_line(line)
+            .map(|(name, state)| name == serial && state == "device")
+            .unwrap_or(false)
     })
 }
 
@@ -2648,11 +2651,18 @@ async fn finish_stopped_session(
     device: &str,
     requested: Option<(i32, i32)>,
     stop_position: Option<(i32, i32)>,
+    publish: bool,
 ) {
+    // Always terminate the child. Dropping a Tokio Child does not kill the
+    // process, so a replacement must still reap the previous scrcpy even when
+    // it must not publish a stop event for the new session.
     let graceful = match runtime.child.try_wait() {
         Ok(Some(_)) => true,
         _ => terminate_child(&mut runtime.child, Duration::from_secs(2)).await,
     };
+    if !publish {
+        return;
+    }
     let _ = window.emit(
         "scrcpy-audio-status",
         json!({ "device": device, "status": "off" }),
@@ -2688,9 +2698,15 @@ async fn finish_if_session_gone(
     if session_alive(app_handle, device, generation) {
         return true;
     }
-    if generation_is_current(app_handle, device, generation) {
-        finish_stopped_session(runtime, window, device, requested, None).await;
-    }
+    finish_stopped_session(
+        runtime,
+        window,
+        device,
+        requested,
+        None,
+        generation_is_current(app_handle, device, generation),
+    )
+    .await;
     false
 }
 
@@ -3187,16 +3203,15 @@ pub async fn run_scrcpy(
                         Ok(request) => request.position,
                         Err(_) => None,
                     };
-                    if generation_is_current(&app_handle_mon, &device_mon, session_generation) {
-                        finish_stopped_session(
-                            &mut runtime,
-                            &window_mon,
-                            &device_mon,
-                            requested_pos,
-                            position,
-                        )
-                        .await;
-                    }
+                    finish_stopped_session(
+                        &mut runtime,
+                        &window_mon,
+                        &device_mon,
+                        requested_pos,
+                        position,
+                        generation_is_current(&app_handle_mon, &device_mon, session_generation),
+                    )
+                    .await;
                     break 'monitor;
                 }
             }
@@ -3388,6 +3403,7 @@ pub async fn run_scrcpy(
                     healthy_ticks = 0;
                     if should_auto_reconnect(
                         config_mon.auto_reconnect.unwrap_or(false),
+                        !device_mon.is_empty(),
                         success,
                         capture_failed,
                         codec_failed,
@@ -3430,20 +3446,19 @@ pub async fn run_scrcpy(
                                         Ok(request) => request.position,
                                         Err(_) => None,
                                     };
-                                    if generation_is_current(
-                                        &app_handle_mon,
+                                    finish_stopped_session(
+                                        &mut runtime,
+                                        &window_mon,
                                         &device_mon,
-                                        session_generation,
-                                    ) {
-                                        finish_stopped_session(
-                                            &mut runtime,
-                                            &window_mon,
+                                        requested_pos,
+                                        position,
+                                        generation_is_current(
+                                            &app_handle_mon,
                                             &device_mon,
-                                            requested_pos,
-                                            position,
-                                        )
-                                        .await;
-                                    }
+                                            session_generation,
+                                        ),
+                                    )
+                                    .await;
                                     break 'monitor;
                                 }
                             }
@@ -3468,6 +3483,20 @@ pub async fn run_scrcpy(
                                     ),
                                 );
                                 continue;
+                            }
+                            // A replacement or a manual stop may have happened
+                            // while `adb devices` was running.
+                            if !finish_if_session_gone(
+                                &mut runtime,
+                                &window_mon,
+                                &app_handle_mon,
+                                &device_mon,
+                                session_generation,
+                                requested_pos,
+                            )
+                            .await
+                            {
+                                break 'monitor;
                             }
 
                             let reconnect_args =
@@ -3618,20 +3647,25 @@ mod tests {
 
     #[test]
     fn auto_reconnect_only_for_unexpected_plain_exits() {
-        assert!(should_auto_reconnect(true, false, false, false));
-        assert!(!should_auto_reconnect(false, false, false, false));
-        assert!(!should_auto_reconnect(true, true, false, false));
-        assert!(!should_auto_reconnect(true, false, true, false));
-        assert!(!should_auto_reconnect(true, false, false, true));
+        assert!(should_auto_reconnect(true, true, false, false, false));
+        assert!(!should_auto_reconnect(false, true, false, false, false));
+        assert!(!should_auto_reconnect(true, false, false, false, false));
+        assert!(!should_auto_reconnect(true, true, true, false, false));
+        assert!(!should_auto_reconnect(true, true, false, true, false));
+        assert!(!should_auto_reconnect(true, true, false, false, true));
     }
 
     #[test]
     fn adb_devices_parser_requires_a_ready_device() {
-        let output = "List of devices attached\n192.168.1.5:5555\tdevice product:a05m model:SM_A055M\nusb123\tunauthorized\nemulator-5554\toffline\n";
+        let output = "List of devices attached\n192.168.1.5:5555\tdevice product:a05m model:SM_A055M\nusb123\tunauthorized\nemulator-5554\toffline\nadb-ZY22MGW35T-Z3uXXq (2)._adb-tls-connect._tcp\tdevice\n";
         assert!(adb_device_is_online(output, "192.168.1.5:5555"));
         assert!(!adb_device_is_online(output, "usb123"));
         assert!(!adb_device_is_online(output, "emulator-5554"));
         assert!(!adb_device_is_online(output, "missing"));
+        assert!(adb_device_is_online(
+            output,
+            "adb-ZY22MGW35T-Z3uXXq (2)._adb-tls-connect._tcp"
+        ));
     }
 
     #[test]
