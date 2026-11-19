@@ -2674,6 +2674,26 @@ async fn finish_stopped_session(
     );
 }
 
+/// Returns true while this generation still owns the session. When the handle
+/// was removed by a normal Stop, publishes the stop event; when a replacement
+/// bumped the generation, leaves the UI untouched for the new session.
+async fn finish_if_session_gone(
+    runtime: &mut SessionRuntime,
+    window: &Window,
+    app_handle: &tauri::AppHandle,
+    device: &str,
+    generation: u64,
+    requested: Option<(i32, i32)>,
+) -> bool {
+    if session_alive(app_handle, device, generation) {
+        return true;
+    }
+    if generation_is_current(app_handle, device, generation) {
+        finish_stopped_session(runtime, window, device, requested, None).await;
+    }
+    false
+}
+
 /// Immutable session context needed to respawn scrcpy with another codec.
 struct RetryContext<'a> {
     window: &'a Window,
@@ -3372,7 +3392,16 @@ pub async fn run_scrcpy(
                         capture_failed,
                         codec_failed,
                     ) {
-                        if !session_alive(&app_handle_mon, &device_mon, session_generation) {
+                        if !finish_if_session_gone(
+                            &mut runtime,
+                            &window_mon,
+                            &app_handle_mon,
+                            &device_mon,
+                            session_generation,
+                            requested_pos,
+                        )
+                        .await
+                        {
                             break 'monitor;
                         }
                         if reconnect_attempt == 0 {
@@ -3418,7 +3447,16 @@ pub async fn run_scrcpy(
                                     break 'monitor;
                                 }
                             }
-                            if !session_alive(&app_handle_mon, &device_mon, session_generation) {
+                            if !finish_if_session_gone(
+                                &mut runtime,
+                                &window_mon,
+                                &app_handle_mon,
+                                &device_mon,
+                                session_generation,
+                                requested_pos,
+                            )
+                            .await
+                            {
                                 break 'monitor;
                             }
                             if !device_is_online(&adb_exe_path_mon, &device_mon).await {
