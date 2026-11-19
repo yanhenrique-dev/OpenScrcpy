@@ -900,6 +900,9 @@ pub struct ScrcpyConfig {
     camera_mic_sink: Option<bool>,
     background_color: Option<String>,
     keep_active: Option<bool>,
+    /// Retry a session that ends unexpectedly (USB/ADB drop or crash) with
+    /// exponential backoff. Deliberate stops are never retried.
+    auto_reconnect: Option<bool>,
     /// Force SDL renderer VSync on/off (anti-tearing). scrcpy 4.0 (SDL3)
     /// disables renderer VSync by default; this re-asserts it via the SDL hint.
     vsync: Option<bool>,
@@ -2286,6 +2289,17 @@ fn session_generation_is_current(
     generations.get(device) == Some(&generation)
 }
 
+/// True when no replacement has taken over this device. A replaced session
+/// must not publish a stop event: the new session already owns the UI state.
+fn generation_is_current(app_handle: &tauri::AppHandle, device: &str, generation: u64) -> bool {
+    let state = app_handle.state::<ScrcpyState>();
+    let generations = state
+        .session_generations
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    session_generation_is_current(&generations, device, generation)
+}
+
 /// Sidecar liveness: the device is still registered AND the generation this
 /// loop was spawned with is still the current one. Both locks are taken one
 /// after the other, never together, so this cannot deadlock with the
@@ -2584,6 +2598,116 @@ struct SessionRuntime {
     chain_index: usize,
     capture_reported: bool,
     codec_terminal_reported: bool,
+}
+
+/// Backoff for automatic reconnection. The last delay repeats until the
+/// session is stopped or the device comes back.
+const RECONNECT_DELAYS_SECS: &[u64] = &[2, 4, 8, 16, 30];
+
+fn reconnect_delay(attempt: u32) -> Duration {
+    let index = (attempt as usize).min(RECONNECT_DELAYS_SECS.len() - 1);
+    Duration::from_secs(RECONNECT_DELAYS_SECS[index])
+}
+
+/// Only an unexpected exit with no known capture/codec failure is retried.
+/// `success == true` is a deliberate window close, and capture/codec failures
+/// would repeat identically.
+fn should_auto_reconnect(
+    enabled: bool,
+    has_serial: bool,
+    success: bool,
+    capture_failed: bool,
+    codec_failed: bool,
+) -> bool {
+    enabled && has_serial && !success && !capture_failed && !codec_failed
+}
+
+/// Parses `adb devices` output. Only a ready device is online; `offline` and
+/// `unauthorized` entries keep the reconnect loop waiting. `parse_adb_device_line`
+/// handles mDNS serials that contain spaces.
+fn adb_device_is_online(output: &str, serial: &str) -> bool {
+    output.lines().any(|line| {
+        parse_adb_device_line(line)
+            .map(|(name, state)| name == serial && state == "device")
+            .unwrap_or(false)
+    })
+}
+
+async fn device_is_online(adb_exe_path: &str, serial: &str) -> bool {
+    let mut command = create_command(adb_exe_path);
+    command.arg("devices");
+    let Ok(output) = process::output_with_timeout(command, Duration::from_secs(2)).await else {
+        return false;
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    output.status.success() && adb_device_is_online(&stdout, serial)
+}
+
+/// Finalizes a user-initiated stop. Also used while the monitor is in the
+/// reconnect backoff, where the child has already exited.
+async fn finish_stopped_session(
+    runtime: &mut SessionRuntime,
+    window: &Window,
+    device: &str,
+    requested: Option<(i32, i32)>,
+    stop_position: Option<(i32, i32)>,
+    publish: bool,
+) {
+    // Always terminate the child. Dropping a Tokio Child does not kill the
+    // process, so a replacement must still reap the previous scrcpy even when
+    // it must not publish a stop event for the new session.
+    let graceful = match runtime.child.try_wait() {
+        Ok(Some(_)) => true,
+        _ => terminate_child(&mut runtime.child, Duration::from_secs(2)).await,
+    };
+    if !publish {
+        return;
+    }
+    let _ = window.emit(
+        "scrcpy-audio-status",
+        json!({ "device": device, "status": "off" }),
+    );
+    emit_window_pos_and_stop(
+        window,
+        device,
+        requested,
+        runtime.first_window_pos,
+        stop_position.or(runtime.last_window_pos),
+        SessionEndReason::Stopped,
+    );
+    let _ = window.emit(
+        "scrcpy-log",
+        format!(
+            "[SYSTEM] Session stopped ({}).",
+            if graceful { "graceful" } else { "forced" }
+        ),
+    );
+}
+
+/// Returns true while this generation still owns the session. When the handle
+/// was removed by a normal Stop, publishes the stop event; when a replacement
+/// bumped the generation, leaves the UI untouched for the new session.
+async fn finish_if_session_gone(
+    runtime: &mut SessionRuntime,
+    window: &Window,
+    app_handle: &tauri::AppHandle,
+    device: &str,
+    generation: u64,
+    requested: Option<(i32, i32)>,
+) -> bool {
+    if session_alive(app_handle, device, generation) {
+        return true;
+    }
+    finish_stopped_session(
+        runtime,
+        window,
+        device,
+        requested,
+        None,
+        generation_is_current(app_handle, device, generation),
+    )
+    .await;
+    false
 }
 
 /// Immutable session context needed to respawn scrcpy with another codec.
@@ -3054,6 +3178,8 @@ pub async fn run_scrcpy(
             track_position,
         };
         let mut stop_rx = stop_rx;
+        let mut reconnect_attempt: u32 = 0;
+        let mut healthy_ticks: u32 = 0;
 
         let emit_audio_status = |status: &str| {
             let _ = window_mon.emit(
@@ -3069,33 +3195,24 @@ pub async fn run_scrcpy(
             }
         };
 
-        loop {
+        'monitor: loop {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(2000)) => {}
                 request = &mut stop_rx => {
-                    emit_audio_status("off");
                     let position = match request {
                         Ok(request) => request.position,
                         Err(_) => None,
                     };
-                    let graceful =
-                        terminate_child(&mut runtime.child, Duration::from_secs(2)).await;
-                    emit_window_pos_and_stop(
+                    finish_stopped_session(
+                        &mut runtime,
                         &window_mon,
                         &device_mon,
                         requested_pos,
-                        runtime.first_window_pos,
-                        position.or(runtime.last_window_pos),
-                        SessionEndReason::Stopped,
-                    );
-                    let _ = window_mon.emit(
-                        "scrcpy-log",
-                        format!(
-                            "[SYSTEM] Session stopped ({}).",
-                            if graceful { "graceful" } else { "forced" }
-                        ),
-                    );
-                    break;
+                        position,
+                        generation_is_current(&app_handle_mon, &device_mon, session_generation),
+                    )
+                    .await;
+                    break 'monitor;
                 }
             }
 
@@ -3176,7 +3293,13 @@ pub async fn run_scrcpy(
                     description: status.to_string(),
                     success: status.success(),
                 },
-                Ok(None) => continue,
+                Ok(None) => {
+                    healthy_ticks = healthy_ticks.saturating_add(1);
+                    if healthy_ticks >= 5 {
+                        reconnect_attempt = 0;
+                    }
+                    continue;
+                }
                 Err(e) => AttemptOutcome::WaitError(e.to_string()),
             };
 
@@ -3276,6 +3399,167 @@ pub async fn run_scrcpy(
                     } else {
                         emit_audio_status("off");
                     }
+
+                    healthy_ticks = 0;
+                    if should_auto_reconnect(
+                        config_mon.auto_reconnect.unwrap_or(false),
+                        !device_mon.is_empty(),
+                        success,
+                        capture_failed,
+                        codec_failed,
+                    ) {
+                        if !finish_if_session_gone(
+                            &mut runtime,
+                            &window_mon,
+                            &app_handle_mon,
+                            &device_mon,
+                            session_generation,
+                            requested_pos,
+                        )
+                        .await
+                        {
+                            break 'monitor;
+                        }
+                        if reconnect_attempt == 0 {
+                            let _ = window_mon.emit(
+                                "scrcpy-log",
+                                "[RECONNECT] scrcpy exited unexpectedly; trying to restore the session."
+                                    .to_string(),
+                            );
+                        }
+                        loop {
+                            let attempt = reconnect_attempt.saturating_add(1);
+                            let delay = reconnect_delay(reconnect_attempt);
+                            reconnect_attempt = attempt;
+                            let _ = window_mon.emit(
+                                "scrcpy-log",
+                                format!(
+                                    "[RECONNECT] Retrying in {}s (attempt {}).",
+                                    delay.as_secs(),
+                                    attempt
+                                ),
+                            );
+                            tokio::select! {
+                                _ = tokio::time::sleep(delay) => {}
+                                request = &mut stop_rx => {
+                                    let position = match request {
+                                        Ok(request) => request.position,
+                                        Err(_) => None,
+                                    };
+                                    finish_stopped_session(
+                                        &mut runtime,
+                                        &window_mon,
+                                        &device_mon,
+                                        requested_pos,
+                                        position,
+                                        generation_is_current(
+                                            &app_handle_mon,
+                                            &device_mon,
+                                            session_generation,
+                                        ),
+                                    )
+                                    .await;
+                                    break 'monitor;
+                                }
+                            }
+                            if !finish_if_session_gone(
+                                &mut runtime,
+                                &window_mon,
+                                &app_handle_mon,
+                                &device_mon,
+                                session_generation,
+                                requested_pos,
+                            )
+                            .await
+                            {
+                                break 'monitor;
+                            }
+                            if !device_is_online(&adb_exe_path_mon, &device_mon).await {
+                                let _ = window_mon.emit(
+                                    "scrcpy-log",
+                                    format!(
+                                        "[RECONNECT] Device {} is not available yet; waiting.",
+                                        device_mon
+                                    ),
+                                );
+                                continue;
+                            }
+                            // A replacement or a manual stop may have happened
+                            // while `adb devices` was running.
+                            if !finish_if_session_gone(
+                                &mut runtime,
+                                &window_mon,
+                                &app_handle_mon,
+                                &device_mon,
+                                session_generation,
+                                requested_pos,
+                            )
+                            .await
+                            {
+                                break 'monitor;
+                            }
+
+                            let reconnect_args =
+                                build_scrcpy_args(&config_mon, video_dir_mon.clone(), None);
+                            let (reconnect_args, skipped) =
+                                crate::capabilities::filter_args(reconnect_args, &capabilities);
+                            if let Some(message) =
+                                crate::capabilities::skipped_message(&capabilities, &skipped)
+                            {
+                                let _ = window_mon.emit("scrcpy-log", message);
+                            }
+                            match spawn_scrcpy_streams(
+                                &window_mon,
+                                &exe_path_mon,
+                                &adb_exe_path_mon,
+                                server_path_mon.as_deref(),
+                                &reconnect_args,
+                                config_mon.vsync.unwrap_or(true),
+                                pulse_sink_mon.as_deref(),
+                            )
+                            .await
+                            {
+                                Ok((new_child, new_state)) => {
+                                    let new_pid = new_child.id().unwrap_or(0);
+                                    #[cfg(target_os = "linux")]
+                                    if track_position {
+                                        crate::kwin::stop_tracking(
+                                            runtime.pid.load(Ordering::Relaxed),
+                                        );
+                                        crate::kwin::track_window(
+                                            new_pid,
+                                            config_mon.window_x.zip(config_mon.window_y),
+                                        );
+                                    }
+                                    runtime.pid.store(new_pid, Ordering::Relaxed);
+                                    runtime.child = new_child;
+                                    runtime.audio_state = new_state;
+                                    runtime.first_window_pos = None;
+                                    runtime.last_window_pos = None;
+                                    runtime.capture_reported = false;
+                                    runtime.codec_terminal_reported = false;
+                                    runtime.chain_index = 0;
+                                    emit_audio_status(if audio_enabled { "ok" } else { "off" });
+                                    let _ = window_mon.emit(
+                                        "scrcpy-log",
+                                        format!(
+                                            "[RECONNECT] Session restored after {} attempt(s).",
+                                            attempt
+                                        ),
+                                    );
+                                    break;
+                                }
+                                Err(e) => {
+                                    let _ = window_mon.emit(
+                                        "scrcpy-log",
+                                        format!("[RECONNECT] Attempt {} failed: {}", attempt, e),
+                                    );
+                                }
+                            }
+                        }
+                        continue 'monitor;
+                    }
+
                     // A terminal codec failure is an error even when the
                     // process happens to exit with status 0.
                     let reason = if codec_failed {
@@ -3349,6 +3633,39 @@ mod tests {
         let error = session_end_payload("device1", SessionEndReason::Error);
         assert_eq!(error["reason"], "error");
         assert!(error.get("success").is_none());
+    }
+
+    #[test]
+    fn reconnect_backoff_grows_and_caps() {
+        assert_eq!(reconnect_delay(0), Duration::from_secs(2));
+        assert_eq!(reconnect_delay(1), Duration::from_secs(4));
+        assert_eq!(reconnect_delay(2), Duration::from_secs(8));
+        assert_eq!(reconnect_delay(3), Duration::from_secs(16));
+        assert_eq!(reconnect_delay(4), Duration::from_secs(30));
+        assert_eq!(reconnect_delay(99), Duration::from_secs(30));
+    }
+
+    #[test]
+    fn auto_reconnect_only_for_unexpected_plain_exits() {
+        assert!(should_auto_reconnect(true, true, false, false, false));
+        assert!(!should_auto_reconnect(false, true, false, false, false));
+        assert!(!should_auto_reconnect(true, false, false, false, false));
+        assert!(!should_auto_reconnect(true, true, true, false, false));
+        assert!(!should_auto_reconnect(true, true, false, true, false));
+        assert!(!should_auto_reconnect(true, true, false, false, true));
+    }
+
+    #[test]
+    fn adb_devices_parser_requires_a_ready_device() {
+        let output = "List of devices attached\n192.168.1.5:5555\tdevice product:a05m model:SM_A055M\nusb123\tunauthorized\nemulator-5554\toffline\nadb-ZY22MGW35T-Z3uXXq (2)._adb-tls-connect._tcp\tdevice\n";
+        assert!(adb_device_is_online(output, "192.168.1.5:5555"));
+        assert!(!adb_device_is_online(output, "usb123"));
+        assert!(!adb_device_is_online(output, "emulator-5554"));
+        assert!(!adb_device_is_online(output, "missing"));
+        assert!(adb_device_is_online(
+            output,
+            "adb-ZY22MGW35T-Z3uXXq (2)._adb-tls-connect._tcp"
+        ));
     }
 
     #[test]
@@ -3498,6 +3815,7 @@ mod tests {
             camera_mic_sink: None,
             background_color: None,
             keep_active: None,
+            auto_reconnect: None,
             vsync: None,
             mic_source: None,
             mic_codec: None,

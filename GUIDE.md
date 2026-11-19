@@ -186,8 +186,10 @@ uses the system notification center for:
 
 Device and update notices are suppressed while the OpenScrcpy window is
 focused, so they do not duplicate what is already on screen. Unexpected session
-ends are always reported. Notifications only arrive while the app is running;
-combine them with background mode if you want them after closing the window.
+ends are reported when **Reconnect automatically** is off; with it on, the
+session stays active and the console logs the retries instead. Notifications
+only arrive while the app is running; combine them with background mode if you
+want them after closing the window.
 
 - **Windows:** notifications work for installed builds. Development builds
   appear with the PowerShell name and icon.
@@ -195,6 +197,23 @@ combine them with background mode if you want them after closing the window.
   asks or if you previously denied them.
 - **Linux:** a notification daemon is required; KDE, GNOME and most desktop
   environments provide one.
+
+### 🔄 Automatic Reconnection
+
+Enable **Reconnect automatically** in the **Application** card. If scrcpy ends
+unexpectedly (USB/ADB drop or a crash), OpenScrcpy retries the session with
+exponential backoff from 2 seconds up to 30 seconds while the device is
+missing. It reopens the session when the device becomes available again.
+
+- A deliberate **Stop** or closing the scrcpy window is not reconnected.
+- Capture failures and terminal codec failures are not retried; fix the
+  device/codec and start the session again.
+- The device must come back with the **same ADB serial**. A new wireless port
+  or mDNS name means the retry cannot find it; start a new session.
+- The session stays active while it waits; the console shows `[RECONNECT]`
+  lines for each attempt.
+- This also works with **Keep running in the background**.
+- The setting applies to new sessions; change it before starting one.
 
 ---
 
