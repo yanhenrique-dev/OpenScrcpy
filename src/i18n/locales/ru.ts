@@ -158,6 +158,8 @@ export const ru: Translations = {
     micCodecLabel: 'Кодек',
     micDenoiseLabel: 'Шумодав (RNNoise)',
     micDenoiseTooltip: 'Экспериментально: DSP RNNoise PipeWire на ПК; если недоступно, мост работает без фильтра.',
+    micSetDefaultSource: 'Сделать микрофоном по умолчанию',
+    micSetDefaultSourceTooltip: 'Linux: использовать Monitor of OpenScrcpy Mic как системный вход по умолчанию, пока работает мост, и восстановить предыдущий вход при остановке. Некоторые приложения сохраняют собственное устройство. Применяется к новым сеансам.',
     engineConfiguration: 'Конфигурация движка',
     otgOnly: 'Только OTG',
     audioOk: 'Аудио OK',

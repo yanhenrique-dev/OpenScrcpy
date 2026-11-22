@@ -930,6 +930,10 @@ pub struct ScrcpyConfig {
     /// filter-chain (PC-side noise suppression). Best effort with fallback.
     #[cfg_attr(not(unix), allow(dead_code))]
     mic_denoise: Option<bool>,
+    /// Linux: make the virtual monitor source the system default input while
+    /// the bridge runs, restoring the previous default when it stops.
+    #[cfg_attr(not(unix), allow(dead_code))]
+    mic_set_default_source: Option<bool>,
 }
 
 fn resolve_audio_codec_flag<'a>(
@@ -2071,6 +2075,8 @@ fn force_kill_pid(pid: u32) {
 const MIC_SINK_NAME: &str = "openscrcpy_mic";
 #[cfg(unix)]
 const MIC_SINK_LABEL: &str = "OpenScrcpy Mic";
+#[cfg(unix)]
+const MIC_SINK_MONITOR: &str = "openscrcpy_mic.monitor";
 
 #[cfg(unix)]
 struct PactlOut {
@@ -2091,6 +2097,150 @@ async fn pactl_run(args: &[&str]) -> Option<PactlOut> {
         stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
         stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
     })
+}
+
+#[cfg(unix)]
+async fn pactl_get_default_source() -> Option<String> {
+    let out = pactl_run(&["get-default-source"]).await?;
+    if out.ok && !out.stdout.trim().is_empty() {
+        Some(out.stdout.trim().to_string())
+    } else {
+        None
+    }
+}
+
+#[cfg(unix)]
+async fn pactl_set_default_source(source: &str) -> bool {
+    pactl_run(&["set-default-source", source])
+        .await
+        .map(|out| out.ok)
+        .unwrap_or(false)
+}
+
+/// Makes the virtual monitor source the system default input. The caller holds
+/// `ScrcpyState::mic_sink_lock`, so the saved previous source and the user
+/// count cannot race with a stop. Returns false when nothing changed.
+#[cfg(unix)]
+async fn ensure_default_mic_source(state: &ScrcpyState, window: &Window) -> bool {
+    let users = state.mic_default_source_users.load(Ordering::Relaxed);
+    if users > 0 {
+        state
+            .mic_default_source_users
+            .fetch_add(1, Ordering::Relaxed);
+        return true;
+    }
+
+    let Some(previous) = pactl_get_default_source().await else {
+        let _ = window.emit(
+            "scrcpy-log",
+            "[MIC] Could not read the current default source; leaving it unchanged.".to_string(),
+        );
+        return false;
+    };
+    if previous == MIC_SINK_MONITOR {
+        let _ = window.emit(
+            "scrcpy-log",
+            "[MIC] The virtual monitor source is already the default; leaving it unchanged."
+                .to_string(),
+        );
+        return false;
+    }
+    if !pactl_set_default_source(MIC_SINK_MONITOR).await {
+        let _ = window.emit(
+            "scrcpy-log",
+            "[MIC] Could not set Monitor of OpenScrcpy Mic as the default source.".to_string(),
+        );
+        return false;
+    }
+
+    *state
+        .mic_previous_default_source
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(previous.clone());
+    state.mic_default_source_users.store(1, Ordering::Relaxed);
+    let _ = window.emit(
+        "scrcpy-log",
+        format!(
+            "[MIC] Monitor of OpenScrcpy Mic is now the default source; will restore \"{}\" when the bridge stops.",
+            previous
+        ),
+    );
+    true
+}
+
+/// Releases one opt-in default-source user and restores the saved source when
+/// the last one stops. It only restores if the default is still the virtual
+/// source, so a manual change by the user wins.
+#[cfg(unix)]
+async fn release_default_mic_source(state: &ScrcpyState, window: &Window) {
+    let _guard = state.mic_sink_lock.lock().await;
+    let users = state.mic_default_source_users.load(Ordering::Relaxed);
+    if users == 0 {
+        return;
+    }
+    let remaining = users - 1;
+    state
+        .mic_default_source_users
+        .store(remaining, Ordering::Relaxed);
+    if remaining > 0 {
+        return;
+    }
+
+    let previous = state
+        .mic_previous_default_source
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take();
+    let Some(previous) = previous else {
+        return;
+    };
+    if pactl_get_default_source().await.as_deref() != Some(MIC_SINK_MONITOR) {
+        let _ = window.emit(
+            "scrcpy-log",
+            "[MIC] Default source changed by another app; not restoring the previous one."
+                .to_string(),
+        );
+        return;
+    }
+    if pactl_set_default_source(&previous).await {
+        let _ = window.emit(
+            "scrcpy-log",
+            format!("[MIC] Default source restored to \"{}\".", previous),
+        );
+    } else {
+        let _ = window.emit(
+            "scrcpy-log",
+            format!(
+                "[MIC] Could not restore the previous default source \"{}\".",
+                previous
+            ),
+        );
+    }
+}
+
+/// Synchronous teardown variant for `RunEvent::Exit`, where the async runtime
+/// is not available. Best effort, like the rest of the exit path.
+#[cfg(unix)]
+fn restore_default_source_sync(state: &ScrcpyState) {
+    let previous = state
+        .mic_previous_default_source
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take();
+    state.mic_default_source_users.store(0, Ordering::Relaxed);
+    let Some(previous) = previous else {
+        return;
+    };
+    let current = StdCommand::new("pactl")
+        .args(["get-default-source"])
+        .output()
+        .ok()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string());
+    if current.as_deref() == Some(MIC_SINK_MONITOR) {
+        let _ = StdCommand::new("pactl")
+            .args(["set-default-source", &previous])
+            .output();
+    }
 }
 
 // Returns true when the virtual sink exists (created now, if absent).
@@ -2988,23 +3138,27 @@ pub async fn run_scrcpy(
     // Start-up and teardown take `mic_sink_lock` so the user count cannot be
     // overtaken by a session stopping at the same time.
     #[cfg(unix)]
-    let (pulse_sink, uses_mic_sink): (Option<String>, bool) = if wants_virtual_mic {
-        let _sink_guard = state.mic_sink_lock.lock().await;
-        // Remove a sink left behind by a crashed session. Only the first
-        // active user does this; later users reuse the live sink.
-        if state.mic_sink_users.load(Ordering::Relaxed) == 0 {
-            unload_mic_sink(&window).await;
-        }
-        let denoise = config.session_mode == "mic" && config.mic_denoise.unwrap_or(false);
-        if ensure_mic_sink(&window, denoise).await {
-            reserve_mic_sink_user(&state.mic_sink_users);
-            (Some(MIC_SINK_NAME.to_string()), true)
+    let (pulse_sink, uses_mic_sink, uses_mic_default_source): (Option<String>, bool, bool) =
+        if wants_virtual_mic {
+            let _sink_guard = state.mic_sink_lock.lock().await;
+            // Remove a sink left behind by a crashed session. Only the first
+            // active user does this; later users reuse the live sink.
+            if state.mic_sink_users.load(Ordering::Relaxed) == 0 {
+                unload_mic_sink(&window).await;
+            }
+            let denoise = config.session_mode == "mic" && config.mic_denoise.unwrap_or(false);
+            if ensure_mic_sink(&window, denoise).await {
+                reserve_mic_sink_user(&state.mic_sink_users);
+                let uses_default = config.session_mode == "mic"
+                    && config.mic_set_default_source.unwrap_or(false)
+                    && ensure_default_mic_source(state.inner(), &window).await;
+                (Some(MIC_SINK_NAME.to_string()), true, uses_default)
+            } else {
+                (None, false, false)
+            }
         } else {
-            (None, false)
-        }
-    } else {
-        (None, false)
-    };
+            (None, false, false)
+        };
 
     #[cfg(not(unix))]
     let pulse_sink: Option<String> = if wants_virtual_mic {
@@ -3043,6 +3197,10 @@ pub async fn run_scrcpy(
         Err(e) => {
             // The sink was reserved before the spawn attempt; release it
             // before allowing another start for this device.
+            #[cfg(unix)]
+            if uses_mic_default_source {
+                release_default_mic_source(state.inner(), &window).await;
+            }
             #[cfg(unix)]
             if uses_mic_sink {
                 release_mic_sink(state.inner(), &window).await;
@@ -3590,6 +3748,13 @@ pub async fn run_scrcpy(
                 sessions.remove(&device_mon);
             }
         }
+        // Restore the default source before the sink is unloaded. A replacement
+        // has its own reservation, so both counts decide when each step runs.
+        #[cfg(unix)]
+        if uses_mic_default_source {
+            let state_lock = app_handle_mon.state::<ScrcpyState>();
+            release_default_mic_source(state_lock.inner(), &window_mon).await;
+        }
         // Release this session's sink reservation even when a replacement
         // already bumped the generation: the replacement has its own
         // reservation, so the count decides when the sink can be unloaded.
@@ -3821,6 +3986,7 @@ mod tests {
             mic_codec: None,
             mic_bitrate: None,
             mic_denoise: None,
+            mic_set_default_source: None,
             window_x: None,
             window_y: None,
             ignore_video_encoder_constraints: None,
@@ -4756,7 +4922,10 @@ pub fn teardown_sessions(app_handle: &tauri::AppHandle) {
         force_kill_pid(pid);
     }
     #[cfg(unix)]
-    teardown_mic_sink();
+    {
+        restore_default_source_sync(state.inner());
+        teardown_mic_sink();
+    }
 }
 
 // Synchronous sink teardown for process exit: event handlers run outside

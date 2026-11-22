@@ -156,6 +156,8 @@ export const ar: Translations = {
         micCodecLabel: 'الترميز',
         micDenoiseLabel: 'تنقية الضوضاء (RNNoise)',
         micDenoiseTooltip: 'تجريبي: معالجة RNNoise على الحاسوب؛ عند عدم توفرها تعمل الجسور دون تنقية.',
+        micSetDefaultSource: 'تعيين كميكروفون افتراضي',
+        micSetDefaultSourceTooltip: 'Linux: اجعل Monitor of OpenScrcpy Mic إدخال النظام الافتراضي أثناء تشغيل الجسر، واستعد الإدخال السابق عند التوقف. بعض التطبيقات تحتفظ بالجهاز الذي اختارته. ينطبق على الجلسات الجديدة.',
         engineConfiguration: 'إعدادات المحرك',
         otgOnly: 'OTG فقط',
         audioOk: 'الصوت يعمل',

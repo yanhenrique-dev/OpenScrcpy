@@ -169,6 +169,9 @@ export interface ScrcpyConfig {
     micCodec?: MicCodec;
     micBitrate?: number;
     micDenoise?: boolean;
+    /** Linux: make Monitor of OpenScrcpy Mic the system default input while
+     *  the bridge runs, restoring the previous default when it stops. */
+    micSetDefaultSource?: boolean;
 }
 
 export type ConfigFieldSetter = <K extends keyof ScrcpyConfig>(

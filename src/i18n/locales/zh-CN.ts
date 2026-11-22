@@ -153,6 +153,8 @@ export const zhCN: Translations = {
         micCodecLabel: '编解码',
         micDenoiseLabel: '清理噪音 (RNNoise)',
         micDenoiseTooltip: '实验性：电脑端 PipeWire RNNoise DSP；不可用时桥接将不降噪运行。',
+        micSetDefaultSource: '设为默认麦克风',
+        micSetDefaultSourceTooltip: 'Linux：桥接运行期间将 Monitor of OpenScrcpy Mic 设为系统默认输入，停止时恢复之前的默认设备。部分应用会保留自己选择的设备。仅适用于新会话。',
         engineConfiguration: '引擎配置',
         otgOnly: '仅 OTG',
         audioOk: '音频正常',

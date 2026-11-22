@@ -83,7 +83,8 @@ describe('scrcpy store', () => {
             requireAudio: 'yes',
             cameraMicSink: 'yes',
             audioDup: 'yes',
-            autoReconnect: 'yes'
+            autoReconnect: 'yes',
+            micSetDefaultSource: 'yes'
         } as any);
 
         expect(config.device).toBe(DEFAULT_CONFIG.device);
@@ -97,9 +98,11 @@ describe('scrcpy store', () => {
         expect(config.cameraMicSink).toBe(false);
         expect(config.audioDup).toBe(false);
         expect(config.autoReconnect).toBe(false);
+        expect(config.micSetDefaultSource).toBe(false);
         expect(normalizeConfig({ requireAudio: true } as any).requireAudio).toBe(true);
         expect(normalizeConfig({ cameraMicSink: true } as any).cameraMicSink).toBe(true);
         expect(normalizeConfig({ autoReconnect: true } as any).autoReconnect).toBe(true);
+        expect(normalizeConfig({ micSetDefaultSource: true } as any).micSetDefaultSource).toBe(true);
     });
 
     it('keeps audio duplication only for the playback source', () => {

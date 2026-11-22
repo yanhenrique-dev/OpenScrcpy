@@ -2,6 +2,8 @@
     import { Mic } from '@lucide/svelte';
     import SettingSelect from './SettingSelect.svelte';
     import MicMeter from './MicMeter.svelte';
+    import SwitchRow from '../SwitchRow.svelte';
+    import { isLinux } from '../../lib/tauri';
     import type { ConfigFieldSetter, ScrcpyConfig } from '../../lib/types';
     import { t } from '../../i18n';
 
@@ -69,6 +71,17 @@
                 </button>
             </div>
         </div>
+
+        {#if isLinux()}
+            <SwitchRow
+                variant="compact"
+                checked={!!config.micSetDefaultSource}
+                onChange={(value) => handleChange('micSetDefaultSource', value)}
+                icon={Mic}
+                label={t('controlPanel.micSetDefaultSource')}
+                tooltip={t('controlPanel.micSetDefaultSourceTooltip')}
+            />
+        {/if}
 
         <p class="ds-caption" style="color: var(--text-secondary); line-height: 1.5">{t('controlPanel.micBridgeDesc')}</p>
         <div class="ds-caption" style="color: var(--text-muted); line-height: 1.5; display: grid; gap: 6px">

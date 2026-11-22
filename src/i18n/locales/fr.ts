@@ -153,6 +153,8 @@ export const fr: Translations = {
         micCodecLabel: 'Codec',
         micDenoiseLabel: 'Réduire le bruit (RNNoise)',
         micDenoiseTooltip: 'Expérimental : DSP RNNoise de PipeWire sur le PC ; si indisponible, le pont reste non filtré.',
+        micSetDefaultSource: 'Définir comme micro par défaut',
+        micSetDefaultSourceTooltip: "Linux : utilise « Monitor of OpenScrcpy Mic » comme entrée par défaut du système pendant le pont, puis restaure l'ancienne entrée à l'arrêt. Certaines applications conservent leur propre périphérique. S'applique aux nouvelles sessions.",
         engineConfiguration: 'Configuration du Moteur',
         otgOnly: 'OTG Uniquement',
         audioOk: 'Audio OK',

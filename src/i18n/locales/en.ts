@@ -154,6 +154,8 @@ export const en = {
         micCodecLabel: 'Codec',
         micDenoiseLabel: 'Clean noise (RNNoise)',
         micDenoiseTooltip: 'Experimental: PipeWire RNNoise DSP on the PC; when unavailable the bridge runs unfiltered.',
+        micSetDefaultSource: 'Set as default microphone',
+        micSetDefaultSourceTooltip: 'Linux: make Monitor of OpenScrcpy Mic the system default input while the bridge runs, and restore the previous default when it stops. Some apps keep their own selected device. Applies to new sessions.',
         engineConfiguration: 'Engine configuration',
         otgOnly: 'OTG only',
         audioOk: 'Audio OK',

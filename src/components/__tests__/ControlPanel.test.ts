@@ -74,6 +74,9 @@ describe('ControlPanel', () => {
         });
 
         expect(screen.getByText('Microphone Bridge')).toBeInTheDocument();
+        expect(
+            screen.getByRole('switch', { name: 'Set as default microphone' })
+        ).toBeInTheDocument();
     });
 
     it('switches the capture source from the tabs', async () => {

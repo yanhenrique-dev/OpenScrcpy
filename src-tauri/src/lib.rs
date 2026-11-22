@@ -63,6 +63,12 @@ pub struct ScrcpyState {
     /// before spawning, so the count can briefly include a session that is
     /// still preparing. The sink is unloaded when it reaches zero.
     pub mic_sink_users: AtomicUsize,
+    /// Number of microphone bridges that asked to become the system default
+    /// input. Mutated under `mic_sink_lock`; teardown reads it synchronously.
+    pub mic_default_source_users: AtomicUsize,
+    /// Default source captured before the first opt-in bridge changed it.
+    /// Restored when the last opt-in bridge stops.
+    pub mic_previous_default_source: Mutex<Option<String>>,
     /// Logical session generation per device serial, bumped by every
     /// run_scrcpy. Mic sidecar loops (route watcher, level meter) capture the
     /// value at spawn and exit once it moves past theirs: a replaced session
@@ -155,6 +161,8 @@ pub fn run() {
                 binary_swap: tokio::sync::Mutex::new(()),
                 mic_sink_lock: tokio::sync::Mutex::new(()),
                 mic_sink_users: AtomicUsize::new(0),
+                mic_default_source_users: AtomicUsize::new(0),
+                mic_previous_default_source: Mutex::new(None),
                 session_generations: Mutex::new(HashMap::new()),
                 active_device: Mutex::new(None),
                 background_mode: AtomicBool::new(false),

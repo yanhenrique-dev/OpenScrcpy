@@ -144,7 +144,8 @@ When capture fails, the console logs an `[AUDIO]` warning and the **audio badge*
 
 - Requires Android 11+; on Android 11 unlock the device before starting, and Android 12+ works out of the box. Allow microphone permission on the phone.
 - Linux needs `pactl`/`parec` (usually `pulseaudio-utils` or the PipeWire equivalent). The sink is created when the bridge starts and removed when the last session using it stops.
-- The app never switches the system default source. That would silently change every application, and OBS keeps its own selected source anyway.
+- **Set as default microphone** (Linux, off by default): while the bridge runs, OpenScrcpy sets `Monitor of OpenScrcpy Mic` as the system default input and restores the previous default when it stops. Some apps keep their own selected device. A manual default change during the session wins over the restore. The setting applies to new sessions.
+- If the app is force-killed, the system default may stay on the virtual source; select your normal microphone again or restart the app.
 - If `pactl` is missing or the sink cannot be created, the bridge still starts but audio plays on the default output; the console logs an `[MIC]` warning.
 - A camera virtual-mic session and a microphone bridge on different devices share the same sink, so their audio is mixed and the level meter shows the combined level.
 

@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG: ScrcpyConfig = {
     mirrorAudioSource: 'output',
     audioDup: false,
     autoReconnect: false,
+    micSetDefaultSource: false,
     requireAudio: false,
     alwaysOnTop: false,
     res: '0',
@@ -72,7 +73,8 @@ const BOOLEAN_FIELDS = [
     'rememberWindowPosition',
     'ignoreVideoEncoderConstraints',
     'aspectRatioLock',
-    'micDenoise'
+    'micDenoise',
+    'micSetDefaultSource'
 ] as const;
 
 const NUMBER_FIELDS = [

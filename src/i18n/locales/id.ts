@@ -153,6 +153,8 @@ languages: {
         micCodecLabel: 'Kodek',
         micDenoiseLabel: 'Bersihkan derau (RNNoise)',
         micDenoiseTooltip: 'Eksperimental: DSP RNNoise PipeWire di PC; bila tak tersedia, jembatan berjalan tanpa filter.',
+        micSetDefaultSource: 'Jadikan mikrofon default',
+        micSetDefaultSourceTooltip: 'Linux: jadikan Monitor of OpenScrcpy Mic input default sistem selama jembatan berjalan, lalu pulihkan default sebelumnya saat berhenti. Sebagian aplikasi tetap memakai perangkat pilihannya sendiri. Berlaku untuk sesi baru.',
         engineConfiguration: 'Konfigurasi',
         otgOnly: 'OTG Saja',
         audioOk: 'Audio OK',

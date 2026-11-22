@@ -153,6 +153,8 @@ export const zhTW: Translations = {
         micCodecLabel: '編解碼器',
         micDenoiseLabel: '清理噪音 (RNNoise)',
         micDenoiseTooltip: '實驗性：電腦端 PipeWire RNNoise DSP；不可用時橋接將不降噪執行。',
+        micSetDefaultSource: '設為預設麥克風',
+        micSetDefaultSourceTooltip: 'Linux：橋接執行期間將 Monitor of OpenScrcpy Mic 設為系統預設輸入，停止時還原先前的預設裝置。部分應用程式會保留自己選擇的裝置。僅適用於新工作階段。',
         engineConfiguration: '引擎設定',
         otgOnly: '純 OTG',
         audioOk: '音訊正常',
