@@ -2378,17 +2378,15 @@ async fn spawn_mic_route_watcher(
 }
 
 /// True when a `pactl list sink-inputs` block belongs to the scrcpy process
-/// that owns the mic bridge. Matching only `application.name = "scrcpy"`
-/// would also grab a concurrent mirror session's audio.
+/// that owns the mic bridge. The PID is unique; the application name is not
+/// reliable when the user points the app at a renamed custom binary.
 #[cfg(unix)]
 fn sink_input_is_scrcpy_pid(block: &str, pid: u32) -> bool {
     if pid == 0 {
         return false;
     }
-    let name = "application.name = \"scrcpy\"";
     let process = format!("application.process.id = \"{}\"", pid);
-    block.lines().any(|line| line.trim() == name)
-        && block.lines().any(|line| line.trim() == process)
+    block.lines().any(|line| line.trim() == process)
 }
 
 // One routing pass. Returns the destination for the GUI: (text, in_virtual)
@@ -3706,7 +3704,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn sink_input_filter_requires_the_scrcpy_pid() {
-        let ours = "Sink Input #12\n  Properties:\n    application.name = \"scrcpy\"\n    application.process.id = \"4242\"\n";
+        // A custom binary can call itself "scrcpy-custom"; the PID is still
+        // the authoritative link to the session.
+        let ours = "Sink Input #12\n  Properties:\n    application.name = \"scrcpy-custom\"\n    application.process.id = \"4242\"\n";
         let other = "Sink Input #13\n  Properties:\n    application.name = \"scrcpy\"\n    application.process.id = \"9999\"\n";
         assert!(sink_input_is_scrcpy_pid(ours, 4242));
         assert!(!sink_input_is_scrcpy_pid(other, 4242));
