@@ -139,6 +139,15 @@ Audio capture has device-side requirements that the app cannot override:
 
 When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable`. If every audio codec fails, it shows `Audio failed` while the video keeps running. When the session stops (for example with **Require audio** enabled), the error remains in the console.
 
+### 🎙 Microphone Bridge
+**Microphone** mode turns the phone microphone into a virtual **recording input** on the PC. It does not change the PC's default output or input; choose `Monitor of OpenScrcpy Mic` in Discord, OBS or your recorder (some apps show `OpenScrcpy Mic`).
+
+- Requires Android 11+; on Android 11 unlock the device before starting, and Android 12+ works out of the box. Allow microphone permission on the phone.
+- Linux needs `pactl`/`parec` (usually `pulseaudio-utils` or the PipeWire equivalent). The sink is created when the bridge starts and removed when the last session using it stops.
+- The app never switches the system default source. That would silently change every application, and OBS keeps its own selected source anyway.
+- If `pactl` is missing or the sink cannot be created, the bridge still starts but audio plays on the default output; the console logs an `[MIC]` warning.
+- A camera virtual-mic session and a microphone bridge on different devices share the same sink, so their audio is mixed and the level meter shows the combined level.
+
 ### 🖥 Graphics Renderer (Render API)
 You can choose which graphics renderer the core engine should request for video display.
 
