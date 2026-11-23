@@ -372,6 +372,62 @@ impl AppShell {
         });
     }
 
+    fn open_behavior_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let weak = cx.weak_entity();
+        window.open_dialog(cx, move |dialog, _, cx| {
+            let (notifications, remember) = weak
+                .upgrade()
+                .map(|entity| {
+                    let shell = entity.read(cx);
+                    (
+                        shell.settings.notifications_enabled,
+                        shell.settings.remember_window_position,
+                    )
+                })
+                .unwrap_or((true, true));
+
+            let notify_weak = weak.clone();
+            let remember_weak = weak.clone();
+
+            dialog.title(t!("appBehavior.title").to_string()).child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_3()
+                    .child(
+                        Switch::new("settings-notifications")
+                            .checked(notifications)
+                            .label(t!("appBehavior.notifications").to_string())
+                            .on_click(move |checked, _, cx| {
+                                let _ = notify_weak.update(cx, |this, cx| {
+                                    this.settings.notifications_enabled = *checked;
+                                    this.persist();
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(
+                        Switch::new("settings-remember-position")
+                            .checked(remember)
+                            .label(t!("sessionBehavior.rememberWindowPosition").to_string())
+                            .on_click(move |checked, _, cx| {
+                                let _ = remember_weak.update(cx, |this, cx| {
+                                    this.settings.remember_window_position = *checked;
+                                    this.persist();
+                                    cx.notify();
+                                });
+                            }),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("appBehavior.keepInBackgroundTooltip").to_string()),
+                    ),
+            )
+        });
+    }
+
     fn open_about_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let version = env!("CARGO_PKG_VERSION");
         window.open_dialog(cx, move |dialog, _, cx| {
@@ -467,12 +523,15 @@ impl AppShell {
                     if !running {
                         self.mic_route = None;
                         self.mic_db = None;
-                        notify_unexpected_end(cx, &payload);
+                        self.notify_unexpected_end(cx, &payload);
                     }
                 }
             }
             AppEvent::AudioStatus(_) => {}
             AppEvent::WindowPos(payload) => {
+                if !self.settings.remember_window_position {
+                    return;
+                }
                 if let (Some(x), Some(y)) = (
                     payload.get("x").and_then(Value::as_i64),
                     payload.get("y").and_then(Value::as_i64),
@@ -986,6 +1045,15 @@ impl AppShell {
     }
 
     fn session_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = self.mode_config(device);
+        if !self.settings.remember_window_position {
+            config.window_x = None;
+            config.window_y = None;
+        }
+        config
+    }
+
+    fn mode_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
         match self.mode {
             CaptureMode::Desktop => self
                 .settings
@@ -1110,6 +1178,13 @@ impl AppShell {
                     .label(t!("header.aboutTitle").to_string())
                     .on_click(
                         cx.listener(|this, _, window, cx| this.open_about_dialog(window, cx)),
+                    ),
+            )
+            .child(
+                Button::new("app-settings")
+                    .label(t!("appBehavior.title").to_string())
+                    .on_click(
+                        cx.listener(|this, _, window, cx| this.open_behavior_dialog(window, cx)),
                     ),
             )
             .child(
@@ -2924,23 +2999,28 @@ fn build_report(context: ReportContext<'_>) -> Value {
     })
 }
 
-/// Native notification for a session that ended without the user asking.
-fn notify_unexpected_end(cx: &mut Context<AppShell>, payload: &Value) {
-    let reason = payload.get("reason").and_then(Value::as_str).unwrap_or("");
-    let success = payload.get("success").and_then(Value::as_bool);
-    let unexpected = reason == "error" || (reason == "exited" && success == Some(false));
-    if !unexpected {
-        return;
+impl AppShell {
+    /// Native notification for a session that ended without the user asking.
+    fn notify_unexpected_end(&self, cx: &mut Context<Self>, payload: &Value) {
+        if !self.settings.notifications_enabled {
+            return;
+        }
+        let reason = payload.get("reason").and_then(Value::as_str).unwrap_or("");
+        let success = payload.get("success").and_then(Value::as_bool);
+        let unexpected = reason == "error" || (reason == "exited" && success == Some(false));
+        if !unexpected {
+            return;
+        }
+        let device = payload.get("device").and_then(Value::as_str).unwrap_or("");
+        cx.show_system_notification(SystemNotification {
+            tag: format!("session-ended-{device}").into(),
+            title: t!("notifications.sessionEndedTitle").to_string().into(),
+            body: t!("notifications.sessionEndedBody", device = device)
+                .to_string()
+                .into(),
+            actions: Vec::new(),
+        });
     }
-    let device = payload.get("device").and_then(Value::as_str).unwrap_or("");
-    cx.show_system_notification(SystemNotification {
-        tag: format!("session-ended-{device}").into(),
-        title: t!("notifications.sessionEndedTitle").to_string().into(),
-        body: t!("notifications.sessionEndedBody", device = device)
-            .to_string()
-            .into(),
-        actions: Vec::new(),
-    });
 }
 
 /// Maps the core's dBFS meter to a 0..=1 bar width; -60 dB (or lower) is empty.

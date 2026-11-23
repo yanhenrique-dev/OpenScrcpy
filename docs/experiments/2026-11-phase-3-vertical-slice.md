@@ -72,6 +72,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   inicialização do core (em vez das abas) com Download Core Binaries, progresso
   vindo do `EventBus`, link para os releases e Continue quando o core fica
   pronto; a conclusão é persistida.
+- **Preferências:** diálogo "Application" com *notificações nativas* e
+  *lembrar posição da janela*; ambos persistem, controlam as notificações de
+  fim inesperado e a restauração de `--window-x/--window-y`. O texto do modo
+  background explica por que ele está indisponível.
 - **Header:** diálogo de idioma com os 8 locales (troca em runtime e fecha ao
   escolher), diálogo **Sobre** com versão, descrição, repositório/releases
   (abertos no navegador) e licença, além do check de update com badge.
@@ -169,7 +173,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |
-| 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
+| 3.9 Behavior (reconnect/background/notificações) | **parcial**: reconnect, notificações (com opt-out) e posição da janela prontos; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | **parcial**: onboarding e Sobre prontos; atalhos, modal de update e confirmações pendentes |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única, recenter global e drag-drop de arquivos prontos; tray/background bloqueados (4.1) |
 | 3.12 Chrome/titlebar | pendente (decoração nativa) |

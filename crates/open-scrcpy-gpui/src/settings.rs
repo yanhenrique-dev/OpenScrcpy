@@ -457,6 +457,10 @@ pub struct AppSettings {
     pub recent_wireless: Vec<String>,
     /// First-run core setup was completed or skipped.
     pub onboarding_done: bool,
+    /// Native notifications for session events.
+    pub notifications_enabled: bool,
+    /// Restore/persist the external scrcpy window position.
+    pub remember_window_position: bool,
 }
 
 impl Default for AppSettings {
@@ -472,6 +476,8 @@ impl Default for AppSettings {
             camera: CameraSettings::default(),
             recent_wireless: Vec::new(),
             onboarding_done: false,
+            notifications_enabled: true,
+            remember_window_position: true,
         }
     }
 }

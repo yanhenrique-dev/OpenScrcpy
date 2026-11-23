@@ -1,5 +1,5 @@
 use gpui_kit::base::LayoutDirection;
-use gpui_kit::component::ActiveTheme as _;
+use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
     AppContext as _, Bounds, TestAppContext, WindowBounds, WindowOptions, init as kit_init, px,
@@ -68,6 +68,20 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             window.find("check-update").label(),
             Some("Check for Updates")
         );
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        assert_eq!(
+            window.find("settings-notifications").label(),
+            Some("Native notifications")
+        );
+        assert_eq!(
+            window.find("settings-remember-position").label(),
+            Some("Remember window position")
+        );
+        window.click("settings-notifications", cx);
+        window.render_frame(cx);
+        window.close_dialog(cx);
+        window.render_frame(cx);
 
         // File transfer is available from the sidebar (disabled without a device).
         assert_eq!(
