@@ -54,7 +54,7 @@ zbus = "5"
 # libappindicator loads the Ayatana library at runtime and panics when it is
 # missing. Probe it first so enabling the tray can fail with a clear error
 # instead of crashing the whole app. Already in the tree via tray-icon.
-libloading = "0.7"
+libloading = "0.9"
 
 # Windows-only: read the scrcpy mirror window's client-area position natively
 # (EnumWindows + ClientToScreen) to persist it across sessions. Pinned to the
