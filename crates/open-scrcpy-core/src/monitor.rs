@@ -799,7 +799,10 @@ pub async fn run_session(request: SessionRequest) -> Result<(), String> {
 
             let outcome = match runtime.child.try_wait() {
                 Ok(Some(status)) => AttemptOutcome::Exited {
-                    description: status.to_string(),
+                    description: status
+                        .code()
+                        .map(|code| format!("code {code}"))
+                        .unwrap_or_else(|| "signal".to_string()),
                     success: status.success(),
                 },
                 Ok(None) => {
@@ -835,7 +838,7 @@ pub async fn run_session(request: SessionRequest) -> Result<(), String> {
                 } => {
                     bus_log(
                         events.as_ref(),
-                        format!("[SYSTEM] Scrcpy process exited with status: {}", status),
+                        format!("[SYSTEM] Scrcpy process exited with {status}."),
                     );
 
                     // Give stream reader tasks a moment to flush remaining stderr

@@ -881,7 +881,10 @@ impl AppShell {
                     Ok(Ok(None)) => {
                         shell.update_available = None;
                         shell.pending_update = None;
-                        shell.push_log("[SYSTEM] OpenScrcpy is up to date.".to_string());
+                        shell.push_log(
+                            "[SYSTEM] No update available (the release channel may not be published yet)."
+                                .to_string(),
+                        );
                     }
                     Ok(Err(error)) => shell.push_error(error),
                     Err(error) => shell.push_error(error.to_string()),
@@ -922,7 +925,7 @@ impl AppShell {
 
     fn transfer_files(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
         let Some(device) = self.active_device.clone() else {
-            self.push_error("[WARN] No device selected for push/install.");
+            self.push_log("[WARN] No device selected for push/install.");
             cx.notify();
             return;
         };
@@ -1052,8 +1055,8 @@ impl AppShell {
         }
         let typed = self.pairing_address.read(cx).value().trim().to_string();
         let Some(address) = resolve_pairing_address(&self.discovered, &typed) else {
-            self.push_error(
-                "[SYSTEM] No pairing service found; enable Wireless debugging and enter IP:Port.",
+            self.push_log(
+                "[WARN] No pairing service found; enable Wireless debugging and enter IP:Port.",
             );
             cx.notify();
             return;
@@ -1117,9 +1120,7 @@ impl AppShell {
             let _ = this.update(cx, |shell, cx| {
                 shell.wireless_busy = false;
                 shell.pairing_attempt = None;
-                shell.push_error(format!(
-                    "[SYSTEM] Pairing with {address} failed: {last_error}"
-                ));
+                shell.push_error(format!("Pairing with {address} failed: {last_error}"));
                 cx.notify();
             });
         })
