@@ -31,6 +31,86 @@ pub async fn list_options(device: &str, arg: &str, custom_path: Option<&str>) ->
     }
 }
 
+/// One lens reported by `scrcpy --list-cameras`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CameraInfo {
+    pub id: String,
+    pub name: String,
+}
+
+/// Parses both camera-list formats scrcpy has used:
+///
+/// - `--camera-id=0 (Back camera)` (4.x);
+/// - `[0] (1920x1080) Back camera` or `- [0] (...) ...` (older builds).
+pub fn parse_cameras(output: &str) -> Vec<CameraInfo> {
+    let mut cameras: Vec<CameraInfo> = Vec::new();
+
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let (id, name) = if let Some(index) = trimmed.find("--camera-id=") {
+            let rest = &trimmed[index + "--camera-id=".len()..];
+            let id: String = rest
+                .chars()
+                .take_while(|character| {
+                    character.is_ascii_alphanumeric() || *character == '_' || *character == '-'
+                })
+                .collect();
+            if id.is_empty() {
+                continue;
+            }
+            let label = rest
+                .split_once('(')
+                .and_then(|(_, tail)| tail.split_once(')'))
+                .map(|(label, _)| label.trim().to_string())
+                .unwrap_or_else(|| id.clone());
+            (id.clone(), format!("{id}: {label}"))
+        } else {
+            let line = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+            let Some(open) = line.find('[') else {
+                continue;
+            };
+            let Some(close_offset) = line[open..].find(']') else {
+                continue;
+            };
+            let close = open + close_offset;
+            let id = line[open + 1..close].trim();
+            if id.is_empty()
+                || !id
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || character == '_')
+            {
+                continue;
+            }
+            let rest = &line[close + 1..];
+            let Some(paren_open) = rest.find('(') else {
+                continue;
+            };
+            let Some(paren_close_offset) = rest[paren_open..].find(')') else {
+                continue;
+            };
+            let paren_close = paren_open + paren_close_offset;
+            let resolution = rest[paren_open + 1..paren_close].trim();
+            let metadata = rest[paren_close + 1..].trim();
+            let label = if metadata.is_empty() {
+                format!("{id}: Camera ({resolution})")
+            } else {
+                format!("{id}: {metadata} ({resolution})")
+            };
+            (id.to_string(), label)
+        };
+
+        if !cameras.iter().any(|camera| camera.id == id) {
+            cameras.push(CameraInfo { id, name });
+        }
+    }
+
+    cameras
+}
+
 pub fn detect_host_os() -> &'static str {
     if cfg!(target_os = "windows") {
         "windows"
@@ -195,6 +275,38 @@ pub async fn local_version(custom_path: Option<&str>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_the_new_camera_list_format() {
+        let output = "Cameras:\n--camera-id=0 (Back camera)\n--camera-id=1 (Front camera)\n";
+        let cameras = parse_cameras(output);
+        assert_eq!(cameras.len(), 2);
+        assert_eq!(cameras[0].id, "0");
+        assert_eq!(cameras[0].name, "0: Back camera");
+        assert_eq!(cameras[1].id, "1");
+    }
+
+    #[test]
+    fn parses_the_legacy_camera_list_format() {
+        let output =
+            "* daemon not running\n[0] (1920x1080) Back camera\n- [2] (1280x720) Ultra-wide\n";
+        let cameras = parse_cameras(output);
+        assert_eq!(cameras.len(), 2);
+        assert_eq!(cameras[0].id, "0");
+        assert!(cameras[0].name.contains("Back camera"));
+        assert!(cameras[0].name.contains("1920x1080"));
+        assert_eq!(cameras[1].id, "2");
+    }
+
+    #[test]
+    fn ignores_noise_and_duplicate_ids() {
+        let output = "no cameras here\n--camera-id=0 (A)\n--camera-id=0 (B)\n";
+        let cameras = parse_cameras(output);
+        assert_eq!(cameras.len(), 1);
+        assert_eq!(cameras[0].name, "0: A");
+    }
+
     use super::*;
 
     #[cfg(unix)]

@@ -39,9 +39,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
   (`core::session::teardown_sessions`), o mesmo código que o casco Tauri passou
   a usar.
-- **Câmera:** facing (traseira/frontal/externa), aspecto, zoom (slider 1–10×),
-  torch, high-speed, virtual mic e tamanho máximo; o start usa
-  `ScrcpyConfig::camera` e o resumo reflete as escolhas.
+- **Câmera:** facing (traseira/frontal/externa), **lente específica**
+  (descoberta via `scrcpy --list-cameras`, com botão Refresh e fallback Auto),
+  aspecto, zoom (slider 1–10×), torch, high-speed, virtual mic e tamanho
+  máximo; o start usa `ScrcpyConfig::camera` e o resumo reflete as escolhas.
 - **Microfone:** ponte sem janela (`ScrcpyConfig::mic`) com fonte (mic cru /
   denoised), codec (Opus/AAC), bitrate, RNNoise e "definir como microfone
   padrão" (Linux). O painel mostra o destino do stream (`mic-route`) e um
@@ -119,7 +120,7 @@ AppShell (Entity<AppShell>)
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
 | `cargo test` (gpui) | **32 passed** (29 unit + 2 paridade + 1 UI) |
-| `cargo test` (core) | 76 passed, 1 ignored |
+| `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
 | Smoke com dispositivo real | **não executado** — sem `adb` neste host |
@@ -153,7 +154,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | **feito**: IP/pairing manual, descoberta mDNS, pares recentes; falta o fluxo guiado que espera a tela de pairing (smoke com hardware pendente) |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **feito**: performance, áudio, HID/OTG, janela, gravação, rotação e renderer; smoke com hardware pendente |
-| 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
+| 3.5 Camera | **feito**: facing, lente (`--list-cameras`), aspecto, zoom, torch, high-speed, virtual mic e tamanho (smoke com hardware pendente) |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |

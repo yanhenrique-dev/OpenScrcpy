@@ -21,6 +21,7 @@ use gpui_kit::{
     TestSupportExt as _, Window, WindowBounds, div, relative,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
+use open_scrcpy_core::scrcpy::CameraInfo;
 use open_scrcpy_platform::shortcuts::PlatformCommand;
 use rust_i18n::t;
 use serde_json::Value;
@@ -185,6 +186,8 @@ pub struct AppShell {
     discovered: Vec<DiscoveredService>,
     terminal_input: Entity<InputState>,
     terminal_busy: bool,
+    cameras: Vec<CameraInfo>,
+    cameras_busy: bool,
 }
 
 impl AppShell {
@@ -295,6 +298,8 @@ impl AppShell {
             discovered: Vec::new(),
             terminal_input,
             terminal_busy: false,
+            cameras: Vec::new(),
+            cameras_busy: false,
         }
     }
 
@@ -1724,6 +1729,54 @@ impl AppShell {
         .into()
     }
 
+    fn refresh_lenses(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        if self.cameras_busy {
+            return;
+        }
+        self.cameras_busy = true;
+        self.push_log(format!(
+            "[SYSTEM] Running scrcpy --list-cameras for {device}..."
+        ));
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.list_cameras(device).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.cameras_busy = false;
+                match result {
+                    Ok(value) => {
+                        let output = value
+                            .get("output")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default();
+                        let cameras = open_scrcpy_core::scrcpy::parse_cameras(output);
+                        shell.push_log(if cameras.is_empty() {
+                            "[SYSTEM] No cameras parsed from the output.".to_string()
+                        } else {
+                            format!("[SYSTEM] {} camera(s) found.", cameras.len())
+                        });
+                        shell.cameras = cameras;
+                        if !shell
+                            .cameras
+                            .iter()
+                            .any(|camera| camera.id == shell.settings.camera.camera_id)
+                        {
+                            shell.settings.camera.camera_id.clear();
+                            shell.persist();
+                        }
+                    }
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
     fn camera_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let camera = self.settings.camera.clone();
         let zoom = self.camera_zoom.read(cx).value().end().clamp(1.0, 10.0);
@@ -1760,10 +1813,63 @@ impl AppShell {
             Radio::new(format!("camera-size-max-{size}")).label(label)
         });
 
+        let lens_index = if camera.camera_id.is_empty() {
+            Some(0)
+        } else {
+            self.cameras
+                .iter()
+                .position(|camera_info| camera_info.id == camera.camera_id)
+                .map(|index| index + 1)
+        };
+        let mut lens_options =
+            vec![Radio::new("camera-lens-auto").label(t!("controlPanel.autoSelect").to_string())];
+        for camera_info in &self.cameras {
+            lens_options.push(
+                Radio::new(format!("camera-lens-{}", camera_info.id))
+                    .label(camera_info.name.clone()),
+            );
+        }
+        let refresh_label = t!("controlPanel.refreshLenses").to_string();
+
         div()
             .flex()
             .flex_col()
             .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.cameraDevice").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("camera-lens")
+                            .selected_index(lens_index)
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.camera.camera_id = if *index == 0 {
+                                    String::new()
+                                } else {
+                                    this.cameras
+                                        .get(*index - 1)
+                                        .map(|camera: &CameraInfo| camera.id.clone())
+                                        .unwrap_or_default()
+                                };
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(lens_options),
+                    )
+                    .child(
+                        Button::new("refresh-lenses")
+                            .label(refresh_label)
+                            .disabled(self.active_device.is_none() || self.cameras_busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.refresh_lenses(cx))),
+                    ),
+            )
             .child(
                 div()
                     .flex()

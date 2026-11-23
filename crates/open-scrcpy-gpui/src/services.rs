@@ -128,6 +128,12 @@ impl AppServices {
             .spawn(async move { adb::pair(move |line| bus.log(line), &address, &code, None).await })
     }
 
+    pub fn list_cameras(&self, device: String) -> JoinHandle<serde_json::Value> {
+        self.runtime.spawn(async move {
+            open_scrcpy_core::scrcpy::list_options(&device, "--list-cameras", None).await
+        })
+    }
+
     pub fn run_terminal(
         &self,
         device: Option<String>,

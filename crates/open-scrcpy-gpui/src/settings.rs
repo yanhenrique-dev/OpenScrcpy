@@ -232,6 +232,8 @@ pub struct CameraSettings {
     pub mic_sink: bool,
     /// Max video size; 0 uses scrcpy's 1920x1080 default.
     pub max_size: u32,
+    /// Specific lens id from `--list-cameras`; empty keeps `facing`.
+    pub camera_id: String,
 }
 
 impl Default for CameraSettings {
@@ -244,6 +246,7 @@ impl Default for CameraSettings {
             high_speed: false,
             mic_sink: false,
             max_size: 0,
+            camera_id: String::new(),
         }
     }
 }
@@ -266,6 +269,7 @@ impl CameraSettings {
         if !MirrorSettings::SIZES.contains(&self.max_size) {
             self.max_size = 0;
         }
+        self.camera_id = self.camera_id.trim().to_string();
         self
     }
 
@@ -277,6 +281,7 @@ impl CameraSettings {
         let mut config = open_scrcpy_core::config::ScrcpyConfig::camera(device);
         shared.apply_shared(&mut config);
         config.camera_facing = Some(self.facing.clone());
+        config.camera_id = (!self.camera_id.is_empty()).then(|| self.camera_id.clone());
         config.camera_ar = (self.aspect != "0").then(|| self.aspect.clone());
         config.camera_torch = Some(self.torch);
         config.camera_zoom = Some(self.zoom);
@@ -763,10 +768,12 @@ mod tests {
             high_speed: true,
             mic_sink: true,
             max_size: 1920,
+            camera_id: "3".into(),
         };
         let config = camera.to_config("device1", &MirrorSettings::default());
         let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
-        assert!(args.contains(&"--camera-facing=front".to_string()));
+        assert!(args.contains(&"--camera-id=3".to_string()));
+        assert!(!args.contains(&"--camera-facing=front".to_string()));
         assert!(args.contains(&"--camera-ar=16:9".to_string()));
         assert!(args.contains(&"--camera-torch".to_string()));
         assert!(args.contains(&"--camera-zoom=2.0".to_string()));
@@ -785,12 +792,14 @@ mod tests {
             high_speed: false,
             mic_sink: false,
             max_size: 1234,
+            camera_id: "  ".into(),
         }
         .normalized();
         assert_eq!(camera.facing, "back");
         assert_eq!(camera.aspect, "0");
         assert_eq!(camera.zoom, 1.0);
         assert_eq!(camera.max_size, 0);
+        assert_eq!(camera.camera_id, "");
     }
 
     #[test]
