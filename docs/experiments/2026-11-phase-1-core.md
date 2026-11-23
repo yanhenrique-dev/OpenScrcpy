@@ -185,6 +185,31 @@ Casco:
 `npm run tauri build -- --no-bundle` — **PASS** nas duas passadas. A retomada
 re-executou o build depois de mover o monitor e o microfone.
 
+### 6.1 AppImage (2026-11-23)
+
+`npm run build:linux` compila o binário e monta o `OpenScrcpy.AppDir`, mas o
+`tauri-cli` aborta antes do empacotamento final:
+
+```text
+thread '<unnamed>' panicked at crates/tauri-cli/src/interface/rust.rs:1702:17:
+Can't detect any appindicator library
+```
+
+O host (CachyOS) não tem `libayatana-appindicator3` instalado; o job de release
+do projeto instala `libayatana-appindicator3-dev` no Ubuntu, então o caminho
+oficial de CI não é afetado. Para validar a shippabilidade da Fase 1 neste
+host, o AppDir já completo foi reempacotado com o
+`linuxdeploy-plugin-appimage` que o Tauri mantém em `~/.cache/tauri`:
+
+- artefato: `src-tauri/target/release/bundle/appimage/OpenScrcpy_2.0.0_amd64.AppImage`
+  (114 MB, runtime AppImage type 2);
+- smoke: `APPIMAGE_EXTRACT_AND_RUN=1 timeout 20 ./OpenScrcpy_2.0.0_amd64.AppImage`
+  abriu a janela GTK e o tray (aviso de deprecação do libayatana) e ficou
+  rodando até o timeout — sem crash. Nenhuma sessão de dispositivo foi iniciada.
+- o build oficial continua sendo `npm run build:linux` numa máquina com a
+  biblioteca de desenvolvimento; o reempacote manual não é um caminho de
+  release.
+
 ## 7. Próximos passos
 
 1. Smoke manual com o OpenScrcpy 2.0 fechado: espelhar, câmera, desktop, mic,
