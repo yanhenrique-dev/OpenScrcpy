@@ -151,23 +151,97 @@ impl MirrorSettings {
         self
     }
 
-    /// Builds the core DTO for one device. The shell owns presentation
-    /// defaults; the core still validates every field before spawning.
-    pub fn to_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
-        let mut config = open_scrcpy_core::config::ScrcpyConfig::mirror(device);
+    /// Fields every windowed mode shares: performance, audio, VSync and
+    /// session behavior.
+    fn apply_shared(&self, config: &mut open_scrcpy_core::config::ScrcpyConfig) {
         config.bitrate = Some(self.bitrate);
         config.fps = Some(self.fps);
-        config.res = Some(if self.max_size == 0 {
-            "0".to_string()
-        } else {
-            self.max_size.to_string()
-        });
         config.codec = Some(self.video_codec.clone());
         config.audio_enabled = Some(self.audio);
         config.vsync = Some(self.vsync);
         config.stay_awake = Some(self.stay_awake);
         config.turn_off = Some(self.turn_screen_off);
         config.auto_reconnect = Some(self.auto_reconnect);
+    }
+
+    /// Builds the core DTO for one device. The shell owns presentation
+    /// defaults; the core still validates every field before spawning.
+    pub fn to_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = open_scrcpy_core::config::ScrcpyConfig::mirror(device);
+        self.apply_shared(&mut config);
+        config.res = Some(if self.max_size == 0 {
+            "0".to_string()
+        } else {
+            self.max_size.to_string()
+        });
+        config
+    }
+}
+
+/// Virtual-display defaults for Desktop mode.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DesktopSettings {
+    pub width: u32,
+    pub height: u32,
+    /// Virtual display DPI.
+    pub dpi: u32,
+    /// 0, 90, 180 or 270.
+    pub rotation: u32,
+    pub flex_display: bool,
+    /// Max video size; 0 keeps the virtual display resolution.
+    pub max_size: u32,
+}
+
+impl Default for DesktopSettings {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            dpi: 420,
+            rotation: 0,
+            flex_display: false,
+            max_size: 0,
+        }
+    }
+}
+
+impl DesktopSettings {
+    pub(crate) const SIZES: [(u32, u32); 4] =
+        [(1920, 1080), (2560, 1440), (3840, 2160), (2560, 1080)];
+    pub(crate) const DPI: [u32; 5] = [160, 240, 320, 420, 480];
+    pub(crate) const ROTATIONS: [u32; 4] = [0, 90, 180, 270];
+
+    pub fn normalized(mut self) -> Self {
+        self.width = self.width.clamp(480, 3840);
+        self.height = self.height.clamp(320, 2160);
+        self.dpi = self.dpi.clamp(120, 640);
+        if !Self::ROTATIONS.contains(&self.rotation) {
+            self.rotation = 0;
+        }
+        if !MirrorSettings::SIZES.contains(&self.max_size) {
+            self.max_size = 0;
+        }
+        self
+    }
+
+    pub fn to_config(
+        &self,
+        device: &str,
+        shared: &MirrorSettings,
+    ) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = open_scrcpy_core::config::ScrcpyConfig::desktop(device);
+        shared.apply_shared(&mut config);
+        config.vd_width = Some(self.width);
+        config.vd_height = Some(self.height);
+        config.vd_dpi = Some(self.dpi);
+        config.rotation = (self.rotation != 0).then(|| self.rotation.to_string());
+        config.flex_display = Some(self.flex_display);
+        config.res = Some(if self.max_size == 0 {
+            "0".to_string()
+        } else {
+            self.max_size.to_string()
+        });
         config
     }
 }
@@ -181,6 +255,7 @@ pub struct AppSettings {
     pub theme: ThemePreference,
     pub window: WindowState,
     pub mirror: MirrorSettings,
+    pub desktop: DesktopSettings,
 }
 
 impl Default for AppSettings {
@@ -191,6 +266,7 @@ impl Default for AppSettings {
             theme: ThemePreference::System,
             window: WindowState::default(),
             mirror: MirrorSettings::default(),
+            desktop: DesktopSettings::default(),
         }
     }
 }
@@ -210,6 +286,7 @@ impl AppSettings {
         }
         self.window = self.window.normalized();
         self.mirror = self.mirror.normalized();
+        self.desktop = self.desktop.normalized();
         self
     }
 
@@ -432,6 +509,45 @@ mod tests {
         assert_eq!(config.res.as_deref(), Some("0"));
         let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
         assert!(!args.contains(&"--max-size".to_string()));
+    }
+
+    #[test]
+    fn desktop_baseline_maps_to_the_virtual_display_arguments() {
+        let desktop = DesktopSettings {
+            width: 2560,
+            height: 1440,
+            dpi: 320,
+            rotation: 90,
+            flex_display: true,
+            max_size: 1920,
+        };
+        let config = desktop.to_config("device1", &MirrorSettings::default());
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--new-display=2560x1440/320".to_string()));
+        assert!(args.contains(&"--orientation".to_string()));
+        assert!(args.contains(&"90".to_string()));
+        assert!(args.contains(&"--flex-display".to_string()));
+        assert!(args.contains(&"--max-size".to_string()));
+        assert!(args.contains(&"1920".to_string()));
+    }
+
+    #[test]
+    fn invalid_desktop_settings_are_normalized() {
+        let desktop = DesktopSettings {
+            width: 100,
+            height: 9000,
+            dpi: 40,
+            rotation: 45,
+            flex_display: true,
+            max_size: 1234,
+        }
+        .normalized();
+        assert_eq!(desktop.width, 480);
+        assert_eq!(desktop.height, 2160);
+        assert_eq!(desktop.dpi, 120);
+        assert_eq!(desktop.rotation, 0);
+        assert_eq!(desktop.max_size, 0);
+        assert!(desktop.flex_display);
     }
 
     #[test]

@@ -62,6 +62,33 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         assert_eq!(window.find("wireless-connect").label(), Some("Connect"));
         assert!(window.find("pair-start").label().is_some());
 
+        // Desktop mode has its own panel and turns the same session bar into a
+        // virtual-display start.
+        window.click("mode-desktop", cx);
+        window.render_frame(cx);
+        assert_eq!(window.find("panel-title").label(), Some("Desktop"));
+        assert_eq!(
+            window.find("start-mission").label(),
+            Some("Start virtual display")
+        );
+        let summary = window
+            .find("desktop-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            summary.contains("1920×1080 @ 420 DPI"),
+            "unexpected summary: {summary}"
+        );
+        window.click("desktop-flex", cx);
+        window.render_frame(cx);
+        let summary = window
+            .find("desktop-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(summary.contains("Flex"), "unexpected summary: {summary}");
+
         // Filter/settings controls write the persisted mirror settings and the
         // summary reflects them before the session starts.
         window.click("mode-screen", cx);

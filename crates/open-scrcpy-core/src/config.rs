@@ -99,9 +99,23 @@ impl ScrcpyConfig {
     /// rest of the knobs left to scrcpy's defaults. The shell fills the fields
     /// the user changes.
     pub fn mirror(device: impl Into<String>) -> Self {
+        Self::baseline(device, "mirror")
+    }
+
+    /// Baseline virtual-display session. The shell overrides size, DPI,
+    /// rotation and flex mode.
+    pub fn desktop(device: impl Into<String>) -> Self {
+        let mut config = Self::baseline(device, "desktop");
+        config.vd_width = Some(1920);
+        config.vd_height = Some(1080);
+        config.vd_dpi = Some(420);
+        config
+    }
+
+    fn baseline(device: impl Into<String>, session_mode: &str) -> Self {
         Self {
             device: device.into(),
-            session_mode: "mirror".to_string(),
+            session_mode: session_mode.to_string(),
             bitrate: None,
             fps: None,
             stay_awake: None,
@@ -551,6 +565,16 @@ mod tests {
         let args = build_scrcpy_args(&config, None, None);
         assert!(args.contains(&"-s".to_string()));
         assert!(args.contains(&"device1".to_string()));
+        assert!(!args.iter().any(|arg| arg == "--no-window"));
+        assert!(validate_scrcpy_config(&config).is_ok());
+    }
+
+    #[test]
+    fn desktop_baseline_builds_a_virtual_display() {
+        let config = ScrcpyConfig::desktop("device1");
+        assert_eq!(config.session_mode, "desktop");
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--new-display=1920x1080/420".to_string()));
         assert!(!args.iter().any(|arg| arg == "--no-window"));
         assert!(validate_scrcpy_config(&config).is_ok());
     }

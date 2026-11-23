@@ -24,7 +24,9 @@ use serde_json::Value;
 
 use crate::i18n;
 use crate::services::AppServices;
-use crate::settings::{AppSettings, MirrorSettings, SettingsStore, ThemePreference};
+use crate::settings::{
+    AppSettings, DesktopSettings, MirrorSettings, SettingsStore, ThemePreference,
+};
 use crate::theme;
 
 const MAX_LOG_LINES: usize = 100;
@@ -69,10 +71,6 @@ impl CaptureMode {
         }
         .to_string()
         .into()
-    }
-
-    fn is_implemented(self) -> bool {
-        matches!(self, Self::Screen)
     }
 }
 
@@ -384,7 +382,7 @@ impl AppShell {
         self.push_log(format!("[SYSTEM] Starting mirror session for {device}..."));
         cx.notify();
 
-        let config = self.settings.mirror.to_config(&device);
+        let config = self.session_config(&device);
         let services = self.services.clone();
         cx.spawn(async move |this, cx| {
             let result = services.start(config).await;
@@ -433,6 +431,65 @@ impl AppShell {
             .and_then(|serial| self.devices.iter().find(|device| device.serial == serial))
             .map(Device::label)
             .unwrap_or_else(|| t!("sidebar.noDevicesDetected").to_string().into())
+    }
+
+    fn session_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
+        match self.mode {
+            CaptureMode::Desktop => self
+                .settings
+                .desktop
+                .to_config(device, &self.settings.mirror),
+            _ => self.settings.mirror.to_config(device),
+        }
+    }
+
+    fn panel_heading(&self) -> impl IntoElement {
+        div()
+            .id("panel-title")
+            .role(Role::Heading)
+            .aria_label(self.mode.label().to_string())
+            .text_xl()
+            .child(self.mode.label())
+            .test_support()
+    }
+
+    fn session_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let can_start = self.active_device.is_some() && !self.starting && !self.running;
+        let can_stop = self.running;
+        let start_label = if self.mode == CaptureMode::Desktop {
+            t!("controlPanel.ejectToDesktop").to_string()
+        } else {
+            t!("controlPanel.startMission").to_string()
+        };
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(self.active_device_label()),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("start-mission")
+                            .label(start_label)
+                            .disabled(!can_start)
+                            .on_click(cx.listener(|this, _, _, cx| this.start_session(cx))),
+                    )
+                    .child(
+                        Button::new("stop-session")
+                            .label(t!("controlPanel.stopSession").to_string())
+                            .disabled(!can_stop)
+                            .on_click(cx.listener(|this, _, _, cx| this.stop_session(cx))),
+                    ),
+            )
     }
 
     fn theme_modes(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -802,9 +859,170 @@ impl AppShell {
         .into()
     }
 
+    fn desktop_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let desktop = self.settings.desktop.clone();
+        let size_index = DesktopSettings::SIZES
+            .iter()
+            .position(|&(width, height)| width == desktop.width && height == desktop.height)
+            .unwrap_or(0);
+        let dpi_index = DesktopSettings::DPI
+            .iter()
+            .position(|dpi| *dpi == desktop.dpi)
+            .unwrap_or(3);
+        let rotation_index = DesktopSettings::ROTATIONS
+            .iter()
+            .position(|rotation| *rotation == desktop.rotation)
+            .unwrap_or(0);
+        let max_size_index = MirrorSettings::SIZES
+            .iter()
+            .position(|size| *size == desktop.max_size)
+            .unwrap_or(0);
+
+        let size_options = DesktopSettings::SIZES.map(|(width, height)| {
+            let label = match (width, height) {
+                (1920, 1080) => t!("controlPanel.preset1080p").to_string(),
+                (2560, 1440) => t!("controlPanel.preset1440p").to_string(),
+                (3840, 2160) => t!("controlPanel.preset4k").to_string(),
+                _ => t!("controlPanel.presetUltrawide").to_string(),
+            };
+            Radio::new(format!("desktop-size-{width}x{height}")).label(label)
+        });
+        let dpi_options = DesktopSettings::DPI
+            .map(|dpi| Radio::new(format!("desktop-dpi-{dpi}")).label(dpi.to_string()));
+        let rotation_options = DesktopSettings::ROTATIONS.map(|rotation| {
+            Radio::new(format!("desktop-rotation-{rotation}")).label(format!("{rotation}°"))
+        });
+        let max_size_options = MirrorSettings::SIZES.map(|size| {
+            let label = if size == 0 {
+                t!("controlPanel.resolutionOriginal").to_string()
+            } else {
+                size.to_string()
+            };
+            Radio::new(format!("desktop-size-max-{size}")).label(label)
+        });
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.virtualDisplayEngine").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("desktop-size")
+                            .selected_index(Some(size_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let (width, height) = DesktopSettings::SIZES[*index];
+                                this.settings.desktop.width = width;
+                                this.settings.desktop.height = height;
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(size_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.uiScaling").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("desktop-dpi")
+                            .selected_index(Some(dpi_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.desktop.dpi = DesktopSettings::DPI[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(dpi_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.rotation").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("desktop-rotation")
+                            .selected_index(Some(rotation_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.desktop.rotation = DesktopSettings::ROTATIONS[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(rotation_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.resolution").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("desktop-max-size")
+                            .selected_index(Some(max_size_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.desktop.max_size = MirrorSettings::SIZES[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(max_size_options),
+                    ),
+            )
+            .child(
+                Switch::new("desktop-flex")
+                    .checked(desktop.flex_display)
+                    .label(t!("controlPanel.flexDisplay").to_string())
+                    .on_click(cx.listener(|this, checked, _, cx| {
+                        this.settings.desktop.flex_display = *checked;
+                        this.persist();
+                        cx.notify();
+                    })),
+            )
+    }
+
+    fn desktop_summary(&self) -> SharedString {
+        let desktop = &self.settings.desktop;
+        let resolution = if desktop.max_size == 0 {
+            t!("controlPanel.resolutionOriginal").to_string()
+        } else {
+            desktop.max_size.to_string()
+        };
+        let flex = if desktop.flex_display { " · Flex" } else { "" };
+        format!(
+            "{}×{} @ {} DPI · {}° · {}{}",
+            desktop.width, desktop.height, desktop.dpi, desktop.rotation, resolution, flex
+        )
+        .into()
+    }
+
     fn screen_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        let can_start = self.active_device.is_some() && !self.starting && !self.running;
-        let can_stop = self.running;
         let summary = self.mirror_summary(cx);
 
         div()
@@ -816,43 +1034,38 @@ impl AppShell {
             .gap_4()
             .p_6()
             .overflow_y_scroll()
-            .child(
-                div()
-                    .id("panel-title")
-                    .role(Role::Heading)
-                    .aria_label(self.mode.label().to_string())
-                    .text_xl()
-                    .child(self.mode.label())
-                    .test_support(),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(self.active_device_label()),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .child(
-                        Button::new("start-mission")
-                            .label(t!("controlPanel.startMission").to_string())
-                            .disabled(!can_start)
-                            .on_click(cx.listener(|this, _, _, cx| this.start_session(cx))),
-                    )
-                    .child(
-                        Button::new("stop-session")
-                            .label(t!("controlPanel.stopSession").to_string())
-                            .disabled(!can_stop)
-                            .on_click(cx.listener(|this, _, _, cx| this.stop_session(cx))),
-                    ),
-            )
+            .child(self.panel_heading())
+            .child(self.session_bar(cx))
             .child(self.mirror_settings(cx))
             .child(
                 div()
                     .id("mirror-summary")
+                    .aria_label(summary.to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(summary)
+                    .test_support(),
+            )
+    }
+
+    fn desktop_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let summary = self.desktop_summary();
+
+        div()
+            .id("desktop-panel")
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .gap_4()
+            .p_6()
+            .overflow_y_scroll()
+            .child(self.panel_heading())
+            .child(self.session_bar(cx))
+            .child(self.desktop_settings(cx))
+            .child(
+                div()
+                    .id("desktop-summary")
                     .aria_label(summary.to_string())
                     .text_xs()
                     .text_color(cx.theme().muted_foreground)
@@ -958,10 +1171,10 @@ impl Render for AppShell {
                             .flex_1()
                             .min_w_0()
                             .child(self.mode_tabs(cx))
-                            .child(if self.mode.is_implemented() {
-                                self.screen_panel(cx).into_any_element()
-                            } else {
-                                self.pending_panel(cx).into_any_element()
+                            .child(match self.mode {
+                                CaptureMode::Screen => self.screen_panel(cx).into_any_element(),
+                                CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
+                                _ => self.pending_panel(cx).into_any_element(),
                             }),
                     ),
             )
