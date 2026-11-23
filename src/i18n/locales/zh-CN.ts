@@ -218,6 +218,7 @@ export const zhCN: Translations = {
         engageCamera: '开始相机',
         ejectToDesktop: '开始虚拟显示',
         stopSession: '停止',
+        stopConfirm: '停止 {device} 上的会话？',
         // v4 features
         flexDisplay: '弹性显示',
         flexDisplayTooltip: '跟随 scrcpy 窗口动态调整虚拟显示器大小（scrcpy v4+）。',

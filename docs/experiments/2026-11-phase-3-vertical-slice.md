@@ -185,6 +185,32 @@ O check de update passou a tratar HTTP 404 do manifesto como "sem canal de
 release" em vez de erro de rede — o `latest-gpui.json` só existirá quando a
 release nativa for publicada.
 
+### 4.3 Componentes do Kit aplicados
+
+Depois do protótipo (`artifacts/prototypes/ui-before-after.html`), o casco
+recebeu:
+
+- **Button variants**: `primary` no Start e no Connect (commit da tarefa),
+  `danger` no Stop, `ghost` no header e na toolbar do console (com `compact`),
+  `outline` em ações secundárias (Push, Pair, idioma). A hierarquia segue os
+  Design Guides: primary escasso, danger para o commit destrutivo, ghost para
+  ações silenciosas.
+- **Avatar + Badge**: cada device mostra a inicial do modelo em Avatar, estado
+  como ponto + texto (não só cor), transporte (USB/Wi-Fi) e **uma** Badge com a
+  versão do Android (`getprop ro.build.version.release`, consultada uma vez por
+  serial e cacheada). Falha na consulta apenas omite a badge.
+- **AlertDialog**: Stop abre confirmação com o objeto no título
+  ("Stop the session on SM-A055M?"), botão `Stop session` em danger e
+  `Cancel`; o foco volta ao gatilho pelo próprio componente.
+- **Progress**: o download do core no onboarding agora tem barra determinada,
+  além do texto de porcentagem.
+
+Ficaram de fora, de propósito: `TabBar` (os botões de modo têm IDs estáveis
+usados pelos testes de UI; a troca exige repensar a navegação), `Combobox`
+(útil quando a lista de lentes crescer), `Kbd` (cosmético) e `Empty` (o texto
+atual cobre o estado vazio). `Bubble` e `Checkbox` seguem descartados por não
+haver conversa nem multi-seleção real.
+
 ## 5. O que falta nesta fase
 
 | Fatia | Situação |

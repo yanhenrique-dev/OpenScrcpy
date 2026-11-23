@@ -84,6 +84,32 @@ pub async fn check_scrcpy(custom_path: Option<&str>) -> Value {
     }
 }
 
+/// Reads the Android release version (e.g. `15`) from the device. Used by the
+/// shell to badge the device row; a failure is silent and simply omits it.
+pub async fn android_version(serial: &str) -> Option<String> {
+    if validate::device(serial).is_err() {
+        return None;
+    }
+    let adb_path = paths::binary_path("adb", None);
+    let mut cmd = process::create_command(&adb_path);
+    cmd.args(["-s", serial, "shell", "getprop", "ro.build.version.release"]);
+    let output = process::output_with_timeout(cmd, Duration::from_secs(3))
+        .await
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    clean_property(&String::from_utf8_lossy(&output.stdout))
+}
+
+fn clean_property(raw: &str) -> Option<String> {
+    let value = raw.lines().next()?.trim();
+    if value.is_empty() || value.len() > 32 || value.chars().any(char::is_control) {
+        return None;
+    }
+    Some(value.to_string())
+}
+
 /// Keeps only usable devices, their models and the unavailable rows. Pure so
 /// the filter chain can be tested without spawning adb.
 pub fn parse_device_list(
@@ -400,6 +426,15 @@ pub fn device_is_online(output: &str, serial: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cleans_getprop_output() {
+        assert_eq!(clean_property("15\n"), Some("15".to_string()));
+        assert_eq!(clean_property("  14  \r\n"), Some("14".to_string()));
+        assert_eq!(clean_property("\n"), None);
+        assert_eq!(clean_property("15\u{0007}"), None);
+        assert_eq!(clean_property(&"9".repeat(40)), None);
+    }
 
     #[test]
     fn parses_usb_serial() {

@@ -152,6 +152,11 @@ impl AppServices {
         })
     }
 
+    pub fn android_version(&self, serial: String) -> JoinHandle<Option<String>> {
+        self.runtime
+            .spawn(async move { adb::android_version(&serial).await })
+    }
+
     pub fn check_scrcpy(&self) -> JoinHandle<serde_json::Value> {
         self.runtime.spawn(async { adb::check_scrcpy(None).await })
     }

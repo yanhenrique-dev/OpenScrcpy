@@ -218,6 +218,7 @@ languages: {
         engageCamera: 'Mulai kamera',
         ejectToDesktop: 'Mulai layar virtual',
         stopSession: 'Hentikan Sesi',
+        stopConfirm: 'Hentikan sesi di {device}?',
         // v4 features
         flexDisplay: 'Tampilan Fleksibel',
         flexDisplayTooltip: 'Ubah ukuran tampilan virtual secara dinamis agar sesuai dengan ukuran jendela scrcpy (scrcpy v4+).',

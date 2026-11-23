@@ -223,6 +223,7 @@ export const ru: Translations = {
     engageCamera: 'Начать камеру',
     ejectToDesktop: 'Перейти на рабочий стол',
     stopSession: 'Остановить сессию',
+    stopConfirm: 'Остановить сеанс на {device}?',
     // v4 features
     flexDisplay: 'Гибкий дисплей',
     flexDisplayTooltip: 'Динамически изменяет размер виртуального дисплея вместе с окном scrcpy (scrcpy v4+).',

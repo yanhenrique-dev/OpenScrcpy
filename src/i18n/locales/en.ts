@@ -219,6 +219,7 @@ export const en = {
         engageCamera: 'Start camera',
         ejectToDesktop: 'Start virtual display',
         stopSession: 'Stop session',
+        stopConfirm: 'Stop the session on {device}?',
         // v4 features
         flexDisplay: 'Flex display',
         flexDisplayTooltip: 'Dynamically resize the virtual display to match the scrcpy window size (scrcpy v4+).',

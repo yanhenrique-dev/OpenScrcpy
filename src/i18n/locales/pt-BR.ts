@@ -218,6 +218,7 @@ export const ptBR: Translations = {
         engageCamera: 'Iniciar câmera',
         ejectToDesktop: 'Iniciar tela virtual',
         stopSession: 'Encerrar Sessão',
+        stopConfirm: 'Encerrar a sessão em {device}?',
         // v4 features
         flexDisplay: 'Tela Flexível',
         flexDisplayTooltip: 'Redimensiona dinamicamente o display virtual junto com a janela do scrcpy (scrcpy v4+).',

@@ -218,6 +218,7 @@ export const fr: Translations = {
         engageCamera: 'Démarrer la caméra',
         ejectToDesktop: 'Démarrer l’affichage virtuel',
         stopSession: 'Arrêter la Session',
+        stopConfirm: 'Arrêter la session sur {device} ?',
         // v4 features
         flexDisplay: 'Affichage Flexible',
         flexDisplayTooltip: 'Redimensionne dynamiquement l\'affichage virtuel en fonction de la fenêtre scrcpy (scrcpy v4+).',

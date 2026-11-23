@@ -1854,6 +1854,15 @@ controlPanel:
     ru: "Остановить сессию"
     id: "Hentikan Sesi"
     ar: "إنهاء الجلسة"
+  stopConfirm:
+    en: "Stop the session on %{device}?"
+    fr: "Arrêter la session sur %{device} ?"
+    pt-BR: "Encerrar a sessão em %{device}?"
+    zh-CN: "停止 %{device} 上的会话？"
+    zh-TW: "停止 %{device} 上的工作階段？"
+    ru: "Остановить сеанс на %{device}?"
+    id: "Hentikan sesi di %{device}?"
+    ar: "إيقاف الجلسة على %{device}؟"
   flexDisplay:
     en: "Flex display"
     fr: "Affichage Flexible"

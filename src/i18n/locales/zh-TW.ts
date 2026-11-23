@@ -218,6 +218,7 @@ export const zhTW: Translations = {
         engageCamera: '開始相機',
         ejectToDesktop: '開始虛擬顯示',
         stopSession: '停止',
+        stopConfirm: '停止 {device} 上的工作階段？',
         // v4 features
         flexDisplay: '彈性顯示',
         flexDisplayTooltip: '隨 scrcpy 視窗動態調整虛擬顯示器大小（scrcpy v4+）。',

@@ -4,16 +4,22 @@
 //! `open-scrcpy-core` through [`AppServices`]. The event loop and the device
 //! poller are spawned in `new` and mutate this entity through its weak handle.
 
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Duration;
 
 use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
+use gpui_kit::component::Sizable as _;
+use gpui_kit::component::avatar::Avatar;
+use gpui_kit::component::badge::Badge;
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _, button::Button};
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::px;
 use gpui_kit::{
@@ -120,6 +126,14 @@ struct Device {
 }
 
 impl Device {
+    fn display_name(&self) -> SharedString {
+        if self.model.is_empty() {
+            self.serial.clone().into()
+        } else {
+            self.model.clone().into()
+        }
+    }
+
     fn label(&self) -> SharedString {
         let name = if self.model.is_empty() {
             self.serial.as_str()
@@ -219,6 +233,8 @@ pub struct AppShell {
     checking_update: bool,
     pairing_attempt: Option<u32>,
     scrcpy_ready: Option<bool>,
+    android_versions: HashMap<String, String>,
+    android_version_requests: HashSet<String>,
     downloading: bool,
     download_percent: Option<u64>,
     download_error: bool,
@@ -402,6 +418,8 @@ impl AppShell {
             checking_update: false,
             pairing_attempt: None,
             scrcpy_ready: None,
+            android_versions: HashMap::new(),
+            android_version_requests: HashSet::new(),
             downloading: false,
             download_percent: None,
             download_error: false,
@@ -661,7 +679,40 @@ impl AppShell {
                 .find(|device| device.state == DeviceState::Online)
                 .map(|device| device.serial.clone());
         }
+        self.request_android_versions(cx);
         cx.notify();
+    }
+
+    fn request_android_versions(&mut self, cx: &mut Context<Self>) {
+        let serials: Vec<String> = self
+            .devices
+            .iter()
+            .filter(|device| device.state == DeviceState::Online)
+            .map(|device| device.serial.clone())
+            .filter(|serial| {
+                !self.android_versions.contains_key(serial)
+                    && !self.android_version_requests.contains(serial)
+            })
+            .collect();
+        for serial in serials {
+            self.android_version_requests.insert(serial.clone());
+            let services = self.services.clone();
+            cx.spawn(async move |this, cx| {
+                let version = services
+                    .android_version(serial.clone())
+                    .await
+                    .ok()
+                    .flatten();
+                let _ = this.update(cx, |shell, cx| {
+                    shell.android_version_requests.remove(&serial);
+                    if let Some(version) = version {
+                        shell.android_versions.insert(serial.clone(), version);
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+        }
     }
 
     fn recenter_active(&mut self, cx: &mut Context<Self>) {
@@ -816,7 +867,19 @@ impl AppShell {
                     .child(t!("onboarding.binariesDescription").to_string()),
             )
             .when(self.downloading, |this| {
-                this.child(div().text_sm().child(progress))
+                this.child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .max_w_96()
+                        .child(div().text_sm().child(progress.clone()))
+                        .child(
+                            Progress::new("core-download-progress")
+                                .value(percent as f32)
+                                .accessibility_label(progress),
+                        ),
+                )
             })
             .when(self.download_error, |this| {
                 this.child(
@@ -834,6 +897,7 @@ impl AppShell {
                     .child(
                         Button::new("onboarding-download")
                             .label(t!("onboarding.downloadCoreBinaries").to_string())
+                            .primary()
                             .disabled(self.downloading)
                             .on_click(cx.listener(|this, _, _, cx| this.start_download(cx))),
                     )
@@ -841,12 +905,14 @@ impl AppShell {
                         this.child(
                             Button::new("onboarding-continue")
                                 .label(t!("onboarding.continueToApp").to_string())
+                                .primary()
                                 .on_click(cx.listener(|this, _, _, cx| this.finish_onboarding(cx))),
                         )
                     })
                     .child(
                         Button::new("onboarding-releases")
                             .label(t!("onboarding.githubReleases").to_string())
+                            .ghost()
                             .on_click(|_, _, cx| {
                                 cx.open_url(
                                     "https://github.com/yanhenrique-dev/OpenScrcpy/releases",
@@ -1166,7 +1232,36 @@ impl AppShell {
         .detach();
     }
 
-    fn stop_session(&mut self, cx: &mut Context<Self>) {
+    fn confirm_stop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        if !self.running {
+            self.stop_session_now(cx);
+            return;
+        }
+
+        let weak = cx.weak_entity();
+        let title = t!("controlPanel.stopSession").to_string();
+        let description = t!("controlPanel.stopConfirm", device = device.as_str()).to_string();
+        let cancel = t!("common.cancel").to_string();
+        window.open_alert_dialog(cx, move |alert, _, _| {
+            let weak = weak.clone();
+            alert
+                .title(title.clone())
+                .description(description.clone())
+                .show_cancel(true)
+                .ok_text(title.clone())
+                .ok_variant(ButtonVariant::Danger)
+                .cancel_text(cancel.clone())
+                .on_ok(move |_, _, cx| {
+                    let _ = weak.update(cx, |shell, cx| shell.stop_session_now(cx));
+                    true
+                })
+        });
+    }
+
+    fn stop_session_now(&mut self, cx: &mut Context<Self>) {
         let Some(device) = self.active_device.clone() else {
             return;
         };
@@ -1260,14 +1355,18 @@ impl AppShell {
                     .child(
                         Button::new("start-mission")
                             .label(start_label)
+                            .primary()
                             .disabled(!can_start)
                             .on_click(cx.listener(|this, _, _, cx| this.start_session(cx))),
                     )
                     .child(
                         Button::new("stop-session")
                             .label(t!("controlPanel.stopSession").to_string())
+                            .danger()
                             .disabled(!can_stop)
-                            .on_click(cx.listener(|this, _, _, cx| this.stop_session(cx))),
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.confirm_stop(window, cx)),
+                            ),
                     ),
             )
     }
@@ -1280,6 +1379,7 @@ impl AppShell {
             .children(ThemePreference::ALL.map(|preference| {
                 Button::new(preference.id())
                     .label(theme_label(preference))
+                    .ghost()
                     .selected(self.settings.theme == preference)
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.set_theme(preference, window, cx)
@@ -1321,6 +1421,7 @@ impl AppShell {
                 this.child(
                     Button::new("install-update")
                         .label(t!("header.updateBadge", v = version).to_string())
+                        .primary()
                         .disabled(self.installing_update)
                         .on_click(cx.listener(|this, _, _, cx| this.install_update(cx))),
                 )
@@ -1328,6 +1429,7 @@ impl AppShell {
             .child(
                 Button::new("about")
                     .label(t!("header.aboutTitle").to_string())
+                    .ghost()
                     .on_click(
                         cx.listener(|this, _, window, cx| this.open_about_dialog(window, cx)),
                     ),
@@ -1335,6 +1437,7 @@ impl AppShell {
             .child(
                 Button::new("app-settings")
                     .label(t!("appBehavior.title").to_string())
+                    .ghost()
                     .on_click(
                         cx.listener(|this, _, window, cx| this.open_behavior_dialog(window, cx)),
                     ),
@@ -1342,6 +1445,7 @@ impl AppShell {
             .child(
                 Button::new("check-update")
                     .label(t!("header.checkAppUpdate").to_string())
+                    .ghost()
                     .disabled(self.checking_update)
                     .on_click(cx.listener(|this, _, _, cx| this.check_update(cx))),
             )
@@ -1356,13 +1460,81 @@ impl AppShell {
         let mut rows = Vec::with_capacity(self.devices.len());
         for device in &self.devices {
             let serial = device.serial.clone();
+            let name = device.display_name();
+            let version = self.android_versions.get(&device.serial).cloned();
+            let wireless = device.serial.contains(':') || device.serial.contains('.');
+            let (state_label, state_color) = match device.state {
+                DeviceState::Online => (t!("sidebar.ready").to_string(), cx.theme().success),
+                DeviceState::Unauthorized => (
+                    t!("sidebar.deviceUnauthorized").to_string(),
+                    cx.theme().warning,
+                ),
+                DeviceState::Offline => (
+                    t!("sidebar.deviceOffline").to_string(),
+                    cx.theme().muted_foreground,
+                ),
+            };
+            let transport = if wireless {
+                t!("sidebar.wifi").to_string()
+            } else {
+                t!("sidebar.usb").to_string()
+            };
             rows.push(
                 Button::new(format!("device-{}", device.serial))
-                    .label(device.label())
                     .selected(self.active_device.as_deref() == Some(device.serial.as_str()))
+                    .accessibility_label(device.label())
                     .w_full()
                     .on_click(
                         cx.listener(move |this, _, _, cx| this.select_device(serial.clone(), cx)),
+                    )
+                    .child(
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_2()
+                            .w_full()
+                            .child(Avatar::new().name(name.clone()).small())
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .items_start()
+                                    .gap_0p5()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(div().text_sm().child(name))
+                                    .child(
+                                        div()
+                                            .flex_row_dir(cx)
+                                            .items_center()
+                                            .gap_1()
+                                            .child(
+                                                div()
+                                                    .w_1p5()
+                                                    .h_1p5()
+                                                    .rounded_full()
+                                                    .bg(state_color),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_xs()
+                                                    .text_color(cx.theme().muted_foreground)
+                                                    .child(state_label),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_xs()
+                                                    .text_color(cx.theme().muted_foreground)
+                                                    .child(format!("· {transport}")),
+                                            )
+                                            .when_some(version, |this, version| {
+                                                this.child(
+                                                    Badge::new()
+                                                        .child(format!("Android {version}")),
+                                                )
+                                            }),
+                                    ),
+                            ),
                     ),
             );
         }
@@ -1399,6 +1571,7 @@ impl AppShell {
             .child(
                 Button::new("push-files")
                     .label(t!("sidebar.flashPushFiles").to_string())
+                    .outline()
                     .disabled(self.active_device.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.pick_files(cx))),
             )
@@ -1429,6 +1602,7 @@ impl AppShell {
                     .child(
                         Button::new("wireless-connect")
                             .label(t!("sidebar.connect").to_string())
+                            .primary()
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.connect_wireless(cx))),
                     )
@@ -1479,6 +1653,7 @@ impl AppShell {
                     .child(
                         Button::new("pair-start")
                             .label(t!("sidebar.startPairing").to_string())
+                            .outline()
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.pair_wireless(cx))),
                     )
@@ -3027,18 +3202,24 @@ impl AppShell {
                     .child(
                         Button::new("console-clear")
                             .label(t!("logPanel.clear").to_string())
+                            .ghost()
+                            .compact()
                             .disabled(self.logs.is_empty())
                             .on_click(cx.listener(|this, _, _, cx| this.clear_console(cx))),
                     )
                     .child(
                         Button::new("console-copy")
                             .label(t!("logPanel.copy").to_string())
+                            .ghost()
+                            .compact()
                             .disabled(self.logs.is_empty())
                             .on_click(cx.listener(|this, _, _, cx| this.copy_console(cx))),
                     )
                     .child(
                         Button::new("console-report")
                             .label(t!("logPanel.report").to_string())
+                            .ghost()
+                            .compact()
                             .on_click(cx.listener(|this, _, _, cx| this.save_report(cx))),
                     ),
             )
@@ -3053,6 +3234,8 @@ impl AppShell {
                     .child(
                         Button::new("terminal-run")
                             .label(t!("logPanel.run").to_string())
+                            .primary()
+                            .compact()
                             .disabled(self.terminal_busy)
                             .on_click(cx.listener(|this, _, _, cx| this.run_terminal_command(cx))),
                     ),

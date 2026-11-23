@@ -221,6 +221,7 @@ export const ar: Translations = {
         engageCamera: 'تشغيل الكاميرا',
         ejectToDesktop: 'العرض على سطح المكتب',
         stopSession: 'إنهاء الجلسة',
+        stopConfirm: 'إيقاف الجلسة على {device}؟',
         // v4 features
         flexDisplay: 'العرض المرن',
         flexDisplayTooltip: 'تغيير حجم الشاشة الافتراضية تلقائيًا ليتوافق مع حجم نافذة Scrcpy (الإصدار v4+).',
