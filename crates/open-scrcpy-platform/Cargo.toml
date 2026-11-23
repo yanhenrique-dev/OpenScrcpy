@@ -1,0 +1,13 @@
+[package]
+name = "open-scrcpy-platform"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+name = "open_scrcpy_platform"
+path = "src/lib.rs"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5"

@@ -56,3 +56,7 @@ scrcpy_temp.tar.gz
 
 # AI Handoff
 history/
+
+# Project skills installed by the `skills` CLI: reproducible from skills-lock.json
+# with `npx skills update -p`, so the copied bodies are not versioned.
+.agents/

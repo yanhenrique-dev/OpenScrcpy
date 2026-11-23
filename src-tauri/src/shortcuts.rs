@@ -56,7 +56,7 @@ pub fn register<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error
 }
 
 fn recenter_active_device<R: Runtime>(app: &AppHandle<R>) {
-    let state = app.state::<ScrcpyState>();
+    let state = app.state::<std::sync::Arc<ScrcpyState>>();
     let device = state
         .active_device
         .lock()

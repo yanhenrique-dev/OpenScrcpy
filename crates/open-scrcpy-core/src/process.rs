@@ -4,11 +4,11 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 
 #[cfg(target_os = "windows")]
-pub(crate) const CREATE_NO_WINDOW: u32 = 0x08000000;
+pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Builds a command without flashing a console window on Windows. Every
 /// process the app spawns goes through this helper.
-pub(crate) fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+pub fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     let cmd = Command::new(program);
     #[cfg(target_os = "windows")]
     {

@@ -8,15 +8,15 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-pub(crate) const AUDIO_FALLBACK_CHAIN: &[&str] = &["aac", "flac", "raw"];
+pub const AUDIO_FALLBACK_CHAIN: &[&str] = &["aac", "flac", "raw"];
 
 /// True when a codec failure cannot be repaired by trying another codec:
 /// automatic fallback is disabled, or the chain is exhausted.
-pub(crate) fn codec_failure_is_terminal(should_auto_fallback: bool, chain_index: usize) -> bool {
+pub fn codec_failure_is_terminal(should_auto_fallback: bool, chain_index: usize) -> bool {
     !should_auto_fallback || chain_index >= AUDIO_FALLBACK_CHAIN.len()
 }
 
-pub(crate) fn codec_failure_message(should_auto_fallback: bool) -> &'static str {
+pub fn codec_failure_message(should_auto_fallback: bool) -> &'static str {
     if should_auto_fallback {
         "[SYSTEM] No compatible audio codec found. Consider disabling audio forwarding."
     } else {
@@ -24,7 +24,7 @@ pub(crate) fn codec_failure_message(should_auto_fallback: bool) -> &'static str 
     }
 }
 
-pub(crate) fn is_audio_codec_error(text: &str) -> bool {
+pub fn is_audio_codec_error(text: &str) -> bool {
     let lower = text.to_lowercase();
     if lower.contains("could not create default audio encoder")
         || lower.contains("failed to initialize audio")
@@ -44,7 +44,7 @@ pub(crate) fn is_audio_codec_error(text: &str) -> bool {
 /// screen, an app opting out of capture). It is *not* repaired by switching
 /// audio codecs, so it must be recognised separately from
 /// [`is_audio_codec_error`] and reported to the user.
-pub(crate) fn is_audio_capture_error(text: &str) -> bool {
+pub fn is_audio_capture_error(text: &str) -> bool {
     let lower = text.to_lowercase();
     // scrcpy logs a transient DEBUG line while it retries capture itself.
     // Flagging it would produce a false warning shortly before success.
@@ -64,25 +64,25 @@ pub(crate) fn is_audio_capture_error(text: &str) -> bool {
 /// responses: a codec error can be repaired by retrying with another codec,
 /// while a capture failure is reported and left alone.
 #[derive(Clone, Default)]
-pub(crate) struct AudioErrorState {
+pub struct AudioErrorState {
     codec_failed: Arc<AtomicBool>,
     capture_failed: Arc<AtomicBool>,
 }
 
 impl AudioErrorState {
-    pub(crate) fn codec_failed(&self) -> bool {
+    pub fn codec_failed(&self) -> bool {
         self.codec_failed.load(Ordering::SeqCst)
     }
 
-    pub(crate) fn capture_failed(&self) -> bool {
+    pub fn capture_failed(&self) -> bool {
         self.capture_failed.load(Ordering::SeqCst)
     }
 
-    pub(crate) fn note_codec(&self) {
+    pub fn note_codec(&self) {
         self.codec_failed.store(true, Ordering::SeqCst);
     }
 
-    pub(crate) fn note_capture(&self) {
+    pub fn note_capture(&self) {
         self.capture_failed.store(true, Ordering::SeqCst);
     }
 }
@@ -107,6 +107,25 @@ mod tests {
         assert!(!is_audio_capture_error(
             "[server] DEBUG: Failed to start audio capture, retrying..."
         ));
+    }
+
+    #[test]
+    fn codec_error_matches_known_patterns() {
+        assert!(is_audio_codec_error(
+            "ERROR: Could not create default audio encoder for opus"
+        ));
+        assert!(is_audio_codec_error("Failed to initialize audio/opus"));
+        assert!(is_audio_codec_error("audio codec not supported on device"));
+        assert!(is_audio_codec_error("audio encoder failed to start"));
+    }
+
+    #[test]
+    fn codec_error_ignores_unrelated() {
+        assert!(!is_audio_codec_error("ADB disconnected"));
+        assert!(!is_audio_codec_error("device offline"));
+        assert!(!is_audio_codec_error("video encoder error"));
+        assert!(!is_audio_codec_error("permission issue"));
+        assert!(!is_audio_codec_error("INFO Audio codec selected: opus"));
     }
 
     #[test]

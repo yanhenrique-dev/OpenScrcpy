@@ -1,0 +1,133 @@
+{
+  "version": 2,
+  "skills": {
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "commit": "afa8da942115f2961fdbfa80807ea0b232ff6c00",
+      "sourceType": "github",
+      "skillPath": "skills/accessibility/SKILL.md",
+      "computedHash": "c668809f5df57feb87cc06f1bc37fb340d1d92e26bacb6edbeab9258d22e76a5",
+      "installMode": "copy"
+    },
+    "agents-md": {
+      "source": "getsentry/skills",
+      "commit": "a582c51ee29d0f35e6ac321340796f77d43da733",
+      "sourceType": "github",
+      "skillPath": "skills/agents-md/SKILL.md",
+      "computedHash": "bdbf286bbd18b88533f295852e98aabf5577593b74c623a669d4f9985db7e226",
+      "installMode": "copy"
+    },
+    "code-review": {
+      "source": "mattpocock/skills",
+      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/code-review/SKILL.md",
+      "computedHash": "ce86b40a3d1648a0018b712f0c70704e6c2316b2a9b9e915ab116916a31273dc",
+      "installMode": "copy"
+    },
+    "code-review-and-quality": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/code-review-and-quality/SKILL.md",
+      "computedHash": "55dfc44b9cce8f74673005d566a1af57e9c95694f1c89b964a9d12b7ae76930c",
+      "installMode": "copy"
+    },
+    "code-simplification": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/code-simplification/SKILL.md",
+      "computedHash": "48e59225ea45232623e47d35d4ac6028fb2f37a9fbbc0563313d67bab448f664",
+      "installMode": "copy"
+    },
+    "documentation-and-adrs": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/documentation-and-adrs/SKILL.md",
+      "computedHash": "deb39d7c8157563bc14a48f0d22003c82f4d8370b69c96efde476fe12318d188",
+      "installMode": "copy"
+    },
+    "git-workflow-and-versioning": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/git-workflow-and-versioning/SKILL.md",
+      "computedHash": "860b88bf82d823eaed15b9b9fa9ce4273f94c7bdcf3aeaa3e6649eb578763d4b",
+      "installMode": "copy"
+    },
+    "gpui-kit": {
+      "source": "longbridge/gpui-kit",
+      "commit": "1c7e7f7c6c8d6585da909804496614da01bb8663",
+      "sourceType": "github",
+      "skillPath": "skills/gpui-kit/SKILL.md",
+      "computedHash": "f7b8b0e4a1f70e649a38720c04374a5a4bd597ba9cd6e2bc7bb5c83504ed4812",
+      "installMode": "copy"
+    },
+    "gpui-kit-design-guides": {
+      "source": "longbridge/gpui-kit",
+      "commit": "1c7e7f7c6c8d6585da909804496614da01bb8663",
+      "sourceType": "github",
+      "skillPath": "skills/gpui-kit-design-guides/SKILL.md",
+      "computedHash": "20d2e41da0baab7881683869cec2ddeea6fb01ce429a84eb6de968883d53e7ca",
+      "installMode": "copy"
+    },
+    "performance-optimization": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/performance-optimization/SKILL.md",
+      "computedHash": "cfa0c39804554198a33e3beb2b0f920a1b468bb2e066822e1d08f4abeda3db33",
+      "installMode": "copy"
+    },
+    "rust-best-practices": {
+      "source": "apollographql/skills",
+      "commit": "9dda1397730370aeb8df4ff8f2015c34c86b5003",
+      "sourceType": "github",
+      "skillPath": "skills/rust-best-practices/SKILL.md",
+      "computedHash": "7e12e68aa50152eb7ba9ea1f88ca5380c846ea0175f8ab6788bb79b7faf12ca0",
+      "installMode": "copy"
+    },
+    "security-review": {
+      "source": "getsentry/skills",
+      "commit": "a582c51ee29d0f35e6ac321340796f77d43da733",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "4af8c6b37142b46cbbca40d5f5e6c505699b8785486a7306faf1b79dcce7ff47",
+      "installMode": "copy"
+    },
+    "svelte-core-bestpractices": {
+      "source": "sveltejs/ai-tools",
+      "commit": "d3e755be770277d8c75fe61109b103b801b12775",
+      "sourceType": "github",
+      "skillPath": "tools/skills/svelte-core-bestpractices/SKILL.md",
+      "computedHash": "32070b91f54f92dba3f6e1739d82bf944c14e7a4a75cfe609a59bf1117c34338",
+      "installMode": "copy"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "sourceType": "github",
+      "skillPath": "skills/systematic-debugging/SKILL.md",
+      "computedHash": "79ff0583175346e39431b0dc713b223edd1bd7a7ea2b6c8b78b2fb9a3fed6782",
+      "installMode": "copy"
+    },
+    "tauri-v2": {
+      "source": "nodnarbnitram/claude-code-extensions",
+      "commit": "35e7f7deae689e12b94f9c242b8f59efe0f66476",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/tauri-v2/SKILL.md",
+      "computedHash": "785f2858f21d8d6757c136dded755da9ebb16d292391defcb7171e445c03e77d",
+      "installMode": "copy"
+    },
+    "test-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "commit": "39b723ceebf81474d0557c1fecd01eddab585563",
+      "sourceType": "github",
+      "skillPath": "skills/test-driven-development/SKILL.md",
+      "computedHash": "37cc05dea2a455d5d3ff252f14a7323ef378536603cce8cd2c758dc8fac790e6",
+      "installMode": "copy"
+    }
+  }
+}

@@ -2649,17 +2649,38 @@ dependencies = [
 ]
 
 [[package]]
-name = "openscrcpy"
-version = "2.0.0"
+name = "open-scrcpy-core"
+version = "0.1.0"
 dependencies = [
  "chrono",
  "flate2",
- "libloading",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
  "tar",
+ "tokio",
+ "zip",
+]
+
+[[package]]
+name = "open-scrcpy-platform"
+version = "0.1.0"
+dependencies = [
+ "zbus 5.19.0",
+]
+
+[[package]]
+name = "openscrcpy"
+version = "2.0.0"
+dependencies = [
+ "chrono",
+ "libloading",
+ "open-scrcpy-core",
+ "open-scrcpy-platform",
+ "reqwest",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
@@ -2672,7 +2693,6 @@ dependencies = [
  "tokio",
  "windows 0.61.3",
  "zbus 5.19.0",
- "zip",
 ]
 
 [[package]]
