@@ -210,6 +210,8 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
 
         window.click("locale-toggle", cx);
         window.render_frame(cx);
+        window.click("locale-fr", cx);
+        window.render_frame(cx);
         let label = window
             .find("locale-toggle")
             .label()
@@ -217,6 +219,18 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             .to_string();
         assert!(label.contains("Français"), "unexpected label: {label}");
         assert_eq!(window.find("mode-screen").label(), Some("Écran"));
+
+        // About opens as a dialog with the external links.
+        assert!(
+            window
+                .find("about")
+                .label()
+                .unwrap_or_default()
+                .contains("OpenScrcpy")
+        );
+        window.click("about", cx);
+        window.render_frame(cx);
+        assert!(window.find("about-repository").label().is_some());
     })
     .expect("window must stay open");
 }

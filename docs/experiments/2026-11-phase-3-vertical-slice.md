@@ -64,6 +64,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   `install_apk`. Resultado e erros entram no console. O botão fica desabilitado
   sem dispositivo; soltar arquivos externos na janela usa o mesmo caminho de
   transferência (`.apk` instala, o resto faz push).
+- **Header:** diálogo de idioma com os 8 locales (troca em runtime e fecha ao
+  escolher), diálogo **Sobre** com versão, descrição, repositório/releases
+  (abertos no navegador) e licença, além do check de update com badge.
 - **Serviços de plataforma:** instância única por sessão de usuário e atalho
   global `Ctrl+Alt+Shift+C` para recentralizar a janela do espelho ativo. A
   falha de registro é não-fatal e vai para o stderr.
@@ -119,7 +122,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **32 passed** (29 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **31 passed** (28 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -150,7 +153,7 @@ comportamento esperado durante a convivência dos dois cascos.
 
 | Fatia | Situação |
 | --- | --- |
-| 3.1 Header (menu de idioma real, update badge) | parcial: locale por botão de ciclo |
+| 3.1 Header (menu de idioma real, update badge) | **parcial**: menu de idioma, Sobre, check/badge de update prontos; botões de janela dependem do chrome (3.12) |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | **feito**: IP/pairing manual, descoberta mDNS, pares recentes; falta o fluxo guiado que espera a tela de pairing (smoke com hardware pendente) |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **feito**: performance, áudio, HID/OTG, janela, gravação, rotação e renderer; smoke com hardware pendente |

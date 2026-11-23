@@ -12,7 +12,7 @@ use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AppContext as _, ClipboardItem, Context, Entity, ExternalPaths, InteractiveElement as _,
@@ -323,12 +323,87 @@ impl AppShell {
         cx.notify();
     }
 
-    fn cycle_locale(&mut self, cx: &mut Context<Self>) {
-        let next = i18n::next(&self.settings.locale);
-        self.settings.locale = next.to_string();
-        i18n::apply(next);
+    fn set_locale(&mut self, locale: &str, cx: &mut Context<Self>) {
+        if self.settings.locale == locale {
+            return;
+        }
+        self.settings.locale = locale.to_string();
+        i18n::apply(locale);
         self.persist();
         cx.refresh_windows();
+    }
+
+    fn open_language_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let current = self.settings.locale.clone();
+        let weak = cx.weak_entity();
+        window.open_dialog(cx, move |dialog, _, _| {
+            let mut options = Vec::with_capacity(i18n::SUPPORTED_LOCALES.len());
+            for locale in i18n::SUPPORTED_LOCALES {
+                let weak = weak.clone();
+                let selected = locale == current;
+                options.push(
+                    Button::new(format!("locale-{locale}"))
+                        .label(i18n::label(locale))
+                        .selected(selected)
+                        .on_click(move |_, window, cx| {
+                            let _ = weak.update(cx, |this, cx| this.set_locale(locale, cx));
+                            window.close_dialog(cx);
+                        }),
+                );
+            }
+            dialog
+                .title(t!("header.languageLabel").to_string())
+                .child(div().flex().flex_col().gap_2().children(options))
+        });
+    }
+
+    fn open_about_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let version = env!("CARGO_PKG_VERSION");
+        window.open_dialog(cx, move |dialog, _, _| {
+            dialog
+                .title(t!("header.aboutTitle").to_string())
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_3()
+                        .child(div().text_sm().child(format!("v{version}")))
+                        .child(
+                            div()
+                                .text_sm()
+                                .child(t!("header.aboutDescription").to_string()),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .child(
+                                    Button::new("about-repository")
+                                        .label(t!("header.aboutRepository").to_string())
+                                        .on_click(|_, _, cx| {
+                                            cx.open_url(
+                                                "https://github.com/yanhenrique-dev/OpenScrcpy",
+                                            )
+                                        }),
+                                )
+                                .child(
+                                    Button::new("about-releases")
+                                        .label(t!("header.aboutReleases").to_string())
+                                        .on_click(|_, _, cx| {
+                                            cx.open_url(
+                                                "https://github.com/yanhenrique-dev/OpenScrcpy/releases/latest",
+                                            )
+                                        }),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .child(t!("header.aboutLicense").to_string()),
+                        ),
+                )
+        });
     }
 
     fn switch_mode(&mut self, mode: CaptureMode, cx: &mut Context<Self>) {
@@ -814,15 +889,22 @@ impl AppShell {
                 )
             })
             .child(
+                Button::new("about")
+                    .label(t!("header.aboutTitle").to_string())
+                    .on_click(
+                        cx.listener(|this, _, window, cx| this.open_about_dialog(window, cx)),
+                    ),
+            )
+            .child(
                 Button::new("check-update")
                     .label(t!("header.checkAppUpdate").to_string())
                     .disabled(self.checking_update)
                     .on_click(cx.listener(|this, _, _, cx| this.check_update(cx))),
             )
             .child(
-                Button::new("locale-toggle")
-                    .label(locale_label)
-                    .on_click(cx.listener(|this, _, _, cx| this.cycle_locale(cx))),
+                Button::new("locale-toggle").label(locale_label).on_click(
+                    cx.listener(|this, _, window, cx| this.open_language_dialog(window, cx)),
+                ),
             )
     }
 

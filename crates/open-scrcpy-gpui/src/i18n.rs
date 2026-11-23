@@ -55,14 +55,6 @@ pub fn resolve(preferred: &str) -> &'static str {
     system_locale()
 }
 
-pub fn next(current: &str) -> &'static str {
-    let index = SUPPORTED_LOCALES
-        .iter()
-        .position(|candidate| candidate.eq_ignore_ascii_case(current))
-        .unwrap_or(0);
-    SUPPORTED_LOCALES[(index + 1) % SUPPORTED_LOCALES.len()]
-}
-
 /// Applies the locale to both catalogs. Call from an event, never from render.
 pub fn apply(locale: &str) {
     rust_i18n::set_locale(locale);
@@ -110,12 +102,5 @@ mod tests {
         assert_eq!(resolve("xx-YY"), system_locale());
         assert_eq!(resolve("PT-br"), "pt-BR");
         assert_eq!(resolve("fr"), "fr");
-    }
-
-    #[test]
-    fn next_wraps_around_the_catalog() {
-        assert_eq!(next("en"), "fr");
-        assert_eq!(next("ar"), "en");
-        assert_eq!(next("unknown"), "fr");
     }
 }
