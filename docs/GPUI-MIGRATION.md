@@ -408,6 +408,11 @@ Cada fatia entrega UI + ligação com o core + testes + i18n + acessibilidade + 
 
 ## 10. Fase 5 — Empacotamento, updater e release (3–4 semanas)
 
+> **Execução parcial (2026-11-23):** o casco GPUI gera um AppImage type 2
+> local (16 MB) que abre e roda; `linuxdeploy` empacota só X11/xkbcommon e o
+> resto fica no host. Sem VM limpa, `.deb`, assinatura ou updater. Ver
+> [docs/experiments/2026-11-phase-5-packaging.md](experiments/2026-11-phase-5-packaging.md).
+
 ### 10.1 Empacotamento
 
 | Plataforma | Formato mínimo | Ferramenta provável |
