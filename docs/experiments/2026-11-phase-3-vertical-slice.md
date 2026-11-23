@@ -26,7 +26,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   teclado/mouse, OTG (pure HID), always-on-top, borderless, fullscreen,
   gravação em vídeo, rotação e renderer (lista de drivers lida de
   `scrcpy --help` com fallback para Automático). Cada mudança é gravada no
-  `settings.json`; o resumo mostra a configuração efetiva antes de iniciar.
+  `settings.json`; o evento `scrcpy-window-pos` do core salva a posição da
+  janela do espelho, que volta em `--window-x/--window-y` no próximo start; o
+  resumo mostra a configuração efetiva antes de iniciar.
 - **Console:** o `EventBus` do core é consumido por uma task GPUI; logs do
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
   A toolbar tem **Clear**, **Copy** (clipboard do sistema) e **Report** (JSON de

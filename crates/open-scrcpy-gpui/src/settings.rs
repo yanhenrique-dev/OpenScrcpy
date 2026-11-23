@@ -127,6 +127,9 @@ pub struct MirrorSettings {
     pub rotation: u32,
     /// `auto` or one of the driver ids advertised by the scrcpy binary.
     pub renderer: String,
+    /// Last mirror-window origin persisted from the session monitor.
+    pub window_x: Option<i32>,
+    pub window_y: Option<i32>,
 }
 
 impl Default for MirrorSettings {
@@ -150,6 +153,8 @@ impl Default for MirrorSettings {
             record: false,
             rotation: 0,
             renderer: "auto".to_string(),
+            window_x: None,
+            window_y: None,
         }
     }
 }
@@ -177,6 +182,11 @@ impl MirrorSettings {
         if self.renderer.is_empty() {
             self.renderer = "auto".to_string();
         }
+        // A half-restored position would put the window somewhere arbitrary.
+        if self.window_x.is_none() || self.window_y.is_none() {
+            self.window_x = None;
+            self.window_y = None;
+        }
         self
     }
 
@@ -200,6 +210,8 @@ impl MirrorSettings {
         config.record = Some(self.record);
         config.rotation = (self.rotation != 0).then(|| self.rotation.to_string());
         config.render_driver = (self.renderer != "auto").then(|| self.renderer.clone());
+        config.window_x = self.window_x;
+        config.window_y = self.window_y;
     }
 
     /// Builds the core DTO for one device. The shell owns presentation
@@ -882,6 +894,27 @@ mod tests {
         assert!(args.iter().any(|arg| arg.starts_with("--record=")));
         assert!(args.contains(&"--orientation".to_string()));
         assert!(args.contains(&"90".to_string()));
+    }
+
+    #[test]
+    fn saved_window_position_round_trips_to_the_arguments() {
+        let mirror = MirrorSettings {
+            window_x: Some(120),
+            window_y: Some(-40),
+            ..MirrorSettings::default()
+        };
+        let config = mirror.to_config("device1");
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--window-x=120".to_string()));
+        assert!(args.contains(&"--window-y=-40".to_string()));
+
+        let half = MirrorSettings {
+            window_x: Some(120),
+            window_y: None,
+            ..MirrorSettings::default()
+        }
+        .normalized();
+        assert_eq!(half.window_x, None);
     }
 
     #[test]

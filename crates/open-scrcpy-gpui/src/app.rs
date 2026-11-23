@@ -469,7 +469,23 @@ impl AppShell {
                     }
                 }
             }
-            AppEvent::AudioStatus(_) | AppEvent::WindowPos(_) => {}
+            AppEvent::AudioStatus(_) => {}
+            AppEvent::WindowPos(payload) => {
+                if let (Some(x), Some(y)) = (
+                    payload.get("x").and_then(Value::as_i64),
+                    payload.get("y").and_then(Value::as_i64),
+                ) {
+                    let x = x as i32;
+                    let y = y as i32;
+                    if self.settings.mirror.window_x != Some(x)
+                        || self.settings.mirror.window_y != Some(y)
+                    {
+                        self.settings.mirror.window_x = Some(x);
+                        self.settings.mirror.window_y = Some(y);
+                        self.persist();
+                    }
+                }
+            }
             AppEvent::MicRoute { display, routed } => {
                 self.mic_route = Some((display, routed));
             }
