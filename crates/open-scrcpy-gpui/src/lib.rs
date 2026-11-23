@@ -18,7 +18,7 @@ pub use i18n::{SUPPORTED_LOCALES, is_supported};
 pub use services::AppServices;
 pub use settings::{AppSettings, SettingsStore, ThemePreference};
 
-use gpui_kit::{AppContext as _, WindowOptions, px, size};
+use gpui_kit::{AppContext as _, TitlebarOptions, WindowDecorations, WindowOptions, px, size};
 
 pub fn run() {
     let store = SettingsStore::new();
@@ -61,6 +61,15 @@ pub fn run() {
                 window_bounds: Some(settings.window_bounds(cx)),
                 window_min_size: Some(size(px(settings::MIN_WIDTH), px(settings::MIN_HEIGHT))),
                 app_id: Some("openscrcpy".to_string()),
+                // Product decision P8: the 3.0 shell uses the platform's own
+                // chrome (minimize/maximize/close, resize) instead of the 2.x
+                // webview-drawn buttons.
+                window_decorations: Some(WindowDecorations::Server),
+                titlebar: Some(TitlebarOptions {
+                    title: Some("OpenScrcpy".into()),
+                    appears_transparent: false,
+                    traffic_light_position: None,
+                }),
                 ..Default::default()
             };
             let settings = settings.clone();

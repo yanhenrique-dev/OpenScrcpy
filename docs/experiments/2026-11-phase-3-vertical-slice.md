@@ -179,7 +179,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: reconnect, notificações (com opt-out) e posição da janela prontos; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | **parcial**: onboarding, Sobre e card de atalhos prontos; modal de update e confirmações pendentes |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única, recenter global e drag-drop de arquivos prontos; tray/background bloqueados (4.1) |
-| 3.12 Chrome/titlebar | pendente (decoração nativa) |
+| 3.12 Chrome/titlebar | **decidido**: decoração `Server` explícita + título da janela, conforme P8; os botões/resize do webview do 2.x não foram portados |
 
 ## 6. Próximos passos
 
