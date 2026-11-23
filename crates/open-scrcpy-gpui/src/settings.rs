@@ -125,6 +125,8 @@ pub struct MirrorSettings {
     pub record: bool,
     /// 0, 90, 180 or 270.
     pub rotation: u32,
+    /// `auto` or one of the driver ids advertised by the scrcpy binary.
+    pub renderer: String,
 }
 
 impl Default for MirrorSettings {
@@ -147,6 +149,7 @@ impl Default for MirrorSettings {
             fullscreen: false,
             record: false,
             rotation: 0,
+            renderer: "auto".to_string(),
         }
     }
 }
@@ -170,6 +173,10 @@ impl MirrorSettings {
         if !DesktopSettings::ROTATIONS.contains(&self.rotation) {
             self.rotation = 0;
         }
+        self.renderer = self.renderer.trim().to_string();
+        if self.renderer.is_empty() {
+            self.renderer = "auto".to_string();
+        }
         self
     }
 
@@ -192,6 +199,7 @@ impl MirrorSettings {
         config.fullscreen = Some(self.fullscreen);
         config.record = Some(self.record);
         config.rotation = (self.rotation != 0).then(|| self.rotation.to_string());
+        config.render_driver = (self.renderer != "auto").then(|| self.renderer.clone());
     }
 
     /// Builds the core DTO for one device. The shell owns presentation
@@ -843,6 +851,27 @@ mod tests {
         assert!(args.iter().any(|arg| arg.starts_with("--record=")));
         assert!(args.contains(&"--orientation".to_string()));
         assert!(args.contains(&"90".to_string()));
+    }
+
+    #[test]
+    fn renderer_maps_to_the_driver_flag() {
+        let mirror = MirrorSettings {
+            renderer: "opengl".to_string(),
+            ..MirrorSettings::default()
+        };
+        let config = mirror.to_config("device1");
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--render-driver".to_string()));
+        assert!(args.contains(&"opengl".to_string()));
+
+        let auto = MirrorSettings {
+            renderer: "  ".to_string(),
+            ..MirrorSettings::default()
+        }
+        .normalized();
+        assert_eq!(auto.renderer, "auto");
+        let config = auto.to_config("device1");
+        assert_eq!(config.render_driver, None);
     }
 
     #[test]

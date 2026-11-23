@@ -24,8 +24,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   resolução máxima (Original/1920/1280/720), codec (H.264/H.265/AV1), áudio,
   VSync, manter acordado, desligar a tela, reconexão automática, HID
   teclado/mouse, OTG (pure HID), always-on-top, borderless, fullscreen,
-  gravação em vídeo e rotação. Cada mudança é gravada no `settings.json`; o
-  resumo mostra a configuração efetiva antes de iniciar.
+  gravação em vídeo, rotação e renderer (lista de drivers lida de
+  `scrcpy --help` com fallback para Automático). Cada mudança é gravada no
+  `settings.json`; o resumo mostra a configuração efetiva antes de iniciar.
 - **Console:** o `EventBus` do core é consumido por uma task GPUI; logs do
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
   A toolbar tem **Clear**, **Copy** (clipboard do sistema) e **Report** (JSON de
@@ -111,7 +112,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **28 passed** (25 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **30 passed** (27 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 76 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -145,7 +146,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.1 Header (menu de idioma real, update badge) | parcial: locale por botão de ciclo |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | parcial: IP/pairing manual prontos; descoberta mDNS, histórico e o fluxo guiado de pairing pendentes |
-| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **parcial**: performance, áudio, HID/OTG, janela, gravação e rotação prontos; falta o seletor de renderer (lista de drivers do scrcpy) |
+| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **feito**: performance, áudio, HID/OTG, janela, gravação, rotação e renderer; smoke com hardware pendente |
 | 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
@@ -157,9 +158,7 @@ comportamento esperado durante a convivência dos dois cascos.
 
 ## 6. Próximos passos
 
-1. Seletor de renderer no Mirror, alimentado por
-   `core::scrcpy::get_render_drivers`.
-2. Wireless: descoberta mDNS (`adb mdns services`), lista de pares recentes e
+1. Wireless: descoberta mDNS (`adb mdns services`), lista de pares recentes e
    o fluxo guiado de pairing (o IP/código manual já funciona).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.

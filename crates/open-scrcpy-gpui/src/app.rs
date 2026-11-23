@@ -173,6 +173,7 @@ pub struct AppShell {
     wireless_busy: bool,
     mic_route: Option<(String, bool)>,
     mic_db: Option<f64>,
+    renderers: Vec<(String, String)>,
 }
 
 impl AppShell {
@@ -202,6 +203,7 @@ impl AppShell {
         spawn_platform_commands(cx, platform_commands);
         if services.polls_devices() {
             spawn_device_poll(cx, services.clone());
+            spawn_renderer_load(cx, services.clone());
         }
 
         let bitrate = cx.new(|_| {
@@ -274,6 +276,7 @@ impl AppShell {
             wireless_busy: false,
             mic_route: None,
             mic_db: None,
+            renderers: Vec::new(),
         }
     }
 
@@ -801,6 +804,19 @@ impl AppShell {
             .iter()
             .position(|codec| *codec == settings.video_codec)
             .unwrap_or(0);
+        let renderer_index = if settings.renderer == "auto" {
+            Some(0)
+        } else {
+            self.renderers
+                .iter()
+                .position(|(id, _)| *id == settings.renderer)
+                .map(|index| index + 1)
+        };
+        let mut renderer_options =
+            vec![Radio::new("renderer-auto").label(t!("controlPanel.rendererAuto").to_string())];
+        for (id, label) in &self.renderers {
+            renderer_options.push(Radio::new(format!("renderer-{id}")).label(label.clone()));
+        }
         let rotation_index = DesktopSettings::ROTATIONS
             .iter()
             .position(|rotation| *rotation == settings.rotation)
@@ -1069,6 +1085,35 @@ impl AppShell {
                                 this.persist();
                                 cx.notify();
                             })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_start()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.graphicsRenderer").to_string()),
+                    )
+                    .child(
+                        RadioGroup::vertical("mirror-renderer")
+                            .selected_index(renderer_index)
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.mirror.renderer = if *index == 0 {
+                                    "auto".to_string()
+                                } else {
+                                    this.renderers
+                                        .get(*index - 1)
+                                        .map(|entry: &(String, String)| entry.0.clone())
+                                        .unwrap_or_else(|| "auto".to_string())
+                                };
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(renderer_options),
                     ),
             )
             .child(
@@ -1987,6 +2032,38 @@ impl Render for AppShell {
     }
 }
 
+fn parse_renderers(value: &Value) -> Vec<(String, String)> {
+    value
+        .get("supportedDrivers")
+        .and_then(Value::as_array)
+        .map(|drivers| {
+            drivers
+                .iter()
+                .filter_map(|driver| {
+                    let id = driver.get("id").and_then(Value::as_str)?;
+                    let label = driver.get("label").and_then(Value::as_str).unwrap_or(id);
+                    Some((id.to_string(), label.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn spawn_renderer_load(cx: &mut Context<AppShell>, services: AppServices) {
+    cx.spawn(async move |this, cx| {
+        let value = services.get_render_drivers().await;
+        let renderers = value
+            .ok()
+            .map(|value| parse_renderers(&value))
+            .unwrap_or_default();
+        let _ = this.update(cx, |shell, cx| {
+            shell.renderers = renderers;
+            cx.notify();
+        });
+    })
+    .detach();
+}
+
 fn spawn_platform_commands(
     cx: &mut Context<AppShell>,
     mut commands: tokio::sync::mpsc::UnboundedReceiver<PlatformCommand>,
@@ -2146,6 +2223,21 @@ mod tests {
         assert_eq!(report["locale"], "pt-BR");
         assert_eq!(report["devices"][0]["serial"], "device1");
         assert_eq!(report["logs"][0], "[SYSTEM] hello");
+    }
+
+    #[test]
+    fn parses_render_drivers() {
+        let payload = json!({
+            "supportsRenderDriver": true,
+            "supportedDrivers": [
+                { "id": "opengl", "label": "OpenGL" },
+                { "id": "vulkan", "label": "Vulkan" }
+            ]
+        });
+        let drivers = parse_renderers(&payload);
+        assert_eq!(drivers.len(), 2);
+        assert_eq!(drivers[0], ("opengl".to_string(), "OpenGL".to_string()));
+        assert!(parse_renderers(&json!({})).is_empty());
     }
 
     #[test]
