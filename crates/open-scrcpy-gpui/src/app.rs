@@ -689,6 +689,13 @@ impl AppShell {
             .iter()
             .position(|codec| *codec == settings.video_codec)
             .unwrap_or(0);
+        let rotation_index = DesktopSettings::ROTATIONS
+            .iter()
+            .position(|rotation| *rotation == settings.rotation)
+            .unwrap_or(0);
+        let rotation_options = DesktopSettings::ROTATIONS.map(|rotation| {
+            Radio::new(format!("mirror-rotation-{rotation}")).label(format!("{rotation}°"))
+        });
 
         let fps_options =
             MirrorSettings::FPS.map(|fps| Radio::new(format!("fps-{fps}")).label(fps.to_string()));
@@ -864,6 +871,116 @@ impl AppShell {
                             })),
                     ),
             )
+            .child(
+                div()
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(t!("controlPanel.inputEnhancements").to_string()),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_6()
+                    .child(
+                        Switch::new("mirror-hid-keyboard")
+                            .checked(settings.hid_keyboard)
+                            .label(t!("controlPanel.hidKeyboard").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.hid_keyboard = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-hid-mouse")
+                            .checked(settings.hid_mouse)
+                            .label(t!("controlPanel.hidMouse").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.hid_mouse = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-pure-hid")
+                            .checked(settings.otg_pure)
+                            .label(t!("controlPanel.pureHid").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.otg_pure = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_6()
+                    .child(
+                        Switch::new("mirror-always-on-top")
+                            .checked(settings.always_on_top)
+                            .label(t!("sessionBehavior.alwaysOnTop").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.always_on_top = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-borderless")
+                            .checked(settings.borderless)
+                            .label(t!("sessionBehavior.borderless").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.borderless = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-fullscreen")
+                            .checked(settings.fullscreen)
+                            .label(t!("sessionBehavior.fullScreen").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.fullscreen = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-record")
+                            .checked(settings.record)
+                            .label(t!("sessionBehavior.recordFeed").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.record = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.rotation").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mirror-rotation")
+                            .selected_index(Some(rotation_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.mirror.rotation = DesktopSettings::ROTATIONS[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(rotation_options),
+                    ),
+            )
     }
 
     fn mirror_summary(&self, cx: &Context<Self>) -> SharedString {
@@ -883,11 +1000,19 @@ impl AppShell {
         } else {
             t!("controlPanel.audioOff").to_string()
         };
-        format!(
+        let mut summary = format!(
             "{bitrate} Mbps · {} fps · {resolution} · {codec} · {audio}",
             self.settings.mirror.fps
-        )
-        .into()
+        );
+        if self.settings.mirror.record {
+            summary.push_str(" · Record");
+        }
+        if self.settings.mirror.otg_pure {
+            summary.push_str(" · OTG");
+        } else if self.settings.mirror.hid_keyboard || self.settings.mirror.hid_mouse {
+            summary.push_str(" · HID");
+        }
+        summary.into()
     }
 
     fn desktop_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {

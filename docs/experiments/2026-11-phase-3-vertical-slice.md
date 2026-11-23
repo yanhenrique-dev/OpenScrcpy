@@ -22,9 +22,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   quando não há dispositivo/seleção ou quando a sessão já está rodando.
 - **Painel Mirror:** bitrate (slider 1–50 Mbps), frame rate (30/60/90),
   resolução máxima (Original/1920/1280/720), codec (H.264/H.265/AV1), áudio,
-  VSync, manter acordado, desligar a tela e reconexão automática. Cada mudança
-  é gravada no `settings.json`; o resumo mostra a configuração efetiva antes de
-  iniciar.
+  VSync, manter acordado, desligar a tela, reconexão automática, HID
+  teclado/mouse, OTG (pure HID), always-on-top, borderless, fullscreen,
+  gravação em vídeo e rotação. Cada mudança é gravada no `settings.json`; o
+  resumo mostra a configuração efetiva antes de iniciar.
 - **Console:** o `EventBus` do core é consumido por uma task GPUI; logs do
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
@@ -96,7 +97,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **23 passed** (20 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **26 passed** (23 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 76 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -110,7 +111,7 @@ AppShell (Entity<AppShell>)
 | 3.1 Header (menu de idioma real, update badge) | parcial: locale por botão de ciclo |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | parcial: IP/pairing manual prontos; descoberta mDNS, histórico e o fluxo guiado de pairing pendentes |
-| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: bitrate/fps/res/codec/áudio/vsync/reconnect prontos; faltam renderer, rotação, HID, recording, always-on-top/borderless |
+| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **parcial**: performance, áudio, HID/OTG, janela, gravação e rotação prontos; falta o seletor de renderer (lista de drivers do scrcpy) |
 | 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **parcial**: fonte, codec, bitrate, RNNoise e source padrão prontos; medidor de nível (`parec`) e o painel de destino pendentes |
@@ -122,8 +123,8 @@ AppShell (Entity<AppShell>)
 
 ## 6. Próximos passos
 
-1. Completar o Mirror: renderer, rotação, HID, recording,
-   always-on-top/borderless e o "pure HID".
+1. Seletor de renderer no Mirror, alimentado por
+   `core::scrcpy::get_render_drivers`.
 2. Wireless: descoberta mDNS (`adb mdns services`), lista de pares recentes e
    o fluxo guiado de pairing (o IP/código manual já funciona).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.

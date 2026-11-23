@@ -114,6 +114,17 @@ pub struct MirrorSettings {
     pub stay_awake: bool,
     pub turn_screen_off: bool,
     pub auto_reconnect: bool,
+    pub hid_keyboard: bool,
+    pub hid_mouse: bool,
+    /// Pure HID/OTG mode: no mirror, the phone is driven as an input device.
+    pub otg_pure: bool,
+    pub always_on_top: bool,
+    pub borderless: bool,
+    pub fullscreen: bool,
+    /// Record the session to the user's videos directory.
+    pub record: bool,
+    /// 0, 90, 180 or 270.
+    pub rotation: u32,
 }
 
 impl Default for MirrorSettings {
@@ -128,6 +139,14 @@ impl Default for MirrorSettings {
             stay_awake: false,
             turn_screen_off: false,
             auto_reconnect: true,
+            hid_keyboard: false,
+            hid_mouse: false,
+            otg_pure: false,
+            always_on_top: false,
+            borderless: false,
+            fullscreen: false,
+            record: false,
+            rotation: 0,
         }
     }
 }
@@ -148,6 +167,9 @@ impl MirrorSettings {
         if !Self::CODECS.contains(&self.video_codec.as_str()) {
             self.video_codec = "h264".to_string();
         }
+        if !DesktopSettings::ROTATIONS.contains(&self.rotation) {
+            self.rotation = 0;
+        }
         self
     }
 
@@ -162,6 +184,14 @@ impl MirrorSettings {
         config.stay_awake = Some(self.stay_awake);
         config.turn_off = Some(self.turn_screen_off);
         config.auto_reconnect = Some(self.auto_reconnect);
+        config.hid_keyboard = Some(self.hid_keyboard);
+        config.hid_mouse = Some(self.hid_mouse);
+        config.otg_pure = Some(self.otg_pure);
+        config.always_on_top = Some(self.always_on_top);
+        config.borderless = Some(self.borderless);
+        config.fullscreen = Some(self.fullscreen);
+        config.record = Some(self.record);
+        config.rotation = (self.rotation != 0).then(|| self.rotation.to_string());
     }
 
     /// Builds the core DTO for one device. The shell owns presentation
@@ -628,6 +658,7 @@ mod tests {
             stay_awake: true,
             turn_screen_off: true,
             auto_reconnect: false,
+            ..MirrorSettings::default()
         };
         let config = settings.to_config("device1");
         assert_eq!(config.device, "device1");
@@ -774,6 +805,54 @@ mod tests {
         assert_eq!(desktop.rotation, 0);
         assert_eq!(desktop.max_size, 0);
         assert!(desktop.flex_display);
+    }
+
+    #[test]
+    fn pure_hid_maps_to_the_hid_flags() {
+        let mirror = MirrorSettings {
+            hid_keyboard: true,
+            hid_mouse: true,
+            otg_pure: true,
+            ..MirrorSettings::default()
+        };
+        // Over TCP, pure HID disables video/audio and drives uhid directly.
+        let config = mirror.to_config("10.0.0.2:5555");
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--no-video".to_string()));
+        assert!(args.contains(&"--keyboard=uhid".to_string()));
+        assert!(args.contains(&"--mouse=uhid".to_string()));
+    }
+
+    #[test]
+    fn window_extras_map_to_the_core_arguments() {
+        let mirror = MirrorSettings {
+            always_on_top: true,
+            borderless: true,
+            record: true,
+            rotation: 90,
+            ..MirrorSettings::default()
+        };
+        let config = mirror.to_config("device1");
+        let args = open_scrcpy_core::config::build_scrcpy_args(
+            &config,
+            Some("/tmp/videos".to_string()),
+            None,
+        );
+        assert!(args.contains(&"--always-on-top".to_string()));
+        assert!(args.contains(&"--window-borderless".to_string()));
+        assert!(args.iter().any(|arg| arg.starts_with("--record=")));
+        assert!(args.contains(&"--orientation".to_string()));
+        assert!(args.contains(&"90".to_string()));
+    }
+
+    #[test]
+    fn invalid_rotation_falls_back_to_zero() {
+        let mirror = MirrorSettings {
+            rotation: 45,
+            ..MirrorSettings::default()
+        }
+        .normalized();
+        assert_eq!(mirror.rotation, 0);
     }
 
     #[test]
