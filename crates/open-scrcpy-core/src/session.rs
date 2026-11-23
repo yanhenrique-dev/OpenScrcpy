@@ -135,6 +135,35 @@ pub async fn stop_session(
     }
 }
 
+/// Kills every registered child and unloads the virtual microphone sink.
+///
+/// Synchronous by design: shell exit handlers run outside the async runtime,
+/// so this cannot await a graceful stop. Every step is best effort.
+pub fn teardown_sessions(state: &ScrcpyState, host: &dyn SessionHost) {
+    let handles: Vec<crate::state::SessionHandle> = {
+        let mut sessions = state
+            .sessions
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        sessions.drain().map(|(_, handle)| handle).collect()
+    };
+    for handle in handles {
+        let pid = handle.pid.load(std::sync::atomic::Ordering::Relaxed);
+        if handle.track_position {
+            host.stop_tracking(pid);
+        }
+        let _ = handle
+            .stop
+            .send(crate::state::StopRequest { position: None });
+        host.force_kill(pid);
+    }
+    #[cfg(unix)]
+    {
+        crate::mic::restore_default_source_sync(state);
+        crate::mic::teardown_mic_sink();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,6 +1,8 @@
 # Fase 2 — fundação do app GPUI (progresso)
 
 > **Status:** parcial — shell, tema, i18n, settings e bounds de janela prontos.
+> A fatia seguinte (device hub + sessão + console) está em
+> [2026-11-phase-3-vertical-slice.md](2026-11-phase-3-vertical-slice.md).
 > Faltam fontes/ícones, a trait `Platform`, os overlays e o tratamento de erro.
 > **Data:** 2026-11-23
 > **Crate:** `crates/open-scrcpy-gpui` (binário `openscrcpy`)

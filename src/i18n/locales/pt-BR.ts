@@ -128,6 +128,7 @@ export const ptBR: Translations = {
         flashPushSubtitle: 'Arraste e solte QUALQUER ARQUIVO OU APK'
     },
     controlPanel: {
+        modeUnavailable: 'Este modo ainda não está disponível na versão nativa.',
         captureSource: 'Fonte de Captura',
         screen: 'Tela',
         camera: 'Câmera',

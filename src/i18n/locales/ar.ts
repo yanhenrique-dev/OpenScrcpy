@@ -131,6 +131,7 @@ export const ar: Translations = {
         flashPushSubtitle: 'اسحب وأفلت أي ملف أو APK'
     },
      controlPanel: {
+         modeUnavailable: 'هذا الوضع غير متوفر بعد في النسخة الأصلية.',
         captureSource: 'مصدر الالتقاط',
         screen: 'الشاشة',
         camera: 'الكاميرا',

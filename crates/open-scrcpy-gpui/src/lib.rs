@@ -8,11 +8,13 @@ rust_i18n::i18n!("locales", fallback = "en");
 
 mod app;
 mod i18n;
+mod services;
 mod settings;
 mod theme;
 
 pub use app::AppShell;
 pub use i18n::{SUPPORTED_LOCALES, is_supported};
+pub use services::AppServices;
 pub use settings::{AppSettings, SettingsStore, ThemePreference};
 
 use gpui_kit::{AppContext as _, WindowOptions, px, size};
@@ -23,6 +25,8 @@ pub fn run() {
     let locale = i18n::resolve(&settings.locale);
     settings.locale = locale.to_string();
     i18n::apply(locale);
+
+    let (services, events) = AppServices::new();
 
     gpui_kit::application()
         .with_assets(gpui_kit::assets::Assets)
@@ -39,7 +43,7 @@ pub fn run() {
             let settings = settings.clone();
             let store = store.clone();
             gpui_kit::open_window(options, cx, move |window, cx| {
-                cx.new(|cx| AppShell::new(window, cx, settings, store))
+                cx.new(|cx| AppShell::new(window, cx, settings, store, services, events))
             })
             .expect("failed to open the OpenScrcpy window");
         });

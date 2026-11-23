@@ -335,6 +335,11 @@ Use esta matrix (preencha com PASS/FAIL e uma nota curta):
 > overlays e o panic hook; veja
 > [docs/experiments/2026-11-phase-2-foundation.md](experiments/2026-11-phase-2-foundation.md).
 
+> **Execução parcial (2026-11-23):** a primeira fatia vertical liga o app ao
+> core: device hub com polling de `adb`, seleção, iniciar/parar espelhamento e
+> console alimentado pelo `EventBus`, sem Tauri. Ver
+> [docs/experiments/2026-11-phase-3-vertical-slice.md](experiments/2026-11-phase-3-vertical-slice.md).
+
 **Objetivo:** ter um casco vazio, porém completo: tema, fontes, ícones, i18n, settings, janela, overlays e serviços.
 
 | ID | Entrega | Detalhe |

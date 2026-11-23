@@ -128,6 +128,7 @@ export const zhTW: Translations = {
         flashPushSubtitle: '拖放任何檔案或 APK'
     },
     controlPanel: {
+        modeUnavailable: '此模式尚未在原生版本中提供。',
         captureSource: '擷取來源',
         screen: '螢幕',
         camera: '相機',

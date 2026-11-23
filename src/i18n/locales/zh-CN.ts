@@ -128,6 +128,7 @@ export const zhCN: Translations = {
         flashPushSubtitle: '拖放任意文件或 APK'
     },
     controlPanel: {
+        modeUnavailable: '此模式尚未在原生版本中提供。',
         captureSource: '捕获来源',
         screen: '屏幕',
         camera: '摄像头',

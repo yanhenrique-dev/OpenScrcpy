@@ -94,6 +94,63 @@ pub struct ScrcpyConfig {
     #[cfg_attr(not(unix), allow(dead_code))]
     pub mic_set_default_source: Option<bool>,
 }
+impl ScrcpyConfig {
+    /// Baseline windowed mirror session: audio on at the device output, the
+    /// rest of the knobs left to scrcpy's defaults. The shell fills the fields
+    /// the user changes.
+    pub fn mirror(device: impl Into<String>) -> Self {
+        Self {
+            device: device.into(),
+            session_mode: "mirror".to_string(),
+            bitrate: None,
+            fps: None,
+            stay_awake: None,
+            turn_off: None,
+            audio_enabled: Some(true),
+            audio_codec: None,
+            mirror_audio_source: None,
+            audio_dup: None,
+            require_audio: None,
+            always_on_top: None,
+            fullscreen: None,
+            borderless: None,
+            record: None,
+            record_path: None,
+            scrcpy_path: None,
+            otg_pure: None,
+            camera_facing: None,
+            camera_id: None,
+            codec: None,
+            camera_ar: None,
+            camera_high_speed: None,
+            vd_width: None,
+            vd_height: None,
+            vd_dpi: None,
+            rotation: None,
+            res: None,
+            hid_keyboard: None,
+            hid_mouse: None,
+            render_driver: None,
+            flex_display: None,
+            camera_torch: None,
+            camera_zoom: None,
+            camera_mic_sink: None,
+            background_color: None,
+            keep_active: None,
+            auto_reconnect: Some(true),
+            vsync: None,
+            window_x: None,
+            window_y: None,
+            ignore_video_encoder_constraints: None,
+            mic_source: None,
+            mic_codec: None,
+            mic_bitrate: None,
+            mic_denoise: None,
+            mic_set_default_source: None,
+        }
+    }
+}
+
 fn resolve_audio_codec_flag<'a>(
     config: &'a ScrcpyConfig,
     audio_codec_override: Option<&'a str>,
@@ -484,6 +541,18 @@ mod tests {
         assert!(args.contains(&"--no-window".to_string()));
         assert!(args.contains(&"--no-video".to_string()));
         assert!(args.contains(&"--audio-source=mic".to_string()));
+    }
+
+    #[test]
+    fn mirror_baseline_builds_a_windowed_session() {
+        let config = ScrcpyConfig::mirror("device1");
+        assert_eq!(config.session_mode, "mirror");
+        assert_eq!(config.audio_enabled, Some(true));
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"-s".to_string()));
+        assert!(args.contains(&"device1".to_string()));
+        assert!(!args.iter().any(|arg| arg == "--no-window"));
+        assert!(validate_scrcpy_config(&config).is_ok());
     }
 
     #[test]

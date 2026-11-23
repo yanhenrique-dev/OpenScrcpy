@@ -128,6 +128,7 @@ languages: {
         flashPushSubtitle: 'Seret & lepas File atau APK di sini'
     },
     controlPanel: {
+        modeUnavailable: 'Mode ini belum tersedia di versi native.',
         captureSource: 'Sumber Input',
         screen: 'Layar',
         camera: 'Kamera',

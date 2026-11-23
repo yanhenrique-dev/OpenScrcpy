@@ -1,8 +1,6 @@
 use crate::config::ScrcpyConfig;
 use crate::validate;
 use crate::ScrcpyState;
-use crate::SessionHandle;
-use crate::StopRequest;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tauri::{Manager, State};
@@ -648,28 +646,14 @@ pub async fn stop_scrcpy(
 
 // App exit teardown: kill every registered child (mirror, camera, mic
 // bridge) and unload the mic sink, so closing the app cannot leave audio
-// or a mirror running in the background. This handler is synchronous, so it
-// uses SIGKILL/TerminateProcess instead of waiting for a graceful stop.
+// or a mirror running in the background. Delegates to the core so the GPUI
+// shell performs exactly the same teardown.
 pub fn teardown_sessions(app_handle: &tauri::AppHandle) {
     let state = app_handle.state::<std::sync::Arc<ScrcpyState>>();
-    let handles: Vec<SessionHandle> = {
-        let mut sessions = state.sessions.lock().unwrap_or_else(|e| e.into_inner());
-        sessions.drain().map(|(_, handle)| handle).collect()
-    };
-    for handle in handles {
-        let pid = handle.pid.load(Ordering::Relaxed);
-        #[cfg(target_os = "linux")]
-        if handle.track_position {
-            crate::kwin::stop_tracking(pid);
-        }
-        let _ = handle.stop.send(StopRequest { position: None });
-        crate::process::force_kill_pid(pid);
-    }
-    #[cfg(unix)]
-    {
-        open_scrcpy_core::mic::restore_default_source_sync(state.inner());
-        open_scrcpy_core::mic::teardown_mic_sink();
-    }
+    open_scrcpy_core::session::teardown_sessions(
+        state.inner(),
+        &crate::session_adapter::TauriSessionHost,
+    );
 }
 
 #[tauri::command]

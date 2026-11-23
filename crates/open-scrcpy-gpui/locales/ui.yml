@@ -1044,6 +1044,15 @@ sidebar:
     id: "Seret & lepas File atau APK di sini"
     ar: "اسحب وأفلت أي ملف أو APK"
 controlPanel:
+  modeUnavailable:
+    en: "This mode isn't available in the native build yet."
+    fr: "Ce mode n'est pas encore disponible dans la version native."
+    pt-BR: "Este modo ainda não está disponível na versão nativa."
+    zh-CN: "此模式尚未在原生版本中提供。"
+    zh-TW: "此模式尚未在原生版本中提供。"
+    ru: "Этот режим пока недоступен в нативной версии."
+    id: "Mode ini belum tersedia di versi native."
+    ar: "هذا الوضع غير متوفر بعد في النسخة الأصلية."
   captureSource:
     en: "Capture source"
     fr: "Source de Capture"

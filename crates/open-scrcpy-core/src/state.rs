@@ -81,6 +81,31 @@ pub struct ScrcpyState {
     pub background_mode: AtomicBool,
 }
 
+impl Default for ScrcpyState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ScrcpyState {
+    /// Empty registry with every counter at its neutral value. Shells create
+    /// one and share it as an `Arc`.
+    pub fn new() -> Self {
+        Self {
+            sessions: Mutex::new(HashMap::new()),
+            starting_devices: Mutex::new(HashSet::new()),
+            binary_swap: tokio::sync::Mutex::new(()),
+            mic_sink_lock: tokio::sync::Mutex::new(()),
+            mic_sink_users: AtomicUsize::new(0),
+            mic_default_source_users: AtomicUsize::new(0),
+            mic_previous_default_source: Mutex::new(None),
+            session_generations: Mutex::new(HashMap::new()),
+            active_device: Mutex::new(None),
+            background_mode: AtomicBool::new(false),
+        }
+    }
+}
+
 impl ScrcpyState {
     /// True when no replacement has taken over this device. A replaced session
     /// must not publish a stop event: the new session already owns the UI.

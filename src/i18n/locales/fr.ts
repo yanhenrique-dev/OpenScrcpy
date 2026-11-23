@@ -128,6 +128,7 @@ export const fr: Translations = {
         flashPushSubtitle: 'Glisser-déposer N\'IMPORTE QUEL FICHIER OU APK'
     },
     controlPanel: {
+        modeUnavailable: "Ce mode n'est pas encore disponible dans la version native.",
         captureSource: 'Source de Capture',
         screen: 'Écran',
         camera: 'Caméra',

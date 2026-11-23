@@ -129,6 +129,7 @@ export const en = {
         flashPushSubtitle: 'Drag & drop ANY FILE OR APK'
     },
     controlPanel: {
+        modeUnavailable: "This mode isn't available in the native build yet.",
         captureSource: 'Capture source',
         screen: 'Screen',
         camera: 'Camera',

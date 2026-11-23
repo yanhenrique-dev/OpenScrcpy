@@ -1,20 +1,29 @@
-//! The application shell: header, device hub, mode tabs and the console.
+//! The application shell: device hub, mode tabs, session controls and console.
 //!
-//! This is the Phase 2 foundation. It owns presentation state only; session and
-//! device state will arrive from `open-scrcpy-core` through a service in Phase
-//! 3. Visible copy comes from the shared locale catalogs.
+//! Presentation state lives here; device and session state come from
+//! `open-scrcpy-core` through [`AppServices`]. The event loop and the device
+//! poller are spawned in `new` and mutate this entity through its weak handle.
+
+use std::time::Duration;
 
 use gpui_kit::base::Selectable as _;
-use gpui_kit::component::{ActiveTheme as _, button::Button};
+use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
+use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     Context, InteractiveElement as _, IntoElement, ParentElement as _, Render, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, TestSupportExt as _, Window, WindowBounds, div,
 };
+use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use rust_i18n::t;
+use serde_json::Value;
 
 use crate::i18n;
+use crate::services::AppServices;
 use crate::settings::{AppSettings, SettingsStore, ThemePreference};
 use crate::theme;
+
+const MAX_LOG_LINES: usize = 100;
+const DEVICE_POLL_INTERVAL: Duration = Duration::from_secs(3);
 
 fn theme_label(preference: ThemePreference) -> SharedString {
     match preference {
@@ -56,12 +65,98 @@ impl CaptureMode {
         .to_string()
         .into()
     }
+
+    fn is_implemented(self) -> bool {
+        matches!(self, Self::Screen)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeviceState {
+    Online,
+    Unauthorized,
+    Offline,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Device {
+    serial: String,
+    model: String,
+    state: DeviceState,
+}
+
+impl Device {
+    fn label(&self) -> SharedString {
+        let name = if self.model.is_empty() {
+            self.serial.as_str()
+        } else {
+            self.model.as_str()
+        };
+        match self.state {
+            DeviceState::Online => name.to_string().into(),
+            DeviceState::Unauthorized => {
+                format!("{name} · {}", t!("sidebar.deviceUnauthorized")).into()
+            }
+            DeviceState::Offline => format!("{name} · {}", t!("sidebar.deviceOffline")).into(),
+        }
+    }
+
+    /// Reads the `list_devices` payload. `devices` are ready to use; the
+    /// `unavailable` array keeps phones that are physically present but
+    /// unauthorized or offline visible instead of silently dropping them.
+    fn parse(value: &Value) -> Vec<Self> {
+        let mut devices = Vec::new();
+
+        if let Some(serials) = value.get("devices").and_then(Value::as_array) {
+            let models = value.get("deviceModels").and_then(Value::as_object);
+            for serial in serials.iter().filter_map(Value::as_str) {
+                let model = models
+                    .and_then(|map| map.get(serial))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                devices.push(Self {
+                    serial: serial.to_string(),
+                    model: model.to_string(),
+                    state: DeviceState::Online,
+                });
+            }
+        }
+
+        if let Some(unavailable) = value.get("unavailable").and_then(Value::as_array) {
+            for entry in unavailable {
+                let Some(serial) = entry.get("serial").and_then(Value::as_str) else {
+                    continue;
+                };
+                let model = entry
+                    .get("model")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
+                let state = match entry.get("state").and_then(Value::as_str) {
+                    Some("unauthorized") => DeviceState::Unauthorized,
+                    _ => DeviceState::Offline,
+                };
+                devices.push(Self {
+                    serial: serial.to_string(),
+                    model: model.to_string(),
+                    state,
+                });
+            }
+        }
+
+        devices
+    }
 }
 
 pub struct AppShell {
     settings: AppSettings,
     store: SettingsStore,
+    services: AppServices,
     mode: CaptureMode,
+    devices: Vec<Device>,
+    active_device: Option<String>,
+    running: bool,
+    starting: bool,
+    logs: Vec<String>,
 }
 
 impl AppShell {
@@ -70,22 +165,37 @@ impl AppShell {
         cx: &mut Context<Self>,
         settings: AppSettings,
         store: SettingsStore,
+        services: AppServices,
+        events: EventReceiver,
     ) -> Self {
         theme::apply(settings.theme, Some(window), cx);
 
-        // Persist the restore bounds on close. The command-less foundation has
-        // no other place to observe the final geometry.
+        let close_services = services.clone();
         let close_store = store.clone();
         window.on_window_should_close(cx, move |window, _cx| {
+            // The GPUI process must never leave a mirror or the virtual sink
+            // behind; the core teardown is synchronous for exactly this path.
+            close_services.teardown();
             let maximized = matches!(window.window_bounds(), WindowBounds::Maximized(_));
             close_store.save_window(window.bounds(), maximized);
             true
         });
 
+        spawn_event_loop(cx, events);
+        if services.polls_devices() {
+            spawn_device_poll(cx, services.clone());
+        }
+
         Self {
             settings,
             store,
+            services,
             mode: CaptureMode::Screen,
+            devices: Vec::new(),
+            active_device: None,
+            running: false,
+            starting: false,
+            logs: Vec::new(),
         }
     }
 
@@ -118,35 +228,141 @@ impl AppShell {
         cx.notify();
     }
 
-    fn locale_label(&self) -> SharedString {
-        format!(
-            "{}: {}",
-            t!("header.languageLabel"),
-            i18n::label(&self.settings.locale)
-        )
-        .into()
+    fn select_device(&mut self, serial: String, cx: &mut Context<Self>) {
+        if self.active_device.as_deref() != Some(serial.as_str()) {
+            self.active_device = Some(serial);
+            cx.notify();
+        }
+    }
+
+    fn push_log(&mut self, line: impl Into<String>) {
+        self.logs.push(line.into());
+        if self.logs.len() > MAX_LOG_LINES {
+            let overflow = self.logs.len() - MAX_LOG_LINES;
+            self.logs.drain(..overflow);
+        }
+    }
+
+    fn push_error(&mut self, error: impl Into<String>) {
+        self.push_log(format!("[ERROR] {}", error.into()));
+    }
+
+    fn apply_event(&mut self, event: AppEvent, cx: &mut Context<Self>) {
+        match event {
+            AppEvent::Log(line) => self.push_log(line),
+            AppEvent::Status(payload) => {
+                if let Some(running) = payload.get("running").and_then(Value::as_bool) {
+                    self.running = running;
+                    self.starting = false;
+                }
+            }
+            AppEvent::AudioStatus(_) | AppEvent::WindowPos(_) => {}
+            AppEvent::MicRoute { .. } | AppEvent::MicLevel(_) => {}
+        }
+        cx.notify();
+    }
+
+    fn apply_devices(&mut self, devices: Vec<Device>, cx: &mut Context<Self>) {
+        self.devices = devices;
+        if self
+            .active_device
+            .as_deref()
+            .is_some_and(|serial| !self.devices.iter().any(|device| device.serial == serial))
+        {
+            self.active_device = None;
+        }
+        if self.active_device.is_none() {
+            self.active_device = self
+                .devices
+                .iter()
+                .find(|device| device.state == DeviceState::Online)
+                .map(|device| device.serial.clone());
+        }
+        cx.notify();
+    }
+
+    fn start_session(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        if self.starting || self.running {
+            return;
+        }
+        self.starting = true;
+        self.push_log(format!("[SYSTEM] Starting mirror session for {device}..."));
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.start(&device).await;
+            if this.upgrade().is_none() {
+                return;
+            }
+            let _ = this.update(cx, |shell, cx| {
+                shell.starting = false;
+                match result {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => shell.push_error(error),
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn stop_session(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        self.push_log(format!("[SYSTEM] Stopping the session for {device}..."));
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.stop(&device).await;
+            if this.upgrade().is_none() {
+                return;
+            }
+            let _ = this.update(cx, |shell, cx| {
+                if let Ok(Err(error)) = result {
+                    shell.push_error(error);
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn active_device_label(&self) -> SharedString {
+        self.active_device
+            .as_deref()
+            .and_then(|serial| self.devices.iter().find(|device| device.serial == serial))
+            .map(Device::label)
+            .unwrap_or_else(|| t!("sidebar.noDevicesDetected").to_string().into())
     }
 
     fn theme_modes(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        div().flex().items_center().gap_1().children(
-            [
-                ThemePreference::Light,
-                ThemePreference::Dark,
-                ThemePreference::System,
-            ]
-            .map(|preference| {
+        div()
+            .flex()
+            .items_center()
+            .gap_1()
+            .children(ThemePreference::ALL.map(|preference| {
                 Button::new(preference.id())
                     .label(theme_label(preference))
                     .selected(self.settings.theme == preference)
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.set_theme(preference, window, cx)
                     }))
-            }),
-        )
+            }))
     }
 
     fn header(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        let locale_label = self.locale_label();
+        let locale_label = format!(
+            "{}: {}",
+            t!("header.languageLabel"),
+            i18n::label(&self.settings.locale)
+        );
         let version = env!("CARGO_PKG_VERSION");
 
         div()
@@ -179,10 +395,24 @@ impl AppShell {
     }
 
     fn sidebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut rows = Vec::with_capacity(self.devices.len());
+        for device in &self.devices {
+            let serial = device.serial.clone();
+            rows.push(
+                Button::new(format!("device-{}", device.serial))
+                    .label(device.label())
+                    .selected(self.active_device.as_deref() == Some(device.serial.as_str()))
+                    .w_full()
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| this.select_device(serial.clone(), cx)),
+                    ),
+            );
+        }
+
         div()
             .flex()
             .flex_col()
-            .gap_3()
+            .gap_2()
             .w_64()
             .flex_shrink_0()
             .p_3()
@@ -194,16 +424,16 @@ impl AppShell {
                     .text_color(cx.theme().muted_foreground)
                     .child(t!("sidebar.deviceHub").to_string()),
             )
-            .child(
-                div()
-                    .flex()
-                    .flex_1()
-                    .items_center()
-                    .justify_center()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(t!("sidebar.noDevicesDetected").to_string()),
-            )
+            .when(self.devices.is_empty(), |this| {
+                this.child(
+                    div()
+                        .id("device-empty")
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(t!("sidebar.noDevicesDetected").to_string()),
+                )
+            })
+            .children(rows)
     }
 
     fn mode_tabs(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -222,7 +452,10 @@ impl AppShell {
             }))
     }
 
-    fn panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn screen_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let can_start = self.active_device.is_some() && !self.starting && !self.running;
+        let can_stop = self.running;
+
         div()
             .flex()
             .flex_col()
@@ -241,31 +474,66 @@ impl AppShell {
             )
             .child(
                 div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(self.active_device_label()),
+            )
+            .child(
+                div()
                     .flex()
-                    .flex_col()
-                    .flex_1()
                     .items_center()
-                    .justify_center()
                     .gap_2()
-                    .rounded_lg()
-                    .border_1()
-                    .border_color(cx.theme().border)
                     .child(
-                        div()
-                            .text_sm()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(t!("sidebar.noDevicesDetected").to_string()),
+                        Button::new("start-mission")
+                            .label(t!("controlPanel.startMission").to_string())
+                            .disabled(!can_start)
+                            .on_click(cx.listener(|this, _, _, cx| this.start_session(cx))),
                     )
                     .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(t!("sidebar.usbSetupTip").to_string()),
+                        Button::new("stop-session")
+                            .label(t!("controlPanel.stopSession").to_string())
+                            .disabled(!can_stop)
+                            .on_click(cx.listener(|this, _, _, cx| this.stop_session(cx))),
                     ),
             )
     }
 
+    fn pending_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .gap_4()
+            .p_6()
+            .child(
+                div()
+                    .id("panel-title")
+                    .role(Role::Heading)
+                    .aria_label(self.mode.label().to_string())
+                    .text_xl()
+                    .child(self.mode.label())
+                    .test_support(),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(t!("controlPanel.modeUnavailable").to_string()),
+            )
+    }
+
     fn console(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let mut lines = Vec::with_capacity(self.logs.len());
+        for line in &self.logs {
+            lines.push(
+                div()
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(line.clone()),
+            );
+        }
+
         div()
             .flex()
             .flex_col()
@@ -283,12 +551,24 @@ impl AppShell {
             )
             .child(
                 div()
+                    .id("console-body")
+                    .flex()
+                    .flex_col()
                     .flex_1()
+                    .min_h_0()
+                    .overflow_hidden()
+                    .gap_1()
                     .px_4()
                     .py_2()
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(t!("logPanel.waitingForSequence").to_string()),
+                    .when(self.logs.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(t!("logPanel.waitingForSequence").to_string()),
+                        )
+                    })
+                    .children(lines),
             )
     }
 }
@@ -315,9 +595,77 @@ impl Render for AppShell {
                             .flex_1()
                             .min_w_0()
                             .child(self.mode_tabs(cx))
-                            .child(self.panel(cx)),
+                            .child(if self.mode.is_implemented() {
+                                self.screen_panel(cx).into_any_element()
+                            } else {
+                                self.pending_panel(cx).into_any_element()
+                            }),
                     ),
             )
             .child(self.console(cx))
+    }
+}
+
+fn spawn_event_loop(cx: &mut Context<AppShell>, mut events: EventReceiver) {
+    cx.spawn(async move |this, cx| {
+        while let Some(event) = events.recv().await {
+            if this
+                .update(cx, |shell, cx| shell.apply_event(event, cx))
+                .is_err()
+            {
+                break;
+            }
+        }
+    })
+    .detach();
+}
+
+fn spawn_device_poll(cx: &mut Context<AppShell>, services: AppServices) {
+    cx.spawn(async move |this, cx| {
+        loop {
+            let devices = services.list_devices().await;
+            let parsed = devices
+                .ok()
+                .map(|value| Device::parse(&value))
+                .unwrap_or_default();
+            if this
+                .update(cx, |shell, cx| shell.apply_devices(parsed, cx))
+                .is_err()
+            {
+                break;
+            }
+            cx.background_executor().timer(DEVICE_POLL_INTERVAL).await;
+        }
+    })
+    .detach();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parses_ready_and_unavailable_devices() {
+        let payload = json!({
+            "error": false,
+            "devices": ["emulator-5554"],
+            "deviceModels": { "emulator-5554": "Pixel 9" },
+            "unavailable": [
+                { "serial": "10.0.0.2:5555", "state": "unauthorized", "model": "Pixel 7" }
+            ],
+        });
+        let devices = Device::parse(&payload);
+        assert_eq!(devices.len(), 2);
+        assert_eq!(devices[0].serial, "emulator-5554");
+        assert_eq!(devices[0].model, "Pixel 9");
+        assert_eq!(devices[0].state, DeviceState::Online);
+        assert_eq!(devices[1].state, DeviceState::Unauthorized);
+    }
+
+    #[test]
+    fn empty_payload_yields_no_devices() {
+        assert!(Device::parse(&json!({})).is_empty());
+        assert!(Device::parse(&json!({ "error": true })).is_empty());
     }
 }

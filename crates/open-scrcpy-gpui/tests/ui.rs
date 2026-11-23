@@ -4,7 +4,7 @@ use gpui_kit::{
     AppContext as _, Bounds, TestAppContext, WindowBounds, WindowOptions, init as kit_init, px,
     size,
 };
-use openscrcpy_gpui::{AppSettings, AppShell, SettingsStore, ThemePreference};
+use openscrcpy_gpui::{AppServices, AppSettings, AppShell, SettingsStore, ThemePreference};
 
 fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
     rust_i18n::set_locale("en");
@@ -16,6 +16,7 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
         theme: ThemePreference::Light,
         ..AppSettings::default()
     };
+    let (services, events) = AppServices::for_test();
     let (handle, _view) = cx.update(|cx| {
         gpui_kit::open_window(
             WindowOptions {
@@ -33,6 +34,8 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
                         cx,
                         settings.clone(),
                         SettingsStore::without_persistence(),
+                        services,
+                        events,
                     )
                 })
             },

@@ -133,6 +133,8 @@ export const ru: Translations = {
   },
 
   controlPanel: {
+
+      modeUnavailable: 'Этот режим пока недоступен в нативной версии.',
     captureSource: 'Источник захвата',
     screen: 'Экран',
     camera: 'Камера',
