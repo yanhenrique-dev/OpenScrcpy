@@ -82,9 +82,14 @@ O script aceita um caminho de binário como primeiro argumento (ou
 `crates/open-scrcpy-gpui` em `ubuntu-24.04`, com ações pinadas por SHA e cache
 do `Cargo.lock` do crate.
 
-A lista de dependências de sistema foi exercitada em um container
-`ubuntu:24.04` (podman): a árvore compilou até o link e falhou por falta de
-`xcb` e `xkbcommon-x11`; os pacotes `libxcb1-dev` e `libxkbcommon-x11-dev`
-foram confirmados com `pkg-config`, e o workflow já os inclui. O job ainda não
-rodou no GitHub, então o status real do primeiro run é desconhecido — trate-o
-como não validado até o primeiro PR.
+A lista de dependências e os comandos foram **validados em um container
+`ubuntu:24.04` (podman)**: com `build-essential`, `pkg-config`, `clang`,
+`libclang-dev`, `libssl-dev`, `libfreetype-dev`, `libfontconfig-dev`,
+`libxkbcommon-dev`, `libxkbcommon-x11-dev`, `libxcb1-dev` e `libwayland-dev`,
+os três passos passaram:
+
+- `cargo fmt --check`
+- `cargo clippy --locked --all-targets -- -D warnings`
+- `cargo test --locked` (32 unit + 1 a11y + 2 paridade + 1 UI)
+
+Falta apenas o primeiro run no GitHub Actions para validar o runner e o cache.
