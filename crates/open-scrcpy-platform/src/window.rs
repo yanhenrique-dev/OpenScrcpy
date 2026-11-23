@@ -6,9 +6,7 @@
 //! non-fatal: a missing window, missing permission or missing tooling simply
 //! returns `None` and the session keeps running.
 
-#[cfg(any(test, target_os = "linux"))]
-use std::process::Command as StdCommand;
-#[cfg(target_os = "macos")]
+#[cfg(any(test, target_os = "linux", target_os = "macos"))]
 use std::process::Command as StdCommand;
 
 /// Parses `KEY=value` shell output (as printed by `xdotool ... --shell`) and
