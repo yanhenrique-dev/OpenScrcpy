@@ -207,6 +207,10 @@ pub struct AppShell {
     console_scroll: ScrollHandle,
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
+    desktop_width: Entity<SliderState>,
+    desktop_height: Entity<SliderState>,
+    desktop_dpi: Entity<SliderState>,
+    _desktop_subscriptions: Vec<Subscription>,
     update_available: Option<String>,
     pending_update: Option<AppUpdate>,
     installing_update: bool,
@@ -299,6 +303,60 @@ impl AppShell {
             InputState::new(window, cx)
                 .placeholder(t!("sidebar.pairingCodePlaceholder").to_string())
         });
+        let desktop_width = cx.new(|_| {
+            SliderState::new()
+                .min(480.0)
+                .max(3840.0)
+                .step(10.0)
+                .default_value(settings.desktop.width as f32)
+        });
+        let desktop_height = cx.new(|_| {
+            SliderState::new()
+                .min(320.0)
+                .max(2160.0)
+                .step(10.0)
+                .default_value(settings.desktop.height as f32)
+        });
+        let desktop_dpi = cx.new(|_| {
+            SliderState::new()
+                .min(120.0)
+                .max(640.0)
+                .step(10.0)
+                .default_value(settings.desktop.dpi as f32)
+        });
+        let desktop_subscriptions = vec![
+            cx.subscribe(&desktop_width, |this, _, event: &SliderEvent, cx| {
+                if let SliderEvent::Release(value) = event {
+                    let width = value.end().round().clamp(480.0, 3840.0) as u32;
+                    if this.settings.desktop.width != width {
+                        this.settings.desktop.width = width;
+                        this.persist();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe(&desktop_height, |this, _, event: &SliderEvent, cx| {
+                if let SliderEvent::Release(value) = event {
+                    let height = value.end().round().clamp(320.0, 2160.0) as u32;
+                    if this.settings.desktop.height != height {
+                        this.settings.desktop.height = height;
+                        this.persist();
+                        cx.notify();
+                    }
+                }
+            }),
+            cx.subscribe(&desktop_dpi, |this, _, event: &SliderEvent, cx| {
+                if let SliderEvent::Release(value) = event {
+                    let dpi = value.end().round().clamp(120.0, 640.0) as u32;
+                    if this.settings.desktop.dpi != dpi {
+                        this.settings.desktop.dpi = dpi;
+                        this.persist();
+                        cx.notify();
+                    }
+                }
+            }),
+        ];
+
         let terminal_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
         });
@@ -330,6 +388,10 @@ impl AppShell {
             console_scroll: ScrollHandle::new(),
             cameras: Vec::new(),
             cameras_busy: false,
+            desktop_width,
+            desktop_height,
+            desktop_dpi,
+            _desktop_subscriptions: desktop_subscriptions,
             update_available: None,
             pending_update: None,
             installing_update: false,
@@ -1932,6 +1994,56 @@ impl AppShell {
                         div()
                             .w_32()
                             .text_sm()
+                            .child(t!("controlPanel.width").to_string()),
+                    )
+                    .child(
+                        div().w_64().child(
+                            Slider::new(&self.desktop_width)
+                                .horizontal()
+                                .accessibility_label(t!("controlPanel.width").to_string()),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{} px", self.settings.desktop.width)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.height").to_string()),
+                    )
+                    .child(
+                        div().w_64().child(
+                            Slider::new(&self.desktop_height)
+                                .horizontal()
+                                .accessibility_label(t!("controlPanel.height").to_string()),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{} px", self.settings.desktop.height)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
                             .child(t!("controlPanel.uiScaling").to_string()),
                     )
                     .child(
@@ -1943,6 +2055,31 @@ impl AppShell {
                                 cx.notify();
                             }))
                             .children(dpi_options),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{} DPI", self.settings.desktop.dpi)),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.uiScaling").to_string()),
+                    )
+                    .child(
+                        div().w_64().child(
+                            Slider::new(&self.desktop_dpi)
+                                .horizontal()
+                                .accessibility_label(t!("controlPanel.uiScaling").to_string()),
+                        ),
                     ),
             )
             .child(

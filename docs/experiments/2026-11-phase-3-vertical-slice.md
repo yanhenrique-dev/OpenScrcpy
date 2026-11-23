@@ -54,9 +54,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   `EventBus`. O start usa o mesmo session bar e o teardown do core descarrega
   o sink.
 - **Desktop (virtual display):** presets de tamanho (1080p/1440p/4K/ultra-wide),
-  DPI, rotação, tamanho máximo de vídeo e flex display; o resumo mostra a
-  configuração e o start usa `ScrcpyConfig::desktop`. As preferências de
-  performance/áudio são compartilhadas com o Mirror.
+  sliders de **largura/altura/DPI livres**, rotação, tamanho máximo de vídeo e
+  flex display; o resumo mostra a configuração e o start usa
+  `ScrcpyConfig::desktop`. As preferências de performance/áudio são
+  compartilhadas com o Mirror.
 - **Wireless:** a sidebar tem `IP Connect`, descoberta **mDNS** (polling de
   `adb mdns services` a cada 5 s; clicar preenche o endereço de conexão ou de
   pairing), **pares recentes** persistidos (máx. 5, atualizados após um connect
@@ -175,7 +176,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.3 Wireless (IP/pairing/histórico) | **feito**: IP, pairing manual e guiado (mDNS + retries), pares recentes (smoke com hardware pendente) |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **feito**: performance, áudio, HID/OTG, janela, gravação, rotação e renderer; smoke com hardware pendente |
 | 3.5 Camera | **feito**: facing, lente (`--list-cameras`), aspecto, zoom, torch, high-speed, virtual mic e tamanho (smoke com hardware pendente) |
-| 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
+| 3.6 Desktop | **feito**: presets, largura/altura/DPI livres, rotação, max size e flex (falta o ratio lock opcional) |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: reconnect, notificações (com opt-out) e posição da janela prontos; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |

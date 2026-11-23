@@ -1,6 +1,7 @@
+use gpui_kit::Role;
 use gpui_kit::base::LayoutDirection;
 use gpui_kit::component::{ActiveTheme as _, WindowExt as _};
-use gpui_kit::test::TestWindowExt as _;
+use gpui_kit::test::{TestQueryExt as _, TestWindowExt as _};
 use gpui_kit::{
     AppContext as _, Bounds, TestAppContext, WindowBounds, WindowOptions, init as kit_init, px,
     size,
@@ -149,6 +150,8 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             summary.contains("1920×1080 @ 420 DPI"),
             "unexpected summary: {summary}"
         );
+        assert_eq!(window.find_by_label("Width").role(), Some(Role::Slider));
+        assert_eq!(window.find_by_label("Height").role(), Some(Role::Slider));
         window.click("desktop-flex", cx);
         window.render_frame(cx);
         let summary = window
