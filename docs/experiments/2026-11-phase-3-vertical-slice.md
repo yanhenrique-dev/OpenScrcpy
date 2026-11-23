@@ -196,9 +196,9 @@ recebeu:
   Design Guides: primary escasso, danger para o commit destrutivo, ghost para
   ações silenciosas.
 - **Avatar + Badge**: cada device mostra a inicial do modelo em Avatar, estado
-  como ponto + texto (não só cor), transporte (USB/Wi-Fi) e **uma** Badge com a
+  como ponto + texto (não só cor), transporte (USB/Wi-Fi) e **uma** Tag com a
   versão do Android (`getprop ro.build.version.release`, consultada uma vez por
-  serial e cacheada). Falha na consulta apenas omite a badge.
+  serial e cacheada). Falha na consulta apenas omite a tag.
 - **AlertDialog**: Stop abre confirmação com o objeto no título
   ("Stop the session on SM-A055M?"), botão `Stop session` em danger e
   `Cancel`; o foco volta ao gatilho pelo próprio componente.

@@ -12,13 +12,13 @@ use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::avatar::Avatar;
-use gpui_kit::component::badge::Badge;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
+use gpui_kit::component::tag::Tag;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::px;
@@ -1529,7 +1529,9 @@ impl AppShell {
                                             )
                                             .when_some(version, |this, version| {
                                                 this.child(
-                                                    Badge::new()
+                                                    Tag::new()
+                                                        .outline()
+                                                        .small()
                                                         .child(format!("Android {version}")),
                                                 )
                                             }),
