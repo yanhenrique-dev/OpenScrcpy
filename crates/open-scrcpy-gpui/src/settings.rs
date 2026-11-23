@@ -443,6 +443,8 @@ pub struct AppSettings {
     pub camera: CameraSettings,
     /// Last wireless addresses that connected, newest first (max 5).
     pub recent_wireless: Vec<String>,
+    /// First-run core setup was completed or skipped.
+    pub onboarding_done: bool,
 }
 
 impl Default for AppSettings {
@@ -457,6 +459,7 @@ impl Default for AppSettings {
             mic: MicSettings::default(),
             camera: CameraSettings::default(),
             recent_wireless: Vec::new(),
+            onboarding_done: false,
         }
     }
 }

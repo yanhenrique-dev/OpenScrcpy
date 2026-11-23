@@ -190,6 +190,10 @@ pub struct AppShell {
     cameras_busy: bool,
     update_available: Option<String>,
     checking_update: bool,
+    scrcpy_ready: Option<bool>,
+    downloading: bool,
+    download_percent: Option<u64>,
+    download_error: bool,
 }
 
 impl AppShell {
@@ -221,6 +225,7 @@ impl AppShell {
             spawn_device_poll(cx, services.clone());
             spawn_renderer_load(cx, services.clone());
             spawn_wireless_discovery(cx, services.clone());
+            spawn_core_check(cx, services.clone());
         }
 
         let bitrate = cx.new(|_| {
@@ -304,6 +309,10 @@ impl AppShell {
             cameras_busy: false,
             update_available: None,
             checking_update: false,
+            scrcpy_ready: None,
+            downloading: false,
+            download_percent: None,
+            download_error: false,
         }
     }
 
@@ -434,6 +443,18 @@ impl AppShell {
         match event {
             AppEvent::Log(line) => self.push_log(line),
             AppEvent::Status(payload) => {
+                match payload.get("type").and_then(Value::as_str) {
+                    Some("downloading") => self.downloading = true,
+                    Some("download-progress") => {
+                        self.downloading = true;
+                        self.download_percent = payload.get("percent").and_then(Value::as_u64);
+                    }
+                    Some("download-complete") => {
+                        self.downloading = false;
+                        self.download_percent = Some(100);
+                    }
+                    _ => {}
+                }
                 if let Some(running) = payload.get("running").and_then(Value::as_bool) {
                     self.running = running;
                     self.starting = false;
@@ -494,6 +515,122 @@ impl AppShell {
             "[SYSTEM] Recentred the mirror window for {device}."
         ));
         cx.notify();
+    }
+
+    fn start_download(&mut self, cx: &mut Context<Self>) {
+        if self.downloading {
+            return;
+        }
+        self.downloading = true;
+        self.download_error = false;
+        self.download_percent = None;
+        self.push_log("[SYSTEM] Downloading the scrcpy core binaries...".to_string());
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.download_scrcpy().await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.downloading = false;
+                match result {
+                    Ok(Ok(())) => {
+                        shell.download_error = false;
+                        shell.scrcpy_ready = Some(true);
+                        shell.push_log("[SYSTEM] Core binaries installed.".to_string());
+                    }
+                    Ok(Err(error)) => {
+                        shell.download_error = true;
+                        shell.push_error(error);
+                    }
+                    Err(error) => {
+                        shell.download_error = true;
+                        shell.push_error(error.to_string());
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn finish_onboarding(&mut self, cx: &mut Context<Self>) {
+        self.settings.onboarding_done = true;
+        self.persist();
+        cx.notify();
+    }
+
+    fn onboarding_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let percent = self.download_percent.unwrap_or(0);
+        let progress = t!("onboarding.downloadingProgress", progress = percent).to_string();
+        let ready = self.scrcpy_ready == Some(true);
+
+        div()
+            .id("onboarding-panel")
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_w_0()
+            .gap_4()
+            .p_8()
+            .child(
+                div()
+                    .id("onboarding-title")
+                    .role(Role::Heading)
+                    .aria_label(t!("onboarding.coreInitialization").to_string())
+                    .text_2xl()
+                    .child(t!("onboarding.coreInitialization").to_string())
+                    .test_support(),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(t!("onboarding.introQuote").to_string()),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .child(t!("onboarding.binariesDescription").to_string()),
+            )
+            .when(self.downloading, |this| {
+                this.child(div().text_sm().child(progress))
+            })
+            .when(self.download_error, |this| {
+                this.child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().danger)
+                        .child(t!("onboarding.downloadFailed").to_string()),
+                )
+            })
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("onboarding-download")
+                            .label(t!("onboarding.downloadCoreBinaries").to_string())
+                            .disabled(self.downloading)
+                            .on_click(cx.listener(|this, _, _, cx| this.start_download(cx))),
+                    )
+                    .when(ready, |this| {
+                        this.child(
+                            Button::new("onboarding-continue")
+                                .label(t!("onboarding.continueToApp").to_string())
+                                .on_click(cx.listener(|this, _, _, cx| this.finish_onboarding(cx))),
+                        )
+                    })
+                    .child(
+                        Button::new("onboarding-releases")
+                            .label(t!("onboarding.githubReleases").to_string())
+                            .on_click(|_, _, cx| {
+                                cx.open_url(
+                                    "https://github.com/yanhenrique-dev/OpenScrcpy/releases",
+                                )
+                            }),
+                    ),
+            )
     }
 
     fn check_update(&mut self, cx: &mut Context<Self>) {
@@ -2443,19 +2580,36 @@ impl Render for AppShell {
                     .flex_1()
                     .min_h_0()
                     .child(self.sidebar(cx))
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .flex_1()
-                            .min_w_0()
-                            .child(self.mode_tabs(cx))
-                            .child(match self.mode {
-                                CaptureMode::Screen => self.screen_panel(cx).into_any_element(),
-                                CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
-                                CaptureMode::Microphone => self.mic_panel(cx).into_any_element(),
-                                CaptureMode::Camera => self.camera_panel(cx).into_any_element(),
-                            }),
+                    .when(
+                        needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
+                        |this| this.child(self.onboarding_panel(cx).into_any_element()),
+                    )
+                    .when(
+                        !needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
+                        |this| {
+                            this.child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(self.mode_tabs(cx))
+                                    .child(match self.mode {
+                                        CaptureMode::Screen => {
+                                            self.screen_panel(cx).into_any_element()
+                                        }
+                                        CaptureMode::Desktop => {
+                                            self.desktop_panel(cx).into_any_element()
+                                        }
+                                        CaptureMode::Microphone => {
+                                            self.mic_panel(cx).into_any_element()
+                                        }
+                                        CaptureMode::Camera => {
+                                            self.camera_panel(cx).into_any_element()
+                                        }
+                                    }),
+                            )
+                        },
                     ),
             )
             .child(self.console(cx))
@@ -2548,6 +2702,20 @@ fn spawn_renderer_load(cx: &mut Context<AppShell>, services: AppServices) {
     .detach();
 }
 
+fn spawn_core_check(cx: &mut Context<AppShell>, services: AppServices) {
+    cx.spawn(async move |this, cx| {
+        let value = services.check_scrcpy().await;
+        let ready = value
+            .ok()
+            .and_then(|value| value.get("found").and_then(Value::as_bool));
+        let _ = this.update(cx, |shell, cx| {
+            shell.scrcpy_ready = ready;
+            cx.notify();
+        });
+    })
+    .detach();
+}
+
 fn spawn_platform_commands(
     cx: &mut Context<AppShell>,
     mut commands: tokio::sync::mpsc::UnboundedReceiver<PlatformCommand>,
@@ -2601,6 +2769,10 @@ fn spawn_device_poll(cx: &mut Context<AppShell>, services: AppServices) {
         }
     })
     .detach();
+}
+
+fn needs_onboarding(ready: Option<bool>, done: bool) -> bool {
+    ready == Some(false) && !done
 }
 
 fn downloads_dir() -> Option<std::path::PathBuf> {
@@ -2707,6 +2879,14 @@ mod tests {
         assert_eq!(report["locale"], "pt-BR");
         assert_eq!(report["devices"][0]["serial"], "device1");
         assert_eq!(report["logs"][0], "[SYSTEM] hello");
+    }
+
+    #[test]
+    fn onboarding_only_when_the_core_is_missing() {
+        assert!(needs_onboarding(Some(false), false));
+        assert!(!needs_onboarding(Some(false), true));
+        assert!(!needs_onboarding(Some(true), false));
+        assert!(!needs_onboarding(None, false));
     }
 
     #[test]

@@ -140,6 +140,23 @@ impl AppServices {
 
     /// Fetches the signed native manifest and compares it with this build.
     /// `OPENSCRCPY_UPDATE_URL` overrides the release URL for tests and forks.
+    pub fn check_scrcpy(&self) -> JoinHandle<serde_json::Value> {
+        self.runtime.spawn(async { adb::check_scrcpy(None).await })
+    }
+
+    /// Downloads the scrcpy/adb bundle into the resolved install directory.
+    /// Progress arrives through the EventBus.
+    pub fn download_scrcpy(&self) -> JoinHandle<Result<(), String>> {
+        let events = self.events.clone();
+        let state = self.state.clone();
+        self.runtime.spawn(async move {
+            let install = open_scrcpy_core::download::install_dir()
+                .map(|path| path.to_path_buf())
+                .unwrap_or_else(|| open_scrcpy_core::download::init_install_dir(None));
+            open_scrcpy_core::download::download_latest(Some(&events), &state, &install).await
+        })
+    }
+
     pub fn check_app_update(&self) -> JoinHandle<Result<Option<AppUpdate>, String>> {
         self.runtime.spawn(async move {
             let url = std::env::var("OPENSCRCPY_UPDATE_URL")

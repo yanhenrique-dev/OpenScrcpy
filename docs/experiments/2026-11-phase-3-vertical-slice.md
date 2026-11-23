@@ -64,6 +64,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   `install_apk`. Resultado e erros entram no console. O botão fica desabilitado
   sem dispositivo; soltar arquivos externos na janela usa o mesmo caminho de
   transferência (`.apk` instala, o resto faz push).
+- **Onboarding:** se `scrcpy --version` falha no start, o app mostra o painel de
+  inicialização do core (em vez das abas) com Download Core Binaries, progresso
+  vindo do `EventBus`, link para os releases e Continue quando o core fica
+  pronto; a conclusão é persistida.
 - **Header:** diálogo de idioma com os 8 locales (troca em runtime e fecha ao
   escolher), diálogo **Sobre** com versão, descrição, repositório/releases
   (abertos no navegador) e licença, além do check de update com badge.
@@ -122,7 +126,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **31 passed** (28 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **32 passed** (29 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -162,7 +166,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
-| 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
+| 3.10 Modais (onboarding/atalhos/sobre/update) | **parcial**: onboarding e Sobre prontos; atalhos, modal de update e confirmações pendentes |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única, recenter global e drag-drop de arquivos prontos; tray/background bloqueados (4.1) |
 | 3.12 Chrome/titlebar | pendente (decoração nativa) |
 

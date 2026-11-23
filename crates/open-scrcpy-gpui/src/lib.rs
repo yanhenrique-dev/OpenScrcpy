@@ -26,6 +26,12 @@ pub fn run() {
     settings.locale = locale.to_string();
     i18n::apply(locale);
 
+    // Resolve once, before any command: portable installs keep scrcpy next to
+    // the binary; read-only locations fall back to the app data dir.
+    let data_dir = directories::ProjectDirs::from("dev", "yanhenrique", "OpenScrcpy")
+        .map(|dirs| dirs.data_dir().to_path_buf());
+    open_scrcpy_core::download::init_install_dir(data_dir);
+
     let (services, events) = AppServices::new();
 
     match open_scrcpy_platform::single_instance::acquire("openscrcpy-gpui") {
