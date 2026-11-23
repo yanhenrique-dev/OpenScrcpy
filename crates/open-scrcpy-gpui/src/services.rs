@@ -128,6 +128,11 @@ impl AppServices {
             .spawn(async move { adb::pair(move |line| bus.log(line), &address, &code, None).await })
     }
 
+    pub fn list_mdns(&self) -> JoinHandle<serde_json::Value> {
+        self.runtime
+            .spawn(async { adb::list_mdns_services(None).await })
+    }
+
     pub fn get_render_drivers(&self) -> JoinHandle<serde_json::Value> {
         self.runtime
             .spawn(async { open_scrcpy_core::scrcpy::get_render_drivers(None).await })

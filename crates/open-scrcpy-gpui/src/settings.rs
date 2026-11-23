@@ -436,6 +436,8 @@ pub struct AppSettings {
     pub desktop: DesktopSettings,
     pub mic: MicSettings,
     pub camera: CameraSettings,
+    /// Last wireless addresses that connected, newest first (max 5).
+    pub recent_wireless: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -449,6 +451,7 @@ impl Default for AppSettings {
             desktop: DesktopSettings::default(),
             mic: MicSettings::default(),
             camera: CameraSettings::default(),
+            recent_wireless: Vec::new(),
         }
     }
 }
@@ -471,6 +474,7 @@ impl AppSettings {
         self.desktop = self.desktop.normalized();
         self.mic = self.mic.normalized();
         self.camera = self.camera.normalized();
+        self.recent_wireless = normalize_recent(self.recent_wireless);
         self
     }
 
@@ -559,6 +563,21 @@ impl Default for SettingsStore {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn normalize_recent(addresses: Vec<String>) -> Vec<String> {
+    let mut seen = Vec::new();
+    for address in addresses {
+        let address = address.trim().to_string();
+        if address.is_empty() || seen.contains(&address) {
+            continue;
+        }
+        seen.push(address);
+        if seen.len() == 5 {
+            break;
+        }
+    }
+    seen
 }
 
 fn write_atomically(path: &Path, contents: &str) -> Result<(), String> {
@@ -898,6 +917,23 @@ mod tests {
         assert_eq!(settings.fps, 60);
         assert_eq!(settings.max_size, 0);
         assert_eq!(settings.video_codec, "h264");
+    }
+
+    #[test]
+    fn recent_wireless_is_trimmed_deduped_and_capped() {
+        let recent = normalize_recent(vec![
+            " 10.0.0.2:5555 ".into(),
+            "10.0.0.2:5555".into(),
+            "".into(),
+            "10.0.0.3:5555".into(),
+            "10.0.0.4:5555".into(),
+            "10.0.0.5:5555".into(),
+            "10.0.0.6:5555".into(),
+            "10.0.0.7:5555".into(),
+        ]);
+        assert_eq!(recent.len(), 5);
+        assert_eq!(recent[0], "10.0.0.2:5555");
+        assert_eq!(recent[4], "10.0.0.6:5555");
     }
 
     #[test]

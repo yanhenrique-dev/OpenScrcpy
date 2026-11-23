@@ -77,6 +77,13 @@ impl CaptureMode {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DiscoveredService {
+    name: String,
+    service: String,
+    address: String,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeviceState {
     Online,
@@ -174,6 +181,7 @@ pub struct AppShell {
     mic_route: Option<(String, bool)>,
     mic_db: Option<f64>,
     renderers: Vec<(String, String)>,
+    discovered: Vec<DiscoveredService>,
 }
 
 impl AppShell {
@@ -204,6 +212,7 @@ impl AppShell {
         if services.polls_devices() {
             spawn_device_poll(cx, services.clone());
             spawn_renderer_load(cx, services.clone());
+            spawn_wireless_discovery(cx, services.clone());
         }
 
         let bitrate = cx.new(|_| {
@@ -277,6 +286,7 @@ impl AppShell {
             mic_route: None,
             mic_db: None,
             renderers: Vec::new(),
+            discovered: Vec::new(),
         }
     }
 
@@ -467,12 +477,20 @@ impl AppShell {
         }
         self.wireless_busy = true;
         let services = self.services.clone();
+        let recent = address.clone();
         cx.spawn(async move |this, cx| {
             let result = services.connect(address).await;
             let _ = this.update(cx, |shell, cx| {
                 shell.wireless_busy = false;
                 match result {
-                    Ok(Ok(_)) => {}
+                    Ok(Ok(value)) => {
+                        if value.get("success").and_then(Value::as_bool) == Some(true) {
+                            shell.remember_wireless(&recent);
+                            shell.push_log(format!("[SYSTEM] Connected to {recent}."));
+                        } else if let Some(message) = value.get("message").and_then(Value::as_str) {
+                            shell.push_error(message.to_string());
+                        }
+                    }
                     Ok(Err(error)) => shell.push_error(error),
                     Err(error) => shell.push_error(error.to_string()),
                 }
@@ -480,6 +498,47 @@ impl AppShell {
             });
         })
         .detach();
+    }
+
+    fn remember_wireless(&mut self, address: &str) {
+        self.settings.recent_wireless.retain(|item| item != address);
+        self.settings.recent_wireless.insert(0, address.to_string());
+        self.settings.recent_wireless.truncate(5);
+        self.persist();
+    }
+
+    fn use_discovered(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(service) = self.discovered.get(index).cloned() else {
+            return;
+        };
+        if service.service.contains("pairing") {
+            self.pairing_address.update(cx, |state, cx| {
+                state.set_value(service.address.clone(), window, cx);
+            });
+            self.push_log(format!(
+                "[SYSTEM] Pairing address set to {}.",
+                service.address
+            ));
+        } else {
+            self.wireless_address.update(cx, |state, cx| {
+                state.set_value(service.address.clone(), window, cx);
+            });
+            self.push_log(format!(
+                "[SYSTEM] Connect address set to {}.",
+                service.address
+            ));
+        }
+        cx.notify();
+    }
+
+    fn use_recent(&mut self, index: usize, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(address) = self.settings.recent_wireless.get(index).cloned() else {
+            return;
+        };
+        self.wireless_address.update(cx, |state, cx| {
+            state.set_value(address, window, cx);
+        });
+        cx.notify();
     }
 
     fn pair_wireless(&mut self, cx: &mut Context<Self>) {
@@ -755,6 +814,42 @@ impl AppShell {
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.connect_wireless(cx))),
                     )
+                    .when(!self.discovered.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(t!("sidebar.discoveredDevices").to_string()),
+                        )
+                        .children(self.discovered.iter().enumerate().map(|(index, service)| {
+                            Button::new(format!("mdns-{index}"))
+                                .label(format!("{} · {}", service.name, service.address))
+                                .w_full()
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    this.use_discovered(index, window, cx)
+                                }))
+                        }))
+                    })
+                    .when(!self.settings.recent_wireless.is_empty(), |this| {
+                        this.child(
+                            div()
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(t!("sidebar.recentDevices").to_string()),
+                        )
+                        .children(
+                            self.settings.recent_wireless.iter().enumerate().map(
+                                |(index, address)| {
+                                    Button::new(format!("recent-{index}"))
+                                        .label(address.clone())
+                                        .w_full()
+                                        .on_click(cx.listener(move |this, _, window, cx| {
+                                            this.use_recent(index, window, cx)
+                                        }))
+                                },
+                            ),
+                        )
+                    })
                     .child(
                         div()
                             .text_xs()
@@ -2049,6 +2144,60 @@ fn parse_renderers(value: &Value) -> Vec<(String, String)> {
         .unwrap_or_default()
 }
 
+fn parse_discovered(value: &Value) -> Vec<DiscoveredService> {
+    let mut services = Vec::new();
+    let Some(items) = value.get("services").and_then(Value::as_array) else {
+        return services;
+    };
+    for item in items {
+        let Some(name) = item.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(service) = item.get("service").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(address) = item.get("address").and_then(Value::as_str) else {
+            continue;
+        };
+        if address.is_empty()
+            || services.iter().any(|entry: &DiscoveredService| {
+                entry.address == address && entry.service == service
+            })
+        {
+            continue;
+        }
+        services.push(DiscoveredService {
+            name: name.to_string(),
+            service: service.to_string(),
+            address: address.to_string(),
+        });
+    }
+    services
+}
+
+fn spawn_wireless_discovery(cx: &mut Context<AppShell>, services: AppServices) {
+    cx.spawn(async move |this, cx| {
+        loop {
+            let value = services.list_mdns().await;
+            let discovered = value
+                .ok()
+                .map(|value| parse_discovered(&value))
+                .unwrap_or_default();
+            if this
+                .update(cx, |shell, cx| {
+                    shell.discovered = discovered;
+                    cx.notify();
+                })
+                .is_err()
+            {
+                break;
+            }
+            cx.background_executor().timer(Duration::from_secs(5)).await;
+        }
+    })
+    .detach();
+}
+
 fn spawn_renderer_load(cx: &mut Context<AppShell>, services: AppServices) {
     cx.spawn(async move |this, cx| {
         let value = services.get_render_drivers().await;
@@ -2223,6 +2372,21 @@ mod tests {
         assert_eq!(report["locale"], "pt-BR");
         assert_eq!(report["devices"][0]["serial"], "device1");
         assert_eq!(report["logs"][0], "[SYSTEM] hello");
+    }
+
+    #[test]
+    fn parses_and_dedupes_discovered_services() {
+        let payload = json!({
+            "services": [
+                { "name": "phone", "service": "_adb-tls-pairing._tcp", "address": "10.0.0.2:37123" },
+                { "name": "phone", "service": "_adb-tls-pairing._tcp", "address": "10.0.0.2:37123" },
+                { "name": "phone-connect", "service": "_adb-tls-connect._tcp", "address": "10.0.0.2:5555" }
+            ]
+        });
+        let services = parse_discovered(&payload);
+        assert_eq!(services.len(), 2);
+        assert!(services[0].service.contains("pairing"));
+        assert!(parse_discovered(&json!({})).is_empty());
     }
 
     #[test]
