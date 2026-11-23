@@ -128,7 +128,6 @@ export const ptBR: Translations = {
         flashPushSubtitle: 'Arraste e solte QUALQUER ARQUIVO OU APK'
     },
     controlPanel: {
-        modeUnavailable: 'Este modo ainda não está disponível na versão nativa.',
         captureSource: 'Fonte de Captura',
         screen: 'Tela',
         camera: 'Câmera',
@@ -226,6 +225,7 @@ export const ptBR: Translations = {
         cameraTorchTooltip: 'Ativa a lanterna do dispositivo enquanto transmite a câmera (scrcpy v4+).',
         cameraZoom: 'Zoom da Câmera',
         cameraZoomTooltip: 'Nível de zoom para captura da câmera. 1.0 = sem zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'Captura em alta velocidade',
         cameraMicSink: 'Microfone virtual',
         cameraMicSinkTooltip: 'Encaminha o microfone do telemóvel desta sessão de câmara para a entrada OpenScrcpy Mic (escolhe "Monitor of OpenScrcpy Mic" no OBS ou no Discord). O áudio deixa a saída padrão; se o pactl não existir ou o sink não puder ser criado, continua nessa saída e o console mostra um aviso [MIC]. Apenas no Linux.',
         backgroundColor: 'Cor do Fundo',

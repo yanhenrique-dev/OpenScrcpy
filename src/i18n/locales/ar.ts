@@ -131,7 +131,6 @@ export const ar: Translations = {
         flashPushSubtitle: 'اسحب وأفلت أي ملف أو APK'
     },
      controlPanel: {
-         modeUnavailable: 'هذا الوضع غير متوفر بعد في النسخة الأصلية.',
         captureSource: 'مصدر الالتقاط',
         screen: 'الشاشة',
         camera: 'الكاميرا',
@@ -229,6 +228,7 @@ export const ar: Translations = {
         cameraTorchTooltip: 'تشغيل فلاش الجهاز أثناء بث الكاميرا (Scrcpy v4+).',
         cameraZoom: 'تكبير الكاميرا',
         cameraZoomTooltip: 'مستوى تكبير الكاميرا. القيمة 1.0 تعني عدم وجود تكبير (Scrcpy v4+).',
+        cameraHighSpeed: 'التقاط عالي السرعة',
         cameraMicSink: 'ميكروفون افتراضي',
         cameraMicSinkTooltip: 'يوجّه ميكروفون الهاتف من جلسة الكاميرا هذه إلى إدخال OpenScrcpy Mic (اختر "Monitor of OpenScrcpy Mic" في OBS أو Discord). يغادر الصوت مخرج الصوت الافتراضي؛ وإذا لم يكن pactl متوفرًا أو تعذّر إنشاء sink، يبقى هناك ويعرض الطرفية تحذير [MIC]. على Linux فقط.',
         backgroundColor: 'لون الخلفية',

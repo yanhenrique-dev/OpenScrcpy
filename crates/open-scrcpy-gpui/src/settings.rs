@@ -178,7 +178,82 @@ impl MirrorSettings {
     }
 }
 
-/// Microphone-bridge defaults. The bridge is audio-only and Linux-only for the
+/// Camera-mode defaults.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CameraSettings {
+    /// `back`, `front` or `external`.
+    pub facing: String,
+    /// `0` (scrcpy default), `1:1`, `4:3` or `16:9`.
+    pub aspect: String,
+    pub torch: bool,
+    /// 1.0 is no zoom; scrcpy supports 1.0..=10.0.
+    pub zoom: f32,
+    pub high_speed: bool,
+    /// Route the phone microphone into the virtual sink.
+    pub mic_sink: bool,
+    /// Max video size; 0 uses scrcpy's 1920x1080 default.
+    pub max_size: u32,
+}
+
+impl Default for CameraSettings {
+    fn default() -> Self {
+        Self {
+            facing: "back".to_string(),
+            aspect: "0".to_string(),
+            torch: false,
+            zoom: 1.0,
+            high_speed: false,
+            mic_sink: false,
+            max_size: 0,
+        }
+    }
+}
+
+impl CameraSettings {
+    pub(crate) const FACINGS: [&'static str; 3] = ["back", "front", "external"];
+    pub(crate) const ASPECTS: [&'static str; 4] = ["0", "1:1", "4:3", "16:9"];
+
+    pub fn normalized(mut self) -> Self {
+        if !Self::FACINGS.contains(&self.facing.as_str()) {
+            self.facing = "back".to_string();
+        }
+        if !Self::ASPECTS.contains(&self.aspect.as_str()) {
+            self.aspect = "0".to_string();
+        }
+        if !self.zoom.is_finite() {
+            self.zoom = 1.0;
+        }
+        self.zoom = self.zoom.clamp(1.0, 10.0);
+        if !MirrorSettings::SIZES.contains(&self.max_size) {
+            self.max_size = 0;
+        }
+        self
+    }
+
+    pub fn to_config(
+        &self,
+        device: &str,
+        shared: &MirrorSettings,
+    ) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = open_scrcpy_core::config::ScrcpyConfig::camera(device);
+        shared.apply_shared(&mut config);
+        config.camera_facing = Some(self.facing.clone());
+        config.camera_ar = (self.aspect != "0").then(|| self.aspect.clone());
+        config.camera_torch = Some(self.torch);
+        config.camera_zoom = Some(self.zoom);
+        config.camera_high_speed = Some(self.high_speed);
+        config.camera_mic_sink = Some(self.mic_sink);
+        config.res = Some(if self.max_size == 0 {
+            "0".to_string()
+        } else {
+            self.max_size.to_string()
+        });
+        config
+    }
+}
+
+/// Microphone-bridge defaults./// Microphone-bridge defaults. The bridge is audio-only and Linux-only for the
 /// virtual sink; the other fields are still validated on every platform.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -322,6 +397,7 @@ pub struct AppSettings {
     pub mirror: MirrorSettings,
     pub desktop: DesktopSettings,
     pub mic: MicSettings,
+    pub camera: CameraSettings,
 }
 
 impl Default for AppSettings {
@@ -334,6 +410,7 @@ impl Default for AppSettings {
             mirror: MirrorSettings::default(),
             desktop: DesktopSettings::default(),
             mic: MicSettings::default(),
+            camera: CameraSettings::default(),
         }
     }
 }
@@ -355,6 +432,7 @@ impl AppSettings {
         self.mirror = self.mirror.normalized();
         self.desktop = self.desktop.normalized();
         self.mic = self.mic.normalized();
+        self.camera = self.camera.normalized();
         self
     }
 
@@ -615,6 +693,46 @@ mod tests {
         assert!(args.contains(&"--audio-bit-rate=192k".to_string()));
         assert_eq!(config.mic_denoise, Some(true));
         assert_eq!(config.mic_set_default_source, Some(true));
+    }
+
+    #[test]
+    fn camera_settings_map_to_the_camera_arguments() {
+        let camera = CameraSettings {
+            facing: "front".into(),
+            aspect: "16:9".into(),
+            torch: true,
+            zoom: 2.0,
+            high_speed: true,
+            mic_sink: true,
+            max_size: 1920,
+        };
+        let config = camera.to_config("device1", &MirrorSettings::default());
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--camera-facing=front".to_string()));
+        assert!(args.contains(&"--camera-ar=16:9".to_string()));
+        assert!(args.contains(&"--camera-torch".to_string()));
+        assert!(args.contains(&"--camera-zoom=2.0".to_string()));
+        assert!(args.contains(&"--camera-high-speed".to_string()));
+        assert!(args.contains(&"--camera-size=1920x1080".to_string()));
+        assert_eq!(config.camera_mic_sink, Some(true));
+    }
+
+    #[test]
+    fn invalid_camera_settings_are_normalized() {
+        let camera = CameraSettings {
+            facing: "sideways".into(),
+            aspect: "21:9".into(),
+            torch: false,
+            zoom: f32::NAN,
+            high_speed: false,
+            mic_sink: false,
+            max_size: 1234,
+        }
+        .normalized();
+        assert_eq!(camera.facing, "back");
+        assert_eq!(camera.aspect, "0");
+        assert_eq!(camera.zoom, 1.0);
+        assert_eq!(camera.max_size, 0);
     }
 
     #[test]

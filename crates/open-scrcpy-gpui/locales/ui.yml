@@ -1044,15 +1044,6 @@ sidebar:
     id: "Seret & lepas File atau APK di sini"
     ar: "اسحب وأفلت أي ملف أو APK"
 controlPanel:
-  modeUnavailable:
-    en: "This mode isn't available in the native build yet."
-    fr: "Ce mode n'est pas encore disponible dans la version native."
-    pt-BR: "Este modo ainda não está disponível na versão nativa."
-    zh-CN: "此模式尚未在原生版本中提供。"
-    zh-TW: "此模式尚未在原生版本中提供。"
-    ru: "Этот режим пока недоступен в нативной версии."
-    id: "Mode ini belum tersedia di versi native."
-    ar: "هذا الوضع غير متوفر بعد في النسخة الأصلية."
   captureSource:
     en: "Capture source"
     fr: "Source de Capture"
@@ -1917,6 +1908,15 @@ controlPanel:
     ru: "Уровень приближения для захвата камеры. 1.0 = без приближения. (scrcpy v4+)"
     id: "Tingkat zoom untuk tangkapan kamera. 1.0 = tanpa zoom. (scrcpy v4+)"
     ar: "مستوى تكبير الكاميرا. القيمة 1.0 تعني عدم وجود تكبير (Scrcpy v4+)."
+  cameraHighSpeed:
+    en: "High-speed capture"
+    fr: "Capture haute vitesse"
+    pt-BR: "Captura em alta velocidade"
+    zh-CN: "高速拍摄"
+    zh-TW: "高速拍攝"
+    ru: "Высокоскоростная съёмка"
+    id: "Tangkapan berkecepatan tinggi"
+    ar: "التقاط عالي السرعة"
   cameraMicSink:
     en: "Virtual microphone"
     fr: "Microphone virtuel"

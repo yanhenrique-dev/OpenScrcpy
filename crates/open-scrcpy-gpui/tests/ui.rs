@@ -62,6 +62,24 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         assert_eq!(window.find("wireless-connect").label(), Some("Connect"));
         assert!(window.find("pair-start").label().is_some());
 
+        // Camera mode configures the lens, torch and zoom before starting.
+        assert_eq!(window.find("start-mission").label(), Some("Start camera"));
+        let summary = window
+            .find("camera-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(summary.contains("Back"), "unexpected summary: {summary}");
+        assert!(summary.contains("1.0×"), "unexpected summary: {summary}");
+        window.click("camera-torch", cx);
+        window.render_frame(cx);
+        let summary = window
+            .find("camera-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(summary.contains("Torch"), "unexpected summary: {summary}");
+
         // Desktop mode has its own panel and turns the same session bar into a
         // virtual-display start.
         window.click("mode-desktop", cx);

@@ -30,6 +30,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
   (`core::session::teardown_sessions`), o mesmo código que o casco Tauri passou
   a usar.
+- **Câmera:** facing (traseira/frontal/externa), aspecto, zoom (slider 1–10×),
+  torch, high-speed, virtual mic e tamanho máximo; o start usa
+  `ScrcpyConfig::camera` e o resumo reflete as escolhas.
 - **Microfone:** ponte sem janela (`ScrcpyConfig::mic`) com fonte (mic cru /
   denoised), codec (Opus/AAC), bitrate, RNNoise e "definir como microfone
   padrão" (Linux). O start usa o mesmo session bar e o teardown do core
@@ -71,9 +74,9 @@ AppShell (Entity<AppShell>)
 2. **Logs em inglês, UI em i18n.** As linhas do console mantêm o formato do
    app 2.x (`[SYSTEM] ...`), como no Tauri; os controles visíveis usam os oito
    catálogos.
-3. **Nova chave `controlPanel.modeUnavailable`** nos 8 locales, para as abas
-   Camera/Desktop/Microphone ainda não implementadas — em vez de fingir que
-   funcionam.
+3. **As quatro abas estão implementadas.** A chave temporária
+   `controlPanel.modeUnavailable` foi removida dos 8 locales quando a última
+   aba (Camera) passou a montar sua própria sessão.
 4. **Teardown no core.** O casco Tauri deixou de duplicar a limpeza de
    sessões; o comportamento dos dois cascos é o mesmo por construção.
 5. **`ScrcpyConfig::mirror`** e **`ScrcpyState::new`** são o baseline do core,
@@ -93,8 +96,8 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **21 passed** (18 unit + 2 paridade + 1 UI) |
-| `cargo test` (core) | 75 passed, 1 ignored |
+| `cargo test` (gpui) | **23 passed** (20 unit + 2 paridade + 1 UI) |
+| `cargo test` (core) | 76 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
 | Smoke com dispositivo real | **não executado** — sem `adb` neste host |
@@ -108,7 +111,7 @@ AppShell (Entity<AppShell>)
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | parcial: IP/pairing manual prontos; descoberta mDNS, histórico e o fluxo guiado de pairing pendentes |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: bitrate/fps/res/codec/áudio/vsync/reconnect prontos; faltam renderer, rotação, HID, recording, always-on-top/borderless |
-| 3.5 Camera | pendente (aba desabilitada por texto) |
+| 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **parcial**: fonte, codec, bitrate, RNNoise e source padrão prontos; medidor de nível (`parec`) e o painel de destino pendentes |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas) |
@@ -126,6 +129,7 @@ AppShell (Entity<AppShell>)
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.
 5. Medidor de nível do Mic (eventos `mic-level` do core) e painel de destino.
-6. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
+6. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.
+7. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave
    `modeUnavailable` quando as quatro abas estiverem implementadas.

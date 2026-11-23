@@ -129,7 +129,6 @@ export const en = {
         flashPushSubtitle: 'Drag & drop ANY FILE OR APK'
     },
     controlPanel: {
-        modeUnavailable: "This mode isn't available in the native build yet.",
         captureSource: 'Capture source',
         screen: 'Screen',
         camera: 'Camera',
@@ -227,6 +226,7 @@ export const en = {
         cameraTorchTooltip: 'Enable the device flashlight while streaming the camera feed (scrcpy v4+).',
         cameraZoom: 'Camera zoom',
         cameraZoomTooltip: 'Zoom level for camera capture. 1.0 = no zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'High-speed capture',
         cameraMicSink: 'Virtual microphone',
         cameraMicSinkTooltip: 'Route the phone microphone from this camera session into the OpenScrcpy Mic input (select "Monitor of OpenScrcpy Mic" in OBS or Discord). Audio leaves the default output; if pactl is missing or the sink cannot be created, it stays there and the console shows an [MIC] warning. Linux only.',
         backgroundColor: 'BG color',

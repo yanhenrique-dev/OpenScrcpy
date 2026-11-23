@@ -128,7 +128,6 @@ languages: {
         flashPushSubtitle: 'Seret & lepas File atau APK di sini'
     },
     controlPanel: {
-        modeUnavailable: 'Mode ini belum tersedia di versi native.',
         captureSource: 'Sumber Input',
         screen: 'Layar',
         camera: 'Kamera',
@@ -226,6 +225,7 @@ languages: {
         cameraTorchTooltip: 'Aktifkan lampu kilat perangkat saat streaming kamera (scrcpy v4+).',
         cameraZoom: 'Zoom Kamera',
         cameraZoomTooltip: 'Tingkat zoom untuk tangkapan kamera. 1.0 = tanpa zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'Tangkapan berkecepatan tinggi',
         cameraMicSink: 'Mikrofon virtual',
         cameraMicSinkTooltip: 'Mengarahkan mikrofon ponsel dari sesi kamera ini ke input OpenScrcpy Mic (pilih "Monitor of OpenScrcpy Mic" di OBS atau Discord). Audio keluar dari output default; jika pactl tidak ada atau sink tidak dapat dibuat, audio tetap di sana dan konsol menampilkan peringatan [MIC]. Hanya Linux.',
         backgroundColor: 'Warna BG',

@@ -128,7 +128,6 @@ export const zhTW: Translations = {
         flashPushSubtitle: '拖放任何檔案或 APK'
     },
     controlPanel: {
-        modeUnavailable: '此模式尚未在原生版本中提供。',
         captureSource: '擷取來源',
         screen: '螢幕',
         camera: '相機',
@@ -226,6 +225,7 @@ export const zhTW: Translations = {
         cameraTorchTooltip: '擒射攏預時開啟裝置手電筒（scrcpy v4+）。',
         cameraZoom: '錢頭縮放',
         cameraZoomTooltip: '擒射時的縮放級別。1.0 = 不縮放。（scrcpy v4+）',
+        cameraHighSpeed: '高速拍攝',
         cameraMicSink: '虛擬麥克風',
         cameraMicSinkTooltip: '將此次攝影機會話中的手機麥克風路由到 OpenScrcpy Mic 輸入（在 OBS 或 Discord 中選擇「Monitor of OpenScrcpy Mic」）。音訊將離開預設輸出；如果缺少 pactl 或無法建立 sink，音訊仍從預設輸出播放，主控台會顯示 [MIC] 警告。僅限 Linux。',
         backgroundColor: '背景顏色',

@@ -25,7 +25,8 @@ use serde_json::Value;
 use crate::i18n;
 use crate::services::AppServices;
 use crate::settings::{
-    AppSettings, DesktopSettings, MicSettings, MirrorSettings, SettingsStore, ThemePreference,
+    AppSettings, CameraSettings, DesktopSettings, MicSettings, MirrorSettings, SettingsStore,
+    ThemePreference,
 };
 use crate::theme;
 
@@ -162,6 +163,8 @@ pub struct AppShell {
     logs: Vec<String>,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
+    camera_zoom: Entity<SliderState>,
+    _camera_zoom_subscription: Subscription,
     wireless_address: Entity<InputState>,
     pairing_address: Entity<InputState>,
     pairing_code: Entity<InputState>,
@@ -214,6 +217,26 @@ impl AppShell {
             }
         });
 
+        let camera_zoom = cx.new(|_| {
+            SliderState::new()
+                .min(1.0)
+                .max(10.0)
+                .step(0.1)
+                .default_value(settings.camera.zoom)
+        });
+        let camera_zoom_subscription =
+            cx.subscribe(&camera_zoom, |this, _, event: &SliderEvent, cx| {
+                let SliderEvent::Release(value) = event else {
+                    return;
+                };
+                let zoom = value.end().clamp(1.0, 10.0);
+                if (this.settings.camera.zoom - zoom).abs() > f32::EPSILON {
+                    this.settings.camera.zoom = zoom;
+                    this.persist();
+                    cx.notify();
+                }
+            });
+
         let wireless_address = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("sidebar.ipPlaceholder").to_string())
         });
@@ -237,6 +260,8 @@ impl AppShell {
             logs: Vec::new(),
             bitrate,
             _bitrate_subscription: bitrate_subscription,
+            camera_zoom,
+            _camera_zoom_subscription: camera_zoom_subscription,
             wireless_address,
             pairing_address,
             pairing_code,
@@ -440,6 +465,10 @@ impl AppShell {
                 .desktop
                 .to_config(device, &self.settings.mirror),
             CaptureMode::Microphone => self.settings.mic.to_config(device, &self.settings.mirror),
+            CaptureMode::Camera => self
+                .settings
+                .camera
+                .to_config(device, &self.settings.mirror),
             _ => self.settings.mirror.to_config(device),
         }
     }
@@ -460,6 +489,7 @@ impl AppShell {
         let start_label = match self.mode {
             CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
             CaptureMode::Microphone => t!("controlPanel.startMicBridge").to_string(),
+            CaptureMode::Camera => t!("controlPanel.engageCamera").to_string(),
             _ => t!("controlPanel.startMission").to_string(),
         };
 
@@ -1195,6 +1225,243 @@ impl AppShell {
             )
     }
 
+    fn facing_label(facing: &str) -> SharedString {
+        match facing {
+            "front" => t!("controlPanel.facingFront"),
+            "external" => t!("controlPanel.facingExternal"),
+            _ => t!("controlPanel.facingBack"),
+        }
+        .to_string()
+        .into()
+    }
+
+    fn camera_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let camera = self.settings.camera.clone();
+        let zoom = self.camera_zoom.read(cx).value().end().clamp(1.0, 10.0);
+        let facing_index = CameraSettings::FACINGS
+            .iter()
+            .position(|facing| *facing == camera.facing)
+            .unwrap_or(0);
+        let aspect_index = CameraSettings::ASPECTS
+            .iter()
+            .position(|aspect| *aspect == camera.aspect)
+            .unwrap_or(0);
+        let max_size_index = MirrorSettings::SIZES
+            .iter()
+            .position(|size| *size == camera.max_size)
+            .unwrap_or(0);
+
+        let facing_options = CameraSettings::FACINGS.map(|facing| {
+            Radio::new(format!("camera-facing-{facing}")).label(Self::facing_label(facing))
+        });
+        let aspect_options = CameraSettings::ASPECTS.map(|aspect| {
+            let label = if aspect == "0" {
+                t!("controlPanel.aspectDefault").to_string()
+            } else {
+                aspect.to_string()
+            };
+            Radio::new(format!("camera-aspect-{aspect}")).label(label)
+        });
+        let max_size_options = MirrorSettings::SIZES.map(|size| {
+            let label = if size == 0 {
+                t!("controlPanel.resolutionOriginal").to_string()
+            } else {
+                size.to_string()
+            };
+            Radio::new(format!("camera-size-max-{size}")).label(label)
+        });
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.facing").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("camera-facing")
+                            .selected_index(Some(facing_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let facing = CameraSettings::FACINGS
+                                    .get(*index)
+                                    .copied()
+                                    .unwrap_or("back");
+                                this.settings.camera.facing = facing.to_string();
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(facing_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.aspect").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("camera-aspect")
+                            .selected_index(Some(aspect_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let aspect =
+                                    CameraSettings::ASPECTS.get(*index).copied().unwrap_or("0");
+                                this.settings.camera.aspect = aspect.to_string();
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(aspect_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.cameraZoom").to_string()),
+                    )
+                    .child(
+                        div().w_64().child(
+                            Slider::new(&self.camera_zoom)
+                                .horizontal()
+                                .accessibility_label(t!("controlPanel.cameraZoom").to_string()),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{zoom:.1}×")),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.resolution").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("camera-max-size")
+                            .selected_index(Some(max_size_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.camera.max_size = MirrorSettings::SIZES[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(max_size_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_6()
+                    .child(
+                        Switch::new("camera-torch")
+                            .checked(camera.torch)
+                            .label(t!("controlPanel.cameraTorch").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.camera.torch = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("camera-high-speed")
+                            .checked(camera.high_speed)
+                            .label(t!("controlPanel.cameraHighSpeed").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.camera.high_speed = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("camera-mic-sink")
+                            .checked(camera.mic_sink)
+                            .label(t!("controlPanel.cameraMicSink").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.camera.mic_sink = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    ),
+            )
+    }
+
+    fn camera_summary(&self, cx: &Context<Self>) -> SharedString {
+        let camera = &self.settings.camera;
+        let zoom = self.camera_zoom.read(cx).value().end().clamp(1.0, 10.0);
+        let aspect = if camera.aspect == "0" {
+            t!("controlPanel.aspectDefault").to_string()
+        } else {
+            camera.aspect.clone()
+        };
+        let mut summary = format!(
+            "{} · {} · {:.1}×",
+            Self::facing_label(&camera.facing),
+            aspect,
+            zoom
+        );
+        if camera.torch {
+            summary.push_str(" · Torch");
+        }
+        if camera.high_speed {
+            summary.push_str(" · High-speed");
+        }
+        if camera.mic_sink {
+            summary.push_str(" · Virtual mic");
+        }
+        summary.into()
+    }
+
+    fn camera_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let summary = self.camera_summary(cx);
+
+        div()
+            .id("camera-panel")
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .gap_4()
+            .p_6()
+            .overflow_y_scroll()
+            .child(self.panel_heading())
+            .child(self.session_bar(cx))
+            .child(self.camera_settings(cx))
+            .child(
+                div()
+                    .id("camera-summary")
+                    .aria_label(summary.to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(summary)
+                    .test_support(),
+            )
+    }
+
     fn screen_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let summary = self.mirror_summary(cx);
 
@@ -1244,31 +1511,6 @@ impl AppShell {
                     .text_color(cx.theme().muted_foreground)
                     .child(summary)
                     .test_support(),
-            )
-    }
-
-    fn pending_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_h_0()
-            .gap_4()
-            .p_6()
-            .child(
-                div()
-                    .id("panel-title")
-                    .role(Role::Heading)
-                    .aria_label(self.mode.label().to_string())
-                    .text_xl()
-                    .child(self.mode.label())
-                    .test_support(),
-            )
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(t!("controlPanel.modeUnavailable").to_string()),
             )
     }
 
@@ -1348,7 +1590,7 @@ impl Render for AppShell {
                                 CaptureMode::Screen => self.screen_panel(cx).into_any_element(),
                                 CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
                                 CaptureMode::Microphone => self.mic_panel(cx).into_any_element(),
-                                _ => self.pending_panel(cx).into_any_element(),
+                                CaptureMode::Camera => self.camera_panel(cx).into_any_element(),
                             }),
                     ),
             )

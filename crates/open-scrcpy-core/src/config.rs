@@ -123,6 +123,17 @@ impl ScrcpyConfig {
         config
     }
 
+    /// Baseline camera session: back camera, phone microphone forwarded,
+    /// scrcpy's default 1920x1080 capture size. The shell overrides facing,
+    /// aspect, torch, zoom and the virtual-microphone opt-in.
+    pub fn camera(device: impl Into<String>) -> Self {
+        let mut config = Self::baseline(device, "camera");
+        config.audio_enabled = Some(true);
+        config.camera_facing = Some("back".to_string());
+        config.camera_zoom = Some(1.0);
+        config
+    }
+
     fn baseline(device: impl Into<String>, session_mode: &str) -> Self {
         Self {
             device: device.into(),
@@ -599,6 +610,17 @@ mod tests {
         assert!(args.contains(&"--audio-source=mic".to_string()));
         assert!(args.contains(&"--audio-codec=opus".to_string()));
         assert!(args.contains(&"--audio-bit-rate=128k".to_string()));
+        assert!(validate_scrcpy_config(&config).is_ok());
+    }
+
+    #[test]
+    fn camera_baseline_uses_the_back_camera_and_phone_mic() {
+        let config = ScrcpyConfig::camera("device1");
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--video-source=camera".to_string()));
+        assert!(args.contains(&"--camera-facing=back".to_string()));
+        assert!(args.contains(&"--audio-source=mic".to_string()));
+        assert!(args.contains(&"--camera-size=1920x1080".to_string()));
         assert!(validate_scrcpy_config(&config).is_ok());
     }
 
