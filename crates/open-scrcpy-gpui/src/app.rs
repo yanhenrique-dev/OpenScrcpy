@@ -372,7 +372,7 @@ impl AppShell {
 
     fn open_about_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let version = env!("CARGO_PKG_VERSION");
-        window.open_dialog(cx, move |dialog, _, _| {
+        window.open_dialog(cx, move |dialog, _, cx| {
             dialog
                 .title(t!("header.aboutTitle").to_string())
                 .child(
@@ -388,7 +388,7 @@ impl AppShell {
                         )
                         .child(
                             div()
-                                .flex()
+                                .flex_row_dir(cx)
                                 .items_center()
                                 .gap_2()
                                 .child(
@@ -609,7 +609,7 @@ impl AppShell {
             })
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_2()
                     .child(
@@ -978,7 +978,7 @@ impl AppShell {
 
     fn theme_modes(&self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .flex()
+            .flex_row_dir(cx)
             .items_center()
             .gap_1()
             .children(ThemePreference::ALL.map(|preference| {
@@ -1185,7 +1185,7 @@ impl AppShell {
 
     fn mode_tabs(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
-            .flex()
+            .flex_row_dir(cx)
             .items_center()
             .gap_1()
             .p_2()
@@ -1261,7 +1261,7 @@ impl AppShell {
             .gap_3()
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1286,7 +1286,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1308,7 +1308,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1330,7 +1330,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1356,7 +1356,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .flex_wrap()
                     .gap_6()
                     .child(
@@ -1418,7 +1418,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .flex_wrap()
                     .gap_6()
                     .child(
@@ -1454,7 +1454,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .flex_wrap()
                     .gap_6()
                     .child(
@@ -1500,7 +1500,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_start()
                     .gap_4()
                     .child(
@@ -1529,7 +1529,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1631,7 +1631,7 @@ impl AppShell {
             .gap_3()
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1655,7 +1655,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1677,7 +1677,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1699,7 +1699,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1782,7 +1782,7 @@ impl AppShell {
             .gap_3()
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1806,7 +1806,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1830,7 +1830,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -1916,7 +1916,7 @@ impl AppShell {
                         t!("controlPanel.micDestLabel")
                     ))
                     .test_support()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_3()
                     .child(
@@ -1934,7 +1934,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_3()
                     .child(
@@ -2114,7 +2114,7 @@ impl AppShell {
             .gap_3()
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -2149,7 +2149,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -2175,7 +2175,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -2199,7 +2199,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -2224,7 +2224,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_4()
                     .child(
@@ -2246,7 +2246,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .flex_wrap()
                     .gap_6()
                     .child(
@@ -2500,7 +2500,7 @@ impl AppShell {
             .border_color(cx.theme().border)
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_2()
                     .px_4()
@@ -2532,7 +2532,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_2()
                     .px_4()

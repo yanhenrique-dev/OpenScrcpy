@@ -55,6 +55,9 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Screen"));
+        let sidebar_x = window.find("push-files").bounds().origin.x;
+        let panel_x = window.find("panel-title").bounds().origin.x;
+        assert!(sidebar_x < panel_x, "LTR sidebar must lead");
 
         // Mode tabs re-render the panel heading.
         window.click("mode-camera", cx);
@@ -228,6 +231,9 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert!(LayoutDirection::global(cx).is_rtl());
         assert_ne!(window.find("mode-screen").label(), Some("Écran"));
+        let sidebar_x = window.find("push-files").bounds().origin.x;
+        let panel_x = window.find("panel-title").bounds().origin.x;
+        assert!(sidebar_x > panel_x, "RTL sidebar must follow the panel");
 
         // About opens as a dialog with the external links.
         assert!(
