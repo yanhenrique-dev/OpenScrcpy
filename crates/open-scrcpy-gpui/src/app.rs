@@ -4,6 +4,7 @@
 //! `open-scrcpy-core` through [`AppServices`]. The event loop and the device
 //! poller are spawned in `new` and mutate this entity through its weak handle.
 
+use std::path::PathBuf;
 use std::time::Duration;
 
 use gpui_kit::base::Selectable as _;
@@ -14,8 +15,8 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AppContext as _, ClipboardItem, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement as _, PathPromptOptions, Render, Role, SharedString,
+    AppContext as _, ClipboardItem, Context, Entity, ExternalPaths, InteractiveElement as _,
+    IntoElement, ParentElement as _, PathPromptOptions, Render, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, SystemNotification,
     TestSupportExt as _, Window, WindowBounds, div, relative,
 };
@@ -412,9 +413,6 @@ impl AppShell {
     }
 
     fn pick_files(&mut self, cx: &mut Context<Self>) {
-        let Some(device) = self.active_device.clone() else {
-            return;
-        };
         let prompt: SharedString = t!("sidebar.flashPushFiles").to_string().into();
         let receiver = cx.prompt_for_paths(PathPromptOptions {
             files: true,
@@ -422,7 +420,6 @@ impl AppShell {
             multiple: true,
             prompt: Some(prompt),
         });
-        let services = self.services.clone();
         cx.spawn(async move |this, cx| {
             let Ok(selection) = receiver.await else {
                 return;
@@ -430,6 +427,27 @@ impl AppShell {
             let Ok(Some(paths)) = selection else {
                 return;
             };
+            let _ = this.update(cx, |shell, cx| shell.transfer_files(paths, cx));
+        })
+        .detach();
+    }
+
+    fn handle_drop(&mut self, paths: &ExternalPaths, cx: &mut Context<Self>) {
+        let files: Vec<PathBuf> = paths.0.iter().cloned().collect();
+        if files.is_empty() {
+            return;
+        }
+        self.transfer_files(files, cx);
+    }
+
+    fn transfer_files(&mut self, paths: Vec<PathBuf>, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            self.push_error("[WARN] No device selected for push/install.");
+            cx.notify();
+            return;
+        };
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
             for path in paths {
                 let is_apk = path
                     .extension()
@@ -799,6 +817,15 @@ impl AppShell {
                     .label(t!("sidebar.flashPushFiles").to_string())
                     .disabled(self.active_device.is_none())
                     .on_click(cx.listener(|this, _, _, cx| this.pick_files(cx))),
+            )
+            .child(
+                div()
+                    .id("push-hint")
+                    .aria_label(t!("sidebar.flashPushSubtitle").to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(t!("sidebar.flashPushSubtitle").to_string())
+                    .test_support(),
             )
             .child(
                 div()
@@ -2167,6 +2194,7 @@ impl Render for AppShell {
             .flex_col()
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
+            .on_drop(cx.listener(|this, paths: &ExternalPaths, _, cx| this.handle_drop(paths, cx)))
             .child(self.header(cx))
             .child(
                 div()

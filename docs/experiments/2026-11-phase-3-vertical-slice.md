@@ -61,7 +61,8 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Arquivos:** "Flash / Push Files" abre o seletor nativo (portal) e envia
   cada arquivo escolhido com `core::adb::push_file`; arquivos `.apk` vão por
   `install_apk`. Resultado e erros entram no console. O botão fica desabilitado
-  sem dispositivo; drag-and-drop externo ainda não está ligado.
+  sem dispositivo; soltar arquivos externos na janela usa o mesmo caminho de
+  transferência (`.apk` instala, o resto faz push).
 - **Serviços de plataforma:** instância única por sessão de usuário e atalho
   global `Ctrl+Alt+Shift+C` para recentralizar a janela do espelho ativo. A
   falha de registro é não-fatal e vai para o stderr.
@@ -158,7 +159,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
-| 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única e recenter global prontos; tray/background bloqueados (4.1); drag-drop pendente |
+| 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única, recenter global e drag-drop de arquivos prontos; tray/background bloqueados (4.1) |
 | 3.12 Chrome/titlebar | pendente (decoração nativa) |
 
 ## 6. Próximos passos

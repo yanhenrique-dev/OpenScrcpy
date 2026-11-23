@@ -66,6 +66,11 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             Some("Flash / Push Files")
         );
 
+        assert_eq!(
+            window.find("push-hint").label(),
+            Some("Drag & drop ANY FILE OR APK")
+        );
+
         // The console exposes the parity actions.
         assert_eq!(window.find("console-clear").label(), Some("Clear"));
         assert_eq!(window.find("console-copy").label(), Some("Copy"));
