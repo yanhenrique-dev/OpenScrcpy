@@ -89,6 +89,35 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             .to_string();
         assert!(summary.contains("Flex"), "unexpected summary: {summary}");
 
+        // Mic mode starts the windowless bridge and shares the session bar.
+        window.click("mode-microphone", cx);
+        window.render_frame(cx);
+        assert_eq!(window.find("panel-title").label(), Some("Microphone"));
+        assert_eq!(
+            window.find("start-mission").label(),
+            Some("Start Mic Bridge")
+        );
+        let summary = window
+            .find("mic-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            summary.contains("128 kbps"),
+            "unexpected summary: {summary}"
+        );
+        #[cfg(unix)]
+        {
+            window.click("mic-denoise", cx);
+            window.render_frame(cx);
+            let summary = window
+                .find("mic-summary")
+                .label()
+                .unwrap_or_default()
+                .to_string();
+            assert!(summary.contains("RNNoise"), "unexpected summary: {summary}");
+        }
+
         // Filter/settings controls write the persisted mirror settings and the
         // summary reflects them before the session starts.
         window.click("mode-screen", cx);

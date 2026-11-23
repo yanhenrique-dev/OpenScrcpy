@@ -25,7 +25,7 @@ use serde_json::Value;
 use crate::i18n;
 use crate::services::AppServices;
 use crate::settings::{
-    AppSettings, DesktopSettings, MirrorSettings, SettingsStore, ThemePreference,
+    AppSettings, DesktopSettings, MicSettings, MirrorSettings, SettingsStore, ThemePreference,
 };
 use crate::theme;
 
@@ -439,6 +439,7 @@ impl AppShell {
                 .settings
                 .desktop
                 .to_config(device, &self.settings.mirror),
+            CaptureMode::Microphone => self.settings.mic.to_config(device, &self.settings.mirror),
             _ => self.settings.mirror.to_config(device),
         }
     }
@@ -456,10 +457,10 @@ impl AppShell {
     fn session_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let can_start = self.active_device.is_some() && !self.starting && !self.running;
         let can_stop = self.running;
-        let start_label = if self.mode == CaptureMode::Desktop {
-            t!("controlPanel.ejectToDesktop").to_string()
-        } else {
-            t!("controlPanel.startMission").to_string()
+        let start_label = match self.mode {
+            CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
+            CaptureMode::Microphone => t!("controlPanel.startMicBridge").to_string(),
+            _ => t!("controlPanel.startMission").to_string(),
         };
 
         div()
@@ -1022,6 +1023,178 @@ impl AppShell {
         .into()
     }
 
+    fn mic_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let mic = self.settings.mic.clone();
+        let source_index = MicSettings::SOURCES
+            .iter()
+            .position(|source| *source == mic.source)
+            .unwrap_or(0);
+        let codec_index = MicSettings::CODECS
+            .iter()
+            .position(|codec| *codec == mic.codec)
+            .unwrap_or(0);
+        let bitrate_index = MicSettings::BITRATES
+            .iter()
+            .position(|bitrate| *bitrate == mic.bitrate)
+            .unwrap_or(2);
+
+        let source_options = MicSettings::SOURCES.map(|source| {
+            let label = if source == "mic-voice-communication" {
+                t!("controlPanel.micSourceVoiceComm").to_string()
+            } else {
+                t!("controlPanel.micSourceMic").to_string()
+            };
+            Radio::new(format!("mic-source-{source}")).label(label)
+        });
+        let codec_options = MicSettings::CODECS.map(|codec| {
+            let label = if codec == "aac" { "AAC" } else { "Opus" };
+            Radio::new(format!("mic-codec-{codec}")).label(label)
+        });
+        let bitrate_options = MicSettings::BITRATES
+            .map(|bitrate| Radio::new(format!("mic-bitrate-{bitrate}")).label(bitrate.to_string()));
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.micSourceLabel").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mic-source")
+                            .selected_index(Some(source_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let source =
+                                    MicSettings::SOURCES.get(*index).copied().unwrap_or("mic");
+                                this.settings.mic.source = source.to_string();
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(source_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.micCodecLabel").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mic-codec")
+                            .selected_index(Some(codec_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let codec =
+                                    MicSettings::CODECS.get(*index).copied().unwrap_or("opus");
+                                this.settings.mic.codec = codec.to_string();
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(codec_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.micQualityLabel").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mic-bitrate")
+                            .selected_index(Some(bitrate_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.mic.bitrate = MicSettings::BITRATES[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(bitrate_options),
+                    ),
+            )
+            .child(div().flex().flex_wrap().gap_6().when(cfg!(unix), |this| {
+                this.child(
+                    Switch::new("mic-denoise")
+                        .checked(mic.denoise)
+                        .label(t!("controlPanel.micDenoiseLabel").to_string())
+                        .on_click(cx.listener(|this, checked, _, cx| {
+                            this.settings.mic.denoise = *checked;
+                            this.persist();
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    Switch::new("mic-default-source")
+                        .checked(mic.set_default_source)
+                        .label(t!("controlPanel.micSetDefaultSource").to_string())
+                        .on_click(cx.listener(|this, checked, _, cx| {
+                            this.settings.mic.set_default_source = *checked;
+                            this.persist();
+                            cx.notify();
+                        })),
+                )
+            }))
+    }
+
+    fn mic_summary(&self) -> SharedString {
+        let mic = &self.settings.mic;
+        let source = if mic.source == "mic-voice-communication" {
+            t!("controlPanel.micSourceVoiceComm").to_string()
+        } else {
+            t!("controlPanel.micSourceMic").to_string()
+        };
+        let codec = if mic.codec == "aac" { "AAC" } else { "Opus" };
+        let mut summary = format!("{source} · {codec} · {} kbps", mic.bitrate);
+        if mic.denoise {
+            summary.push_str(" · RNNoise");
+        }
+        if mic.set_default_source {
+            summary.push_str(" · Default input");
+        }
+        summary.into()
+    }
+
+    fn mic_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let summary = self.mic_summary();
+
+        div()
+            .id("mic-panel")
+            .flex()
+            .flex_col()
+            .flex_1()
+            .min_h_0()
+            .gap_4()
+            .p_6()
+            .overflow_y_scroll()
+            .child(self.panel_heading())
+            .child(self.session_bar(cx))
+            .child(self.mic_settings(cx))
+            .child(
+                div()
+                    .id("mic-summary")
+                    .aria_label(summary.to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(summary)
+                    .test_support(),
+            )
+    }
+
     fn screen_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let summary = self.mirror_summary(cx);
 
@@ -1174,6 +1347,7 @@ impl Render for AppShell {
                             .child(match self.mode {
                                 CaptureMode::Screen => self.screen_panel(cx).into_any_element(),
                                 CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
+                                CaptureMode::Microphone => self.mic_panel(cx).into_any_element(),
                                 _ => self.pending_panel(cx).into_any_element(),
                             }),
                     ),

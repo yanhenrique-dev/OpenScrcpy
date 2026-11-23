@@ -178,7 +178,72 @@ impl MirrorSettings {
     }
 }
 
-/// Virtual-display defaults for Desktop mode.
+/// Microphone-bridge defaults. The bridge is audio-only and Linux-only for the
+/// virtual sink; the other fields are still validated on every platform.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MicSettings {
+    /// `mic` or `mic-voice-communication`.
+    pub source: String,
+    /// `opus` or `aac`.
+    pub codec: String,
+    /// kbps, 32..=256.
+    pub bitrate: u32,
+    /// PipeWire RNNoise sink on Linux; experimental.
+    pub denoise: bool,
+    /// Make the virtual monitor the system default input (Linux).
+    pub set_default_source: bool,
+}
+
+impl Default for MicSettings {
+    fn default() -> Self {
+        Self {
+            source: "mic".to_string(),
+            codec: "opus".to_string(),
+            bitrate: 128,
+            denoise: false,
+            set_default_source: false,
+        }
+    }
+}
+
+impl MicSettings {
+    pub(crate) const SOURCES: [&'static str; 2] = ["mic", "mic-voice-communication"];
+    pub(crate) const CODECS: [&'static str; 2] = ["opus", "aac"];
+    pub(crate) const BITRATES: [u32; 5] = [64, 96, 128, 192, 256];
+
+    pub fn normalized(mut self) -> Self {
+        // Older builds persisted the pre-rename value.
+        if self.source == "voice-communication" {
+            self.source = "mic-voice-communication".to_string();
+        }
+        if !Self::SOURCES.contains(&self.source.as_str()) {
+            self.source = "mic".to_string();
+        }
+        if !Self::CODECS.contains(&self.codec.as_str()) {
+            self.codec = "opus".to_string();
+        }
+        self.bitrate = self.bitrate.clamp(32, 256);
+        self
+    }
+
+    pub fn to_config(
+        &self,
+        device: &str,
+        shared: &MirrorSettings,
+    ) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = open_scrcpy_core::config::ScrcpyConfig::mic(device);
+        config.mic_source = Some(self.source.clone());
+        config.mic_codec = Some(self.codec.clone());
+        config.mic_bitrate = Some(self.bitrate);
+        config.mic_denoise = Some(self.denoise);
+        config.mic_set_default_source = Some(self.set_default_source);
+        config.auto_reconnect = Some(shared.auto_reconnect);
+        config
+    }
+}
+
+/// Virtual-display defaults for Desktop mode./// Virtual-display defaults for Desktop mode.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DesktopSettings {
@@ -256,6 +321,7 @@ pub struct AppSettings {
     pub window: WindowState,
     pub mirror: MirrorSettings,
     pub desktop: DesktopSettings,
+    pub mic: MicSettings,
 }
 
 impl Default for AppSettings {
@@ -267,6 +333,7 @@ impl Default for AppSettings {
             window: WindowState::default(),
             mirror: MirrorSettings::default(),
             desktop: DesktopSettings::default(),
+            mic: MicSettings::default(),
         }
     }
 }
@@ -287,6 +354,7 @@ impl AppSettings {
         self.window = self.window.normalized();
         self.mirror = self.mirror.normalized();
         self.desktop = self.desktop.normalized();
+        self.mic = self.mic.normalized();
         self
     }
 
@@ -529,6 +597,46 @@ mod tests {
         assert!(args.contains(&"--flex-display".to_string()));
         assert!(args.contains(&"--max-size".to_string()));
         assert!(args.contains(&"1920".to_string()));
+    }
+
+    #[test]
+    fn mic_baseline_maps_to_the_bridge_arguments() {
+        let mic = MicSettings {
+            source: "mic-voice-communication".into(),
+            codec: "aac".into(),
+            bitrate: 192,
+            denoise: true,
+            set_default_source: true,
+        };
+        let config = mic.to_config("device1", &MirrorSettings::default());
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=mic-voice-communication".to_string()));
+        assert!(args.contains(&"--audio-codec=aac".to_string()));
+        assert!(args.contains(&"--audio-bit-rate=192k".to_string()));
+        assert_eq!(config.mic_denoise, Some(true));
+        assert_eq!(config.mic_set_default_source, Some(true));
+    }
+
+    #[test]
+    fn invalid_mic_settings_are_normalized() {
+        let mic = MicSettings {
+            source: "voice-communication".into(),
+            codec: "flac".into(),
+            bitrate: 999,
+            denoise: false,
+            set_default_source: false,
+        }
+        .normalized();
+        assert_eq!(mic.source, "mic-voice-communication");
+        assert_eq!(mic.codec, "opus");
+        assert_eq!(mic.bitrate, 256);
+
+        let mic = MicSettings {
+            source: "speaker".into(),
+            ..MicSettings::default()
+        }
+        .normalized();
+        assert_eq!(mic.source, "mic");
     }
 
     #[test]

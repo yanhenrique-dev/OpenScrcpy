@@ -30,6 +30,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
   (`core::session::teardown_sessions`), o mesmo código que o casco Tauri passou
   a usar.
+- **Microfone:** ponte sem janela (`ScrcpyConfig::mic`) com fonte (mic cru /
+  denoised), codec (Opus/AAC), bitrate, RNNoise e "definir como microfone
+  padrão" (Linux). O start usa o mesmo session bar e o teardown do core
+  descarrega o sink.
 - **Desktop (virtual display):** presets de tamanho (1080p/1440p/4K/ultra-wide),
   DPI, rotação, tamanho máximo de vídeo e flex display; o resumo mostra a
   configuração e o start usa `ScrcpyConfig::desktop`. As preferências de
@@ -89,8 +93,8 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **17 passed** (14 unit + 2 paridade + 1 UI) |
-| `cargo test` (core) | 74 passed, 1 ignored |
+| `cargo test` (gpui) | **21 passed** (18 unit + 2 paridade + 1 UI) |
+| `cargo test` (core) | 75 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
 | Smoke com dispositivo real | **não executado** — sem `adb` neste host |
@@ -106,7 +110,7 @@ AppShell (Entity<AppShell>)
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: bitrate/fps/res/codec/áudio/vsync/reconnect prontos; faltam renderer, rotação, HID, recording, always-on-top/borderless |
 | 3.5 Camera | pendente (aba desabilitada por texto) |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
-| 3.7 Mic (source, meter, default source) | pendente |
+| 3.7 Mic (source, meter, default source) | **parcial**: fonte, codec, bitrate, RNNoise e source padrão prontos; medidor de nível (`parec`) e o painel de destino pendentes |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas) |
 | 3.9 Behavior (reconnect/background/notificações) | pendente |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
@@ -120,7 +124,8 @@ AppShell (Entity<AppShell>)
 2. Wireless: descoberta mDNS (`adb mdns services`), lista de pares recentes e
    o fluxo guiado de pairing (o IP/código manual já funciona).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
-4. Camera (3.5) e Mic (3.7), que já têm os campos no DTO e as chaves de i18n.
-5. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
+4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.
+5. Medidor de nível do Mic (eventos `mic-level` do core) e painel de destino.
+6. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave
    `modeUnavailable` quando as quatro abas estiverem implementadas.

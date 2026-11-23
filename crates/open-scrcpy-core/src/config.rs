@@ -112,6 +112,17 @@ impl ScrcpyConfig {
         config
     }
 
+    /// Baseline audio-only microphone bridge: no window, no video, Opus at
+    /// 128 kbps. The shell overrides source, codec and bitrate.
+    pub fn mic(device: impl Into<String>) -> Self {
+        let mut config = Self::baseline(device, "mic");
+        config.audio_enabled = Some(true);
+        config.mic_source = Some("mic".to_string());
+        config.mic_codec = Some("opus".to_string());
+        config.mic_bitrate = Some(128);
+        config
+    }
+
     fn baseline(device: impl Into<String>, session_mode: &str) -> Self {
         Self {
             device: device.into(),
@@ -576,6 +587,18 @@ mod tests {
         let args = build_scrcpy_args(&config, None, None);
         assert!(args.contains(&"--new-display=1920x1080/420".to_string()));
         assert!(!args.iter().any(|arg| arg == "--no-window"));
+        assert!(validate_scrcpy_config(&config).is_ok());
+    }
+
+    #[test]
+    fn mic_baseline_is_audio_only() {
+        let config = ScrcpyConfig::mic("device1");
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--no-window".to_string()));
+        assert!(args.contains(&"--no-video".to_string()));
+        assert!(args.contains(&"--audio-source=mic".to_string()));
+        assert!(args.contains(&"--audio-codec=opus".to_string()));
+        assert!(args.contains(&"--audio-bit-rate=128k".to_string()));
         assert!(validate_scrcpy_config(&config).is_ok());
     }
 
