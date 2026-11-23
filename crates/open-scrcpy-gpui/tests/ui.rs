@@ -94,6 +94,11 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             Some("Drag & drop ANY FILE OR APK")
         );
 
+        assert_eq!(
+            window.find("shortcuts-title").label(),
+            Some("Shortcuts (Alt +)")
+        );
+
         // The console exposes the parity actions.
         assert_eq!(window.find("console-clear").label(), Some("Clear"));
         assert_eq!(window.find("console-copy").label(), Some("Copy"));

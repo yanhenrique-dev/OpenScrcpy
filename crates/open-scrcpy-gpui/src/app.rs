@@ -50,6 +50,21 @@ fn theme_label(preference: ThemePreference) -> SharedString {
     .into()
 }
 
+fn shortcut_label(key: &str) -> SharedString {
+    match key {
+        "F" => t!("shortcuts.full"),
+        "H" => t!("shortcuts.home"),
+        "B" => t!("shortcuts.back"),
+        "S" => t!("shortcuts.recents"),
+        "P" => t!("shortcuts.power"),
+        "R" => t!("shortcuts.rotate"),
+        "V" => t!("shortcuts.paste"),
+        _ => t!("shortcuts.off"),
+    }
+    .to_string()
+    .into()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CaptureMode {
     Screen,
@@ -1401,6 +1416,37 @@ impl AppShell {
                                 )),
                         )
                     }),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .pt_3()
+                    .border_t_1()
+                    .border_color(cx.theme().border)
+                    .child(
+                        div()
+                            .id("shortcuts-title")
+                            .aria_label(t!("shortcuts.title").to_string())
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("shortcuts.title").to_string())
+                            .test_support(),
+                    )
+                    .children(["F", "H", "B", "S", "P", "R", "V", "O"].map(|key| {
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!("Alt+{key}")),
+                            )
+                            .child(div().text_xs().child(shortcut_label(key)))
+                    })),
             )
     }
 
