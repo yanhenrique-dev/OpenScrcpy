@@ -19,6 +19,7 @@ use gpui_kit::{
     Subscription, SystemNotification, TestSupportExt as _, Window, WindowBounds, div, relative,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
+use open_scrcpy_platform::shortcuts::PlatformCommand;
 use rust_i18n::t;
 use serde_json::Value;
 
@@ -181,6 +182,7 @@ impl AppShell {
         store: SettingsStore,
         services: AppServices,
         events: EventReceiver,
+        platform_commands: tokio::sync::mpsc::UnboundedReceiver<PlatformCommand>,
     ) -> Self {
         theme::apply(settings.theme, Some(window), cx);
 
@@ -196,6 +198,7 @@ impl AppShell {
         });
 
         spawn_event_loop(cx, events);
+        spawn_platform_commands(cx, platform_commands);
         if services.polls_devices() {
             spawn_device_poll(cx, services.clone());
         }
@@ -362,6 +365,28 @@ impl AppShell {
                 .find(|device| device.state == DeviceState::Online)
                 .map(|device| device.serial.clone());
         }
+        cx.notify();
+    }
+
+    fn recenter_active(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        let pid = self
+            .services
+            .state()
+            .sessions
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .get(&device)
+            .map(|handle| handle.pid.load(std::sync::atomic::Ordering::Relaxed));
+        let Some(pid) = pid.filter(|pid| *pid != 0) else {
+            return;
+        };
+        open_scrcpy_platform::window::recenter_window(pid);
+        self.push_log(format!(
+            "[SYSTEM] Recentred the mirror window for {device}."
+        ));
         cx.notify();
     }
 
@@ -1887,6 +1912,27 @@ impl Render for AppShell {
             )
             .child(self.console(cx))
     }
+}
+
+fn spawn_platform_commands(
+    cx: &mut Context<AppShell>,
+    mut commands: tokio::sync::mpsc::UnboundedReceiver<PlatformCommand>,
+) {
+    cx.spawn(async move |this, cx| {
+        while let Some(command) = commands.recv().await {
+            match command {
+                PlatformCommand::Recenter => {
+                    if this
+                        .update(cx, |shell, cx| shell.recenter_active(cx))
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    })
+    .detach();
 }
 
 fn spawn_event_loop(cx: &mut Context<AppShell>, mut events: EventReceiver) {

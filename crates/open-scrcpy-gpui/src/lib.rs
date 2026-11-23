@@ -28,6 +28,21 @@ pub fn run() {
 
     let (services, events) = AppServices::new();
 
+    match open_scrcpy_platform::single_instance::acquire("openscrcpy-gpui") {
+        Ok(Some(guard)) => std::mem::forget(guard),
+        Ok(None) => {
+            eprintln!("[single-instance] another OpenScrcpy window is already running");
+            return;
+        }
+        Err(error) => eprintln!("[single-instance] unavailable: {error}"),
+    }
+
+    let (platform_tx, platform_commands) = tokio::sync::mpsc::unbounded_channel();
+    match open_scrcpy_platform::shortcuts::register(platform_tx) {
+        Ok(shortcuts) => std::mem::forget(shortcuts),
+        Err(error) => eprintln!("[shortcuts] could not register Ctrl+Alt+Shift+C: {error}"),
+    }
+
     gpui_kit::application()
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
@@ -43,7 +58,17 @@ pub fn run() {
             let settings = settings.clone();
             let store = store.clone();
             gpui_kit::open_window(options, cx, move |window, cx| {
-                cx.new(|cx| AppShell::new(window, cx, settings, store, services, events))
+                cx.new(|cx| {
+                    AppShell::new(
+                        window,
+                        cx,
+                        settings,
+                        store,
+                        services,
+                        events,
+                        platform_commands,
+                    )
+                })
             })
             .expect("failed to open the OpenScrcpy window");
         });

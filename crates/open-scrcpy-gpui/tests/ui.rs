@@ -17,6 +17,7 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
         ..AppSettings::default()
     };
     let (services, events) = AppServices::for_test();
+    let (_platform_tx, platform_commands) = tokio::sync::mpsc::unbounded_channel();
     let (handle, _view) = cx.update(|cx| {
         gpui_kit::open_window(
             WindowOptions {
@@ -36,6 +37,7 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
                         SettingsStore::without_persistence(),
                         services,
                         events,
+                        platform_commands,
                     )
                 })
             },

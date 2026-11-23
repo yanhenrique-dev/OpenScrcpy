@@ -9,6 +9,11 @@ publish = false
 name = "open_scrcpy_platform"
 path = "src/lib.rs"
 
+[dependencies]
+global-hotkey = "0.10"
+single-instance = "0.3"
+tokio = { version = "1.49.0", features = ["sync"] }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = "5"
 

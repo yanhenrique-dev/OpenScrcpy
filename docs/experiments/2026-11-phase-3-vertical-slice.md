@@ -52,6 +52,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Wireless:** a sidebar tem `IP Connect` e `Start Pairing` ligados a
   `core::adb::connect`/`pair`; os passos e erros do adb vão para o console e o
   dispositivo conectado aparece no hub no próximo polling.
+- **Serviços de plataforma:** instância única por sessão de usuário e atalho
+  global `Ctrl+Alt+Shift+C` para recentralizar a janela do espelho ativo. A
+  falha de registro é não-fatal e vai para o stderr.
 - **Tema e locale** continuam funcionando junto com o resto.
 
 ## 2. Arquitetura
@@ -111,6 +114,26 @@ AppShell (Entity<AppShell>)
 | Smoke com dispositivo real | **não executado** — sem `adb` neste host |
 | `cargo build --release` | não executado |
 
+### 4.1 Bloqueio novo: tray/background sem API de esconder
+
+O GPUI 0.3.12 expõe `Window::activate_window`, mas **não** expõe `hide()` nem
+`platform_window()`; `hide` existe só na trait de plataforma interna. Sem isso,
+o modo background do 2.x (fechar a janela → continuar no tray) não tem como
+esconder a janela: minimizar não é equivalente e deixa a janela na barra de
+tarefas.
+
+Consequências:
+
+- o tray (`ksni`) pode ser registrado e oferecer Show/Quit, mas "fechar para o
+  tray" não é implementável hoje;
+- o item 3.9 (background) e parte de 3.11 (tray) ficam bloqueados até existir
+  uma API pública de esconder/mostrar (upstream ou patch do `gpui-pre`);
+- o atalho global e a instância única **não** dependem disso e foram feitos.
+
+Nota do smoke: com o OpenScrcpy 2.0 aberto, o registro de
+`Ctrl+Alt+Shift+C` falha com "HotKey already registered" e o app segue — o
+comportamento esperado durante a convivência dos dois cascos.
+
 ## 5. O que falta nesta fase
 
 | Fatia | Situação |
@@ -123,9 +146,9 @@ AppShell (Entity<AppShell>)
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report) |
-| 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray e preferências de notificação pendentes |
+| 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
-| 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | pendente |
+| 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única e recenter global prontos; tray/background bloqueados (4.1); drag-drop pendente |
 | 3.12 Chrome/titlebar | pendente (decoração nativa) |
 
 ## 6. Próximos passos
@@ -138,6 +161,7 @@ AppShell (Entity<AppShell>)
 4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.
 5. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.
 6. mDNS/histórico do wireless e arquivos/terminal/relatório.
-7. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
+7. Tray/background: depende de API pública de hide/show (bloqueio 4.1).
+8. Arquivos (push/APK), terminal e updater.
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave
    `modeUnavailable` quando as quatro abas estiverem implementadas.

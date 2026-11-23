@@ -6,4 +6,6 @@
 
 #[cfg(target_os = "linux")]
 pub mod kwin;
+pub mod shortcuts;
+pub mod single_instance;
 pub mod window;
