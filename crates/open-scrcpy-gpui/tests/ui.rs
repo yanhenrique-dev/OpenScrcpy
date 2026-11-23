@@ -58,6 +58,33 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
+        // Filter/settings controls write the persisted mirror settings and the
+        // summary reflects them before the session starts.
+        window.click("mode-screen", cx);
+        window.render_frame(cx);
+        let summary = window
+            .find("mirror-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(summary.contains("8 Mbps"), "unexpected summary: {summary}");
+        assert!(summary.contains("H.264"), "unexpected summary: {summary}");
+
+        window.click("mirror-audio", cx);
+        window.render_frame(cx);
+        let summary = window
+            .find("mirror-summary")
+            .label()
+            .unwrap_or_default()
+            .to_string();
+        assert!(
+            summary.contains("Audio off"),
+            "unexpected summary: {summary}"
+        );
+
+        window.click("mirror-audio", cx);
+        window.render_frame(cx);
+
         // Choosing a theme repaints the window with the new palette.
         let light_background = cx.theme().background;
         window.click("theme-dark", cx);

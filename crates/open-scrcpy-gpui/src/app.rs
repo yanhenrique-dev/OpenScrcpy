@@ -7,11 +7,15 @@
 use std::time::Duration;
 
 use gpui_kit::base::Selectable as _;
+use gpui_kit::component::radio::{Radio, RadioGroup};
+use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
+use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    Context, InteractiveElement as _, IntoElement, ParentElement as _, Render, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _, TestSupportExt as _, Window, WindowBounds, div,
+    AppContext as _, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _,
+    Render, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription,
+    TestSupportExt as _, Window, WindowBounds, div,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use rust_i18n::t;
@@ -19,7 +23,7 @@ use serde_json::Value;
 
 use crate::i18n;
 use crate::services::AppServices;
-use crate::settings::{AppSettings, SettingsStore, ThemePreference};
+use crate::settings::{AppSettings, MirrorSettings, SettingsStore, ThemePreference};
 use crate::theme;
 
 const MAX_LOG_LINES: usize = 100;
@@ -157,6 +161,8 @@ pub struct AppShell {
     running: bool,
     starting: bool,
     logs: Vec<String>,
+    bitrate: Entity<SliderState>,
+    _bitrate_subscription: Subscription,
 }
 
 impl AppShell {
@@ -186,6 +192,25 @@ impl AppShell {
             spawn_device_poll(cx, services.clone());
         }
 
+        let bitrate = cx.new(|_| {
+            SliderState::new()
+                .min(1.0)
+                .max(50.0)
+                .step(1.0)
+                .default_value(settings.mirror.bitrate as f32)
+        });
+        let bitrate_subscription = cx.subscribe(&bitrate, |this, _, event: &SliderEvent, cx| {
+            let SliderEvent::Release(value) = event else {
+                return;
+            };
+            let bitrate = value.end().round().clamp(1.0, 50.0) as u32;
+            if this.settings.mirror.bitrate != bitrate {
+                this.settings.mirror.bitrate = bitrate;
+                this.persist();
+                cx.notify();
+            }
+        });
+
         Self {
             settings,
             store,
@@ -196,6 +221,8 @@ impl AppShell {
             running: false,
             starting: false,
             logs: Vec::new(),
+            bitrate,
+            _bitrate_subscription: bitrate_subscription,
         }
     }
 
@@ -292,9 +319,10 @@ impl AppShell {
         self.push_log(format!("[SYSTEM] Starting mirror session for {device}..."));
         cx.notify();
 
+        let config = self.settings.mirror.to_config(&device);
         let services = self.services.clone();
         cx.spawn(async move |this, cx| {
-            let result = services.start(&device).await;
+            let result = services.start(config).await;
             if this.upgrade().is_none() {
                 return;
             }
@@ -452,17 +480,237 @@ impl AppShell {
             }))
     }
 
+    fn mirror_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let settings = self.settings.mirror.clone();
+        let bitrate = self.bitrate.read(cx).value().end().round() as u32;
+
+        let fps_index = MirrorSettings::FPS
+            .iter()
+            .position(|fps| *fps == settings.fps)
+            .unwrap_or(1);
+        let size_index = MirrorSettings::SIZES
+            .iter()
+            .position(|size| *size == settings.max_size)
+            .unwrap_or(0);
+        let codec_index = MirrorSettings::CODECS
+            .iter()
+            .position(|codec| *codec == settings.video_codec)
+            .unwrap_or(0);
+
+        let fps_options =
+            MirrorSettings::FPS.map(|fps| Radio::new(format!("fps-{fps}")).label(fps.to_string()));
+        let size_options = MirrorSettings::SIZES.map(|size| {
+            let label = if size == 0 {
+                t!("controlPanel.resolutionOriginal").to_string()
+            } else {
+                size.to_string()
+            };
+            Radio::new(format!("size-{size}")).label(label)
+        });
+        let codec_options = MirrorSettings::CODECS.map(|codec| {
+            let label = match codec {
+                "h265" => "H.265",
+                "av1" => "AV1",
+                _ => "H.264",
+            };
+            Radio::new(format!("codec-{codec}")).label(label)
+        });
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.bitrate").to_string()),
+                    )
+                    .child(
+                        div().w_64().child(
+                            Slider::new(&self.bitrate)
+                                .horizontal()
+                                .accessibility_label(t!("controlPanel.bitrate").to_string()),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{bitrate} Mbps")),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.fps").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mirror-fps")
+                            .selected_index(Some(fps_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.mirror.fps = MirrorSettings::FPS[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(fps_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.resolution").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mirror-size")
+                            .selected_index(Some(size_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                this.settings.mirror.max_size = MirrorSettings::SIZES[*index];
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(size_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.codec").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mirror-codec")
+                            .selected_index(Some(codec_index))
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let codec = MirrorSettings::CODECS
+                                    .get(*index)
+                                    .copied()
+                                    .unwrap_or("h264");
+                                this.settings.mirror.video_codec = codec.to_string();
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(codec_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_wrap()
+                    .gap_6()
+                    .child(
+                        Switch::new("mirror-audio")
+                            .checked(settings.audio)
+                            .label(t!("sessionBehavior.forwardAudio").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.audio = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-vsync")
+                            .checked(settings.vsync)
+                            .label(t!("controlPanel.vsync").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.vsync = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-stay-awake")
+                            .checked(settings.stay_awake)
+                            .label(t!("sessionBehavior.stayAwake").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.stay_awake = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-screen-off")
+                            .checked(settings.turn_screen_off)
+                            .label(t!("sessionBehavior.screenOff").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.turn_screen_off = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-reconnect")
+                            .checked(settings.auto_reconnect)
+                            .label(t!("appBehavior.autoReconnect").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.auto_reconnect = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    ),
+            )
+    }
+
+    fn mirror_summary(&self, cx: &Context<Self>) -> SharedString {
+        let bitrate = self.bitrate.read(cx).value().end().round() as u32;
+        let resolution = if self.settings.mirror.max_size == 0 {
+            t!("controlPanel.resolutionOriginal").to_string()
+        } else {
+            self.settings.mirror.max_size.to_string()
+        };
+        let codec = match self.settings.mirror.video_codec.as_str() {
+            "h265" => "H.265",
+            "av1" => "AV1",
+            _ => "H.264",
+        };
+        let audio = if self.settings.mirror.audio {
+            t!("sessionBehavior.forwardAudio").to_string()
+        } else {
+            t!("controlPanel.audioOff").to_string()
+        };
+        format!(
+            "{bitrate} Mbps · {} fps · {resolution} · {codec} · {audio}",
+            self.settings.mirror.fps
+        )
+        .into()
+    }
+
     fn screen_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let can_start = self.active_device.is_some() && !self.starting && !self.running;
         let can_stop = self.running;
+        let summary = self.mirror_summary(cx);
 
         div()
+            .id("mirror-panel")
             .flex()
             .flex_col()
             .flex_1()
             .min_h_0()
             .gap_4()
             .p_6()
+            .overflow_y_scroll()
             .child(
                 div()
                     .id("panel-title")
@@ -495,6 +743,16 @@ impl AppShell {
                             .disabled(!can_stop)
                             .on_click(cx.listener(|this, _, _, cx| this.stop_session(cx))),
                     ),
+            )
+            .child(self.mirror_settings(cx))
+            .child(
+                div()
+                    .id("mirror-summary")
+                    .aria_label(summary.to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(summary)
+                    .test_support(),
             )
     }
 

@@ -1,8 +1,8 @@
 # Fase 3 — primeira fatia vertical (device hub + sessão + console)
 
 > **Status:** parcial — o app GPUI tem o caminho completo para listar,
-> selecionar, espelhar e parar um dispositivo no Linux, sem Tauri. O smoke com
-> hardware ainda não foi executado (sem `adb` neste host).
+> selecionar, configurar, espelhar e parar um dispositivo no Linux, sem Tauri.
+> O smoke com hardware ainda não foi executado (sem `adb` neste host).
 > **Data:** 2026-11-23
 > **Crate:** `crates/open-scrcpy-gpui`
 > **Plano:** [docs/GPUI-MIGRATION.md](../GPUI-MIGRATION.md)
@@ -16,10 +16,15 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   disponíveis e indisponíveis (`unauthorized`/`offline`) em vez de sumir com
   elas; seleção por botão; auto-seleção do primeiro online; se o dispositivo
   some, a seleção é limpa.
-- **Sessão de espelhamento:** `Start mirroring` chama
-  `core::monitor::run_session` com `ScrcpyConfig::mirror(serial)`; `Stop
+- **Sessão de espelhamento:** `Start mirroring` monta o `ScrcpyConfig` a partir
+  das preferências persistidas e chama `core::monitor::run_session`; `Stop
   session` chama `core::session::stop_session`. Os botões ficam desabilitados
   quando não há dispositivo/seleção ou quando a sessão já está rodando.
+- **Painel Mirror:** bitrate (slider 1–50 Mbps), frame rate (30/60/90),
+  resolução máxima (Original/1920/1280/720), codec (H.264/H.265/AV1), áudio,
+  VSync, manter acordado, desligar a tela e reconexão automática. Cada mudança
+  é gravada no `settings.json`; o resumo mostra a configuração efetiva antes de
+  iniciar.
 - **Console:** o `EventBus` do core é consumido por uma task GPUI; logs do
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
@@ -62,6 +67,13 @@ AppShell (Entity<AppShell>)
    sessões; o comportamento dos dois cascos é o mesmo por construção.
 5. **`ScrcpyConfig::mirror`** e **`ScrcpyState::new`** são o baseline do core,
    para o shell não repetir 45 campos nem o registro de estado.
+6. **`MirrorSettings`** é a preferência da UI (validada e persistida); o DTO do
+   core continua sendo o contrato de linha de comando, montado por
+   `MirrorSettings::to_config`. O core revalida tudo antes de spawn.
+7. **Controles do Kit, não `div`s clicáveis:** `Slider` para bitrate,
+   `RadioGroup`/`Radio` para conjuntos pequenos e `Switch` para preferências
+   booleanas. Nome acessível explícito no slider; os valores técnicos
+   (`H.264`, `Mbps`, resoluções) não são traduzidos.
 
 ## 4. Gates
 
@@ -69,7 +81,8 @@ AppShell (Entity<AppShell>)
 | --- | --- |
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
-| `cargo test` (gpui) | **14 passed** (11 unit + 2 paridade + 1 UI) |
+| Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
+| `cargo test` (gpui) | **17 passed** (14 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 73 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -83,7 +96,7 @@ AppShell (Entity<AppShell>)
 | 3.1 Header (menu de idioma real, update badge) | parcial: locale por botão de ciclo |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
 | 3.3 Wireless (IP/pairing/histórico) | pendente |
-| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: baseline sem controles |
+| 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: bitrate/fps/res/codec/áudio/vsync/reconnect prontos; faltam renderer, rotação, HID, recording, always-on-top/borderless |
 | 3.5 Camera | pendente (aba desabilitada por texto) |
 | 3.6 Desktop | pendente |
 | 3.7 Mic (source, meter, default source) | pendente |
@@ -95,8 +108,8 @@ AppShell (Entity<AppShell>)
 
 ## 6. Próximos passos
 
-1. Painel Mirror com os controles do core (`bitrate`, `fps`, `res`, `codec`,
-   áudio, vsync) e persistência em `ScrcpyConfig`.
+1. Completar o Mirror: renderer, rotação, HID, recording,
+   always-on-top/borderless e o "pure HID".
 2. Wireless: IP/pairing usando `core::adb`/`core::wireless`.
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).

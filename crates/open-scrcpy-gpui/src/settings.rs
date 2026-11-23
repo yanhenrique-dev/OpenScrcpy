@@ -97,6 +97,81 @@ impl WindowState {
     }
 }
 
+/// Mirror-session defaults the shell persists. Device serials are not stored
+/// here: the active device is runtime state.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MirrorSettings {
+    /// Video bitrate in Mbps.
+    pub bitrate: u32,
+    pub fps: u32,
+    /// Longest side in pixels; 0 keeps the device resolution.
+    pub max_size: u32,
+    /// `h264`, `h265` or `av1`.
+    pub video_codec: String,
+    pub audio: bool,
+    pub vsync: bool,
+    pub stay_awake: bool,
+    pub turn_screen_off: bool,
+    pub auto_reconnect: bool,
+}
+
+impl Default for MirrorSettings {
+    fn default() -> Self {
+        Self {
+            bitrate: 8,
+            fps: 60,
+            max_size: 0,
+            video_codec: "h264".to_string(),
+            audio: true,
+            vsync: true,
+            stay_awake: false,
+            turn_screen_off: false,
+            auto_reconnect: true,
+        }
+    }
+}
+
+impl MirrorSettings {
+    pub(crate) const FPS: [u32; 3] = [30, 60, 90];
+    pub(crate) const SIZES: [u32; 4] = [0, 1920, 1280, 720];
+    pub(crate) const CODECS: [&'static str; 3] = ["h264", "h265", "av1"];
+
+    pub fn normalized(mut self) -> Self {
+        self.bitrate = self.bitrate.clamp(1, 50);
+        if !Self::FPS.contains(&self.fps) {
+            self.fps = 60;
+        }
+        if !Self::SIZES.contains(&self.max_size) {
+            self.max_size = 0;
+        }
+        if !Self::CODECS.contains(&self.video_codec.as_str()) {
+            self.video_codec = "h264".to_string();
+        }
+        self
+    }
+
+    /// Builds the core DTO for one device. The shell owns presentation
+    /// defaults; the core still validates every field before spawning.
+    pub fn to_config(&self, device: &str) -> open_scrcpy_core::config::ScrcpyConfig {
+        let mut config = open_scrcpy_core::config::ScrcpyConfig::mirror(device);
+        config.bitrate = Some(self.bitrate);
+        config.fps = Some(self.fps);
+        config.res = Some(if self.max_size == 0 {
+            "0".to_string()
+        } else {
+            self.max_size.to_string()
+        });
+        config.codec = Some(self.video_codec.clone());
+        config.audio_enabled = Some(self.audio);
+        config.vsync = Some(self.vsync);
+        config.stay_awake = Some(self.stay_awake);
+        config.turn_off = Some(self.turn_screen_off);
+        config.auto_reconnect = Some(self.auto_reconnect);
+        config
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AppSettings {
@@ -105,6 +180,7 @@ pub struct AppSettings {
     pub locale: String,
     pub theme: ThemePreference,
     pub window: WindowState,
+    pub mirror: MirrorSettings,
 }
 
 impl Default for AppSettings {
@@ -114,6 +190,7 @@ impl Default for AppSettings {
             locale: String::new(),
             theme: ThemePreference::System,
             window: WindowState::default(),
+            mirror: MirrorSettings::default(),
         }
     }
 }
@@ -132,6 +209,7 @@ impl AppSettings {
             self.locale.clear();
         }
         self.window = self.window.normalized();
+        self.mirror = self.mirror.normalized();
         self
     }
 
@@ -313,6 +391,63 @@ mod tests {
         assert_eq!(settings.window.height, DEFAULT_HEIGHT);
         assert_eq!(settings.window.x, None);
         assert_eq!(settings.window.y, None);
+    }
+
+    #[test]
+    fn mirror_baseline_maps_to_the_core_dto() {
+        let settings = MirrorSettings {
+            bitrate: 16,
+            fps: 90,
+            max_size: 1920,
+            video_codec: "h265".into(),
+            audio: false,
+            vsync: false,
+            stay_awake: true,
+            turn_screen_off: true,
+            auto_reconnect: false,
+        };
+        let config = settings.to_config("device1");
+        assert_eq!(config.device, "device1");
+        assert_eq!(config.bitrate, Some(16));
+        assert_eq!(config.fps, Some(90));
+        assert_eq!(config.res.as_deref(), Some("1920"));
+        assert_eq!(config.codec.as_deref(), Some("h265"));
+        assert_eq!(config.audio_enabled, Some(false));
+        assert_eq!(config.vsync, Some(false));
+        assert_eq!(config.stay_awake, Some(true));
+        assert_eq!(config.turn_off, Some(true));
+        assert_eq!(config.auto_reconnect, Some(false));
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--video-bit-rate".to_string()));
+        assert!(args.contains(&"16M".to_string()));
+        assert!(args.contains(&"--video-codec=h265".to_string()));
+        assert!(args.contains(&"--max-size".to_string()));
+        assert!(args.contains(&"1920".to_string()));
+        assert!(!args.contains(&"--audio".to_string()));
+    }
+
+    #[test]
+    fn mirror_defaults_keep_the_device_resolution() {
+        let config = MirrorSettings::default().to_config("device1");
+        assert_eq!(config.res.as_deref(), Some("0"));
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(!args.contains(&"--max-size".to_string()));
+    }
+
+    #[test]
+    fn invalid_mirror_settings_are_normalized() {
+        let settings = MirrorSettings {
+            bitrate: 500,
+            fps: 17,
+            max_size: 1234,
+            video_codec: "vp9".into(),
+            ..MirrorSettings::default()
+        }
+        .normalized();
+        assert_eq!(settings.bitrate, 50);
+        assert_eq!(settings.fps, 60);
+        assert_eq!(settings.max_size, 0);
+        assert_eq!(settings.video_codec, "h264");
     }
 
     #[test]

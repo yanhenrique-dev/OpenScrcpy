@@ -90,10 +90,10 @@ impl AppServices {
 
     /// Starts a baseline windowed mirror session. The session monitor owns the
     /// child from here; the returned task only reports start-up errors.
-    pub fn start(&self, device: &str) -> JoinHandle<Result<(), String>> {
+    pub fn start(&self, config: ScrcpyConfig) -> JoinHandle<Result<(), String>> {
         let request = SessionRequest {
             state: self.state.clone(),
-            config: ScrcpyConfig::mirror(device),
+            config,
             video_dir: self.video_dir.clone(),
             events: Some(self.events.clone()),
             host: self.host.clone(),
