@@ -17,10 +17,12 @@
 > **Execução:** a Fase 0 foi executada em 2026-11-22 neste repositório
 > (`spike/gpui/`). Resultado: **GO condicional** para a Fase 1; veja
 > [docs/experiments/2026-11-gpui-spike.md](experiments/2026-11-gpui-spike.md)
-> para a matrix, números e bloqueios. A Fase 1 começou no mesmo dia:
-> `validate`, `audio`, `capabilities`, `process`, `download`, `state`, `events`,
-> `adb`, `wireless`, `terminal`, `session`, `scrcpy` e `kwin` já estão em
-> `crates/`; veja
+> para a matrix, números e bloqueios. A Fase 1 começou no mesmo dia e foi
+> concluída em 2026-11-23: `validate`, `audio`, `capabilities`, `process`,
+> `download`, `state`, `events`, `adb`, `wireless`, `terminal`, `session`,
+> `config`, `runtime`, `scrcpy`, `mic`, `monitor` e `kwin`/`window` estão em
+> `crates/`; `commands.rs` ficou só com wrappers finos. Falta apenas o smoke
+> manual com dispositivo; veja
 > [docs/experiments/2026-11-phase-1-core.md](experiments/2026-11-phase-1-core.md).
 
 ---
@@ -282,9 +284,11 @@ Use esta matrix (preencha com PASS/FAIL e uma nota curta):
 
 ## 6. Fase 1 — Extrair o core (4–5 semanas, mergeável)
 
-> **Execução parcial (2026-11-22):** `validate`, `audio`, `capabilities`,
-> `process`, `download`, `state` e `kwin` foram extraídos com os 95 testes
-> preservados; `commands.rs` e o EventBus continuam no casco. Ver
+> **Execução (2026-11-22 → 2026-11-23):** o core, o `EventBus`, o monitor de
+> sessão, o bridge de microfone e a geometria da janela externa saíram do
+> casco com o mesmo número de testes (102 passed, 2 ignored). `commands.rs`
+> agora só tem wrappers `#[tauri::command]`; tray/atalhos/grab continuam no
+> casco por serem plugins do Tauri (abstração fica para a Fase 2). Ver
 > [docs/experiments/2026-11-phase-1-core.md](experiments/2026-11-phase-1-core.md).
 
 **Objetivo:** separar domínio de UI sem mudar comportamento. Esta fase tem valor mesmo se o GPUI for abandonado: o core fica testável sem webview.

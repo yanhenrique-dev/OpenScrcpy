@@ -20,6 +20,29 @@ pub fn create_command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     cmd
 }
 
+/// Hard-kills `pid` and, on Windows, its process tree. Synchronous so the
+/// app-exit teardown can use it outside the async runtime; best-effort and
+/// silent like every other exit-path call.
+pub fn force_kill_pid(pid: u32) {
+    if pid == 0 {
+        return;
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .output();
+    }
+}
+
 /// Runs `cmd` to completion. If it exceeds `limit`, the child is killed and a
 /// timeout error is returned. `kill_on_drop` is what turns the cancelled wait
 /// into a real SIGKILL instead of an orphan process.

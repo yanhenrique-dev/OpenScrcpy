@@ -1,9 +1,11 @@
 # Fase 1 — extração do core (progresso)
 
-> **Status:** parcial — domínio puro, EventBus e o núcleo de `adb`/devices
-> concluídos; `commands.rs` ainda está no casco Tauri, mas não emite mais
-> eventos direto na janela.
-> **Data:** 2026-11-22
+> **Status:** concluída em tudo que é mergeável. O `open-scrcpy-core` não
+> conhece Tauri/GPUI; o monitor de sessão, o bridge de microfone e a geometria
+> da janela externa saíram do casco. Restam apenas integrações que hoje são
+> plugins do Tauri (tray, atalhos globais, drag do Windows) e o smoke manual
+> com dispositivo.
+> **Datas:** 2026-11-22 (primeira passada) · 2026-11-23 (retomada)
 > **Branch:** `gpui/phase-1-core`
 > **Plano:** [docs/GPUI-MIGRATION.md](../GPUI-MIGRATION.md)
 
@@ -13,49 +15,66 @@ Dois crates novos, ligados ao `src-tauri` por path dependency:
 
 | Crate | Conteúdo | Depende de Tauri/GPUI? |
 | --- | --- | --- |
-| [`crates/open-scrcpy-core`](../../crates/open-scrcpy-core) | `validate`, `audio`, `capabilities`, `process`, `download`, `state`, `events`, `adb` (devices/connect/pair/kill/shell/push/install), `paths`, `terminal`, `wireless`, `session` (política), `config` (DTO + args/validação), `runtime` (estado retido + spawn/logs + retry/terminate), `scrcpy` (options/render drivers/versão), `report`, `update`, `download` (instalação) | não |
-| [`crates/open-scrcpy-platform`](../../crates/open-scrcpy-platform) | `kwin` (KDE Wayland/D-Bus) | não |
+| [`crates/open-scrcpy-core`](../../crates/open-scrcpy-core) | `validate`, `audio`, `capabilities`, `process` (inclui `force_kill_pid`), `download`, `state`, `events`, `adb`, `paths`, `terminal`, `wireless`, `session` (política), `config` (DTO + args/validação), `runtime` (estado retido + spawn/logs + retry/terminate), `mic` (sink virtual, rota e medidor), `monitor` (loop de sessão/reconexão), `scrcpy`, `report`, `update` | não |
+| [`crates/open-scrcpy-platform`](../../crates/open-scrcpy-platform) | `kwin` (KDE Wayland/D-Bus), `window` (captura e reposicionamento da janela do scrcpy via Win32, xdotool/KWin e osascript) | não |
 
-O `src-tauri` reexporta os módulos nos caminhos antigos:
+O `src-tauri` reexporta os módulos nos caminhos antigos, então o restante do
+casco continua compilando com `crate::validate`, `crate::process` etc.
 
-```rust
-pub use open_scrcpy_core::state::{ScrcpyState, SessionHandle, StopRequest};
-pub use open_scrcpy_core::{audio, capabilities, process, validate};
-```
+### 1.1 Fronteira do monitor
 
-Assim, `commands.rs` continua compilando sem uma reescrita de ~4.6k linhas, e o
-comportamento não muda. O único adaptador novo é
-`src-tauri/src/download.rs`: ele resolve `app_data_dir()` e delega ao core
-`init_install_dir(Option<PathBuf>)`.
+`core::monitor::run_session(SessionRequest)` recebe tudo o que é nativo já
+resolvido pelo casco:
+
+- `Arc<ScrcpyState>` e `Option<EventBus>` (estado e eventos);
+- `video_dir` (o core não pergunta a um toolkit de UI onde ficam os vídeos);
+- `Arc<dyn SessionHost>` (KWin, Win32 e `force_kill` entram por esse trait).
+
+`commands::run_scrcpy` ficou com ~25 linhas: resolve `video_dir`, monta a
+requisição com `TauriSessionHost` e delega. Nada de `window.emit`, nada de
+`AppHandle` dentro da política de sessão.
+
+### 1.2 Fronteira do microfone
+
+`core::mic` é `unix`-only e recebe `Option<&EventBus>`. O casco só chama
+`restore_default_source_sync`/`teardown_mic_sink` no `RunEvent::Exit`, que é
+síncrono e não tem runtime.
+
+### 1.3 Geometria da janela
+
+`platform::window` concentra os três backends (`EnumWindows`/`ClientToScreen`,
+`xdotool` + cache do KWin, `osascript`). O `TauriSessionHost` apenas encaminha.
+O comando de recentralizar continua no casco porque lê o PID em
+`ScrcpyState`.
 
 ## 2. Preservação de comportamento
 
-| Evidência | Antes | Depois |
+| Evidência | Antes da extração | Depois |
 | --- | --- | --- |
-| Testes Rust do app | 95 passed, 2 ignored | 35 passed no app |
-| Testes do core | — | 63 passed, 1 ignored |
-| Testes da platform | — | 4 passed, 1 ignored |
-| **Total** | **95 passed, 2 ignored** | **102 passed, 2 ignored** |
+| Testes Rust do app | 95 passed, 2 ignored | 25 passed |
+| Testes do core | — | 72 passed, 1 ignored |
+| Testes da platform | — | 5 passed, 1 ignored |
+| **Total Rust** | **95 passed, 2 ignored** | **102 passed, 2 ignored** |
 | Frontend (Vitest) | — | 166 passed (33 arquivos) |
 | `npm run lint` | — | 0 erros, 0 warnings |
 
-Nenhum teste foi removido: os testes dos módulos moveram junto com o código.
+Nenhum teste foi removido nem silenciado: os 10 testes que dependiam das
+funções movidas foram para o crate de destino (`parse_shell_var_int` →
+platform; regras de modo/áudio/janela e o filtro do sink → core).
 
-Gates executados:
+Gates da retomada (2026-11-23):
 
 - `cargo fmt --check` nos três pacotes — PASS
 - `cargo clippy --all-targets -- -D warnings` nos três — PASS
-- `cargo test` nos três — PASS
+- `cargo test` nos três — PASS (102 passed, 2 ignored)
 - `npm run lint` — PASS
-- `npm test` — PASS
-- `npm run tauri build -- --no-bundle` — PASS (ver seção 6)
-- `npm audit --omit=dev --audit-level=high` — PASS (0 vulnerabilidades)
-- `cargo audit --file src-tauri/Cargo.lock` — **FAIL pré-existente**
-  (`RUSTSEC-2024-0429`, `glib 0.18.5` via Tauri/GTK; a mesma versão está no
-  `HEAD`, então o advisory não foi introduzido por esta extração). Não há
-  upgrade sem mexer na stack GTK do Tauri.
-- `cargo audit` do core — PASS (0 vulnerabilidades); o da platform só reporta
-  avisos de manutenção (`zbus_names`, `zvariant`, sem upgrade disponível).
+- `npm test` — PASS (166)
+- `npm run tauri build -- --no-bundle` — PASS
+- `npm audit --omit=dev --audit-level=high` — PASS
+- `cargo audit --file src-tauri/Cargo.lock` — **FAIL pré-existente**:
+  `RUSTSEC-2026-0594` (`cookie`) e `RUSTSEC-2026-0592` (`url`), herdadas do
+  Tauri. O lock de `HEAD` produz exatamente os mesmos 2 erros e 6 avisos;
+  nenhum advisory novo veio da extração.
 
 ## 3. Decisões
 
@@ -72,10 +91,12 @@ extraídos. O CI ganhou um passo explícito para eles, com
 
 O workspace na raiz fica para o cutover (Fase 6), quando o Tauri sair.
 
-### 3.2 O core não conhece janela
+### 3.2 O core não conhece janela nem AppHandle
 
-`download::init_install_dir` agora recebe `Option<PathBuf>`; quem resolve o
-app-data é o casco. `state` não tem `Window`/`AppHandle`. `kwin` só fala D-Bus.
+`download::init_install_dir` recebe `Option<PathBuf>`; `monitor` recebe
+`SessionHost`; `mic` recebe o `EventBus`; `state` não tem `Window`/`AppHandle`.
+O único arquivo do casco que ainda chama `window.emit` é
+[`src-tauri/src/events.rs`](../../src-tauri/src/events.rs).
 
 ### 3.3 EventBus sem perda de eventos
 
@@ -86,101 +107,89 @@ evento já era enfileirado para a webview. Se o consumo da UI parar, o canal
 cresce como a fila antiga crescia — trocar por um limite com política de
 descarte fica para a fase de performance.
 
-### 3.4 `Capabilities::for_test` virou público
+### 3.4 `Capabilities::for_test` é público
 
-Os testes de `commands.rs` usam esse construtor. Como `commands.rs` ainda está
-no casco, o helper precisou cruzar a fronteira. É um construtor de teste
+Os testes usam esse construtor em vários módulos. É um helper de teste
 documentado, não um caminho de produção.
+
+### 3.5 Base da branch
+
+O plano pedia para partir de `main` com `AGENTS.md`/`.opencode/` já
+versionados. A branch `gpui/phase-1-core` foi criada a partir de
+`local/all-fixes`, que está 2 commits à frente de `main` (reconexão automática
+e o ajuste do bridge de microfone). Isso é intencional — o core extraído
+precisa refletir o código que está sendo shipado —, mas o PR deve declarar a
+base e decidir se esses commits entram junto ou se a extração é reaplicada
+sobre `main`.
+
+### 3.6 Tray, atalhos e grab continuam no casco
+
+`tray.rs` usa `tauri::tray`; `shortcuts.rs` usa
+`tauri_plugin_global_shortcut`; `grab.rs` usa `AppHandle` e o plugin de
+atalhos. Movê-los para `open-scrcpy-platform` exige uma abstração de tray e de
+hotkeys que só se paga quando o GPUI substituir o casco (Fase 2). Tentar movê-los
+agora criaria uma camada de indireção sem segundo consumidor — exatamente o
+over-engineering que o plano manda evitar.
 
 ## 4. O que ainda falta para fechar a Fase 1
 
 | Item | Situação |
 | --- | --- |
-| `commands.rs` (~3.0k linhas, 35 testes) | ainda no `src-tauri` |
-| `window.emit` / `AppHandle` como barramento | **concluído**: 96 emissões passam pelo `EventBus` |
-| loop `run_scrcpy`/monitor, `grab`/`shortcuts`/`tray` | ainda no `src-tauri` |
-| `grab.rs` (Windows), `shortcuts.rs`, `tray.rs` | ainda no `src-tauri` |
+| `commands.rs` (745 linhas, 25 testes) | só wrappers `#[tauri::command]` + `teardown_sessions` |
+| `window.emit` / `AppHandle` como barramento | **concluído**: o único emissor é `events.rs` |
+| loop `run_scrcpy`/monitor e reconexão | **concluído** → `core::monitor` |
+| bridge de microfone (sink, rota, medidor) | **concluído** → `core::mic` |
+| geometria da janela externa | **concluído** → `platform::window` |
+| `grab.rs` (Windows), `shortcuts.rs`, `tray.rs` | permanecem no casco (plugins do Tauri; ver 3.6) |
 | Workspace na raiz | adiado para o cutover |
 | Contrato de eventos (`AppEvent`/`EventBus`) | concluído + teste de contrato |
+| Smoke manual (espelhar, câmera, desktop, mic, wireless, arquivos, tray, atalhos, update) | **pendente** — exige dispositivo e o 2.0 fechado |
 
-O núcleo de **adb/devices** também saiu: `parse_adb_device_line`,
-`extract_device_model`, `parse_device_list`, `check_scrcpy`, `list_devices`,
-`list_mdns_services`, `connect`, `pair`, `kill_server`, `shell`, `push_file`,
-`install_apk` e `goto_wireless` vivem no core. `split_args`/limite de saída e
-o executor do terminal também foram para `terminal.rs`; os wrappers Tauri
-mantêm os mesmos nomes e argumentos de IPC.
-
-Da sessão, a **política pura** saiu para `session.rs` (payload de término,
-backoff, auto-reconnect, `dumpsys power`, posição da janela), a
-**configuração/argumentos** saiu para `config.rs` e o **estado retido** do
-monitor (`SessionRuntime`/`RetryContext`) e o encanamento de processo
-(`spawn_scrcpy_streams` + leitores de log com `EventBus`), o término do
-processo e o retry de codec saíram para `runtime.rs`. O KWin entra por uma
-interface `SessionHost` (tracking, captura de janela e kill) implementada em
-`src-tauri/src/session_adapter.rs`. `stop_scrcpy` e os finalizadores
-(`emit_window_pos_and_stop`, `finish_stopped_session`,
-`finish_if_session_gone`) também saíram. Gerações e liveness viraram métodos de
-`ScrcpyState`. Só o loop e o `run_scrcpy` continuam no casco.
-
-O **EventBus** foi concluído: `open_scrcpy_core::events` define `AppEvent` e
-`EventBus`; `src-tauri/src/events.rs` é o único lugar que ainda chama
-`window.emit` e reemite os seis nomes atuais (`scrcpy-log`, `scrcpy-status`,
-`scrcpy-window-pos`, `scrcpy-audio-status`, `mic-route`, `mic-level`). As 96
-emissões de `commands.rs` foram substituídas, e um teste puro valida nome +
-payload de cada evento.
-
-A entrega em runtime do adaptador não foi exercitada porque o OpenScrcpy 2.0
-estava em execução e o plugin single-instance impede abrir o binário de
-desenvolvimento. O `encode` do adaptador está coberto por teste; falta um
-smoke com o 2.0 fechado.
+A entrega em runtime do adaptador não foi exercitada porque o plugin
+single-instance impede abrir o binário de desenvolvimento com o OpenScrcpy 2.0
+aberto. O `encode` do adaptador e o contrato dos seis eventos estão cobertos
+por teste; falta o smoke com o 2.0 fechado.
 
 ## 5. Arquivos tocados
 
-- [`crates/open-scrcpy-core/src/lib.rs`](../../crates/open-scrcpy-core/src/lib.rs)
-- [`crates/open-scrcpy-core/src/state.rs`](../../crates/open-scrcpy-core/src/state.rs)
-- [`crates/open-scrcpy-core/src/validate.rs`](../../crates/open-scrcpy-core/src/validate.rs)
-- [`crates/open-scrcpy-core/src/audio.rs`](../../crates/open-scrcpy-core/src/audio.rs)
-- [`crates/open-scrcpy-core/src/capabilities.rs`](../../crates/open-scrcpy-core/src/capabilities.rs)
-- [`crates/open-scrcpy-core/src/process.rs`](../../crates/open-scrcpy-core/src/process.rs)
-- [`crates/open-scrcpy-core/src/download.rs`](../../crates/open-scrcpy-core/src/download.rs)
-- [`crates/open-scrcpy-core/src/events.rs`](../../crates/open-scrcpy-core/src/events.rs)
-- [`crates/open-scrcpy-core/src/adb.rs`](../../crates/open-scrcpy-core/src/adb.rs)
-- [`crates/open-scrcpy-core/src/paths.rs`](../../crates/open-scrcpy-core/src/paths.rs)
-- [`crates/open-scrcpy-core/src/terminal.rs`](../../crates/open-scrcpy-core/src/terminal.rs)
-- [`crates/open-scrcpy-core/src/wireless.rs`](../../crates/open-scrcpy-core/src/wireless.rs)
-- [`crates/open-scrcpy-core/src/session.rs`](../../crates/open-scrcpy-core/src/session.rs)
-- [`crates/open-scrcpy-core/src/config.rs`](../../crates/open-scrcpy-core/src/config.rs)
-- [`crates/open-scrcpy-core/src/runtime.rs`](../../crates/open-scrcpy-core/src/runtime.rs)
-- [`crates/open-scrcpy-core/src/scrcpy.rs`](../../crates/open-scrcpy-core/src/scrcpy.rs)
-- [`crates/open-scrcpy-core/src/report.rs`](../../crates/open-scrcpy-core/src/report.rs)
-- [`crates/open-scrcpy-core/src/update.rs`](../../crates/open-scrcpy-core/src/update.rs)
-- [`src-tauri/src/session_adapter.rs`](../../src-tauri/src/session_adapter.rs)
-- [`src-tauri/src/events.rs`](../../src-tauri/src/events.rs)
-- [`crates/open-scrcpy-platform/src/kwin.rs`](../../crates/open-scrcpy-platform/src/kwin.rs)
-- [`src-tauri/src/lib.rs`](../../src-tauri/src/lib.rs) — reexports
-- [`src-tauri/src/download.rs`](../../src-tauri/src/download.rs) — adaptador
-- [`src-tauri/Cargo.toml`](../../src-tauri/Cargo.toml) — path deps
+Core:
+
+- [`lib.rs`](../../crates/open-scrcpy-core/src/lib.rs), [`state.rs`](../../crates/open-scrcpy-core/src/state.rs),
+  [`validate.rs`](../../crates/open-scrcpy-core/src/validate.rs), [`audio.rs`](../../crates/open-scrcpy-core/src/audio.rs),
+  [`capabilities.rs`](../../crates/open-scrcpy-core/src/capabilities.rs), [`process.rs`](../../crates/open-scrcpy-core/src/process.rs),
+  [`download.rs`](../../crates/open-scrcpy-core/src/download.rs), [`events.rs`](../../crates/open-scrcpy-core/src/events.rs),
+  [`adb.rs`](../../crates/open-scrcpy-core/src/adb.rs), [`paths.rs`](../../crates/open-scrcpy-core/src/paths.rs),
+  [`terminal.rs`](../../crates/open-scrcpy-core/src/terminal.rs), [`wireless.rs`](../../crates/open-scrcpy-core/src/wireless.rs),
+  [`session.rs`](../../crates/open-scrcpy-core/src/session.rs), [`config.rs`](../../crates/open-scrcpy-core/src/config.rs),
+  [`runtime.rs`](../../crates/open-scrcpy-core/src/runtime.rs), [`scrcpy.rs`](../../crates/open-scrcpy-core/src/scrcpy.rs),
+  [`report.rs`](../../crates/open-scrcpy-core/src/report.rs), [`update.rs`](../../crates/open-scrcpy-core/src/update.rs)
+- novos: [`mic.rs`](../../crates/open-scrcpy-core/src/mic.rs), [`monitor.rs`](../../crates/open-scrcpy-core/src/monitor.rs)
+
+Platform:
+
+- [`kwin.rs`](../../crates/open-scrcpy-platform/src/kwin.rs), [`lib.rs`](../../crates/open-scrcpy-platform/src/lib.rs),
+  [`Cargo.toml`](../../crates/open-scrcpy-platform/Cargo.toml) (dep `windows`)
+- novo: [`window.rs`](../../crates/open-scrcpy-platform/src/window.rs)
+
+Casco:
+
+- [`commands.rs`](../../src-tauri/src/commands.rs), [`events.rs`](../../src-tauri/src/events.rs),
+  [`session_adapter.rs`](../../src-tauri/src/session_adapter.rs), [`lib.rs`](../../src-tauri/src/lib.rs),
+  [`download.rs`](../../src-tauri/src/download.rs), [`Cargo.toml`](../../src-tauri/Cargo.toml)
 - [`.github/workflows/pull_request.yml`](../../.github/workflows/pull_request.yml) — CI dos crates
 - `AGENTS.md`, `CONTRIBUTING.md`, `.github/pull_request_template.md`,
   `.opencode/skills/quality-workflow/SKILL.md` — caminho da validação
 
 ## 6. Build
 
-`npm run tauri build -- --no-bundle` — **PASS** (2026-11-22), re-executado
-depois do estado em `Arc`. O Vite gerou o frontend em 6,05 s e o binário
-release foi linkado em 35,18 s, terminando em
-`src-tauri/target/release/openscrcpy`.
-
-`zip`, `flate2`, `tar` e `sha2` saíram das dependências diretas do
-`src-tauri` (agora vivem só no core).
+`npm run tauri build -- --no-bundle` — **PASS** nas duas passadas. A retomada
+re-executou o build depois de mover o monitor e o microfone.
 
 ## 7. Próximos passos
 
-1. Introduzir `AppEvent` + `EventBus` no core, com um adapter Tauri que
-   reemite `scrcpy-log` e `scrcpy-status` sem mudar o frontend.
-2. Mover o restante de `commands.rs` por domínio (`session`/`run_scrcpy`,
-   `files`, `update`, `mic`), mantendo wrappers finos. `adb`, `devices`,
-   `wireless` e o terminal já saíram.
-3. Mover `tray`/`shortcuts` para a platform crate e `grab` para a mesma camada
-   com `cfg(windows)`.
-4. Só então avaliar o workspace na raiz.
+1. Smoke manual com o OpenScrcpy 2.0 fechado: espelhar, câmera, desktop, mic,
+   wireless, push de arquivo, download, tray, atalhos e checagem de update.
+2. Marcar a Fase 1 como fechada no plano e abrir o PR de refactor (movimentos
+   separados de mudanças, diff revisável).
+3. Na Fase 2, ao criar o casco GPUI, extrair tray/hotkeys via trait `Platform`
+   — aí sim com um segundo consumidor real.

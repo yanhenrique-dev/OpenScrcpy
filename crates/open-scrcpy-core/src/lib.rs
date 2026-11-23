@@ -11,6 +11,8 @@ pub mod capabilities;
 pub mod config;
 pub mod download;
 pub mod events;
+pub mod mic;
+pub mod monitor;
 pub mod paths;
 pub mod process;
 pub mod report;

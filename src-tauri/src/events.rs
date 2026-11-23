@@ -26,35 +26,13 @@ pub fn bus() -> Option<&'static EventBus> {
     BUS.get()
 }
 
-fn with_bus(emit: impl FnOnce(&EventBus)) {
-    if let Some(bus) = BUS.get() {
-        emit(bus);
-    }
-}
-
-pub fn log(line: impl Into<String>) {
-    with_bus(|bus| bus.log(line));
-}
-
 /// Concrete-`String` adapter for core functions that accept `Fn(String)`.
+/// The core publishes everything else through the bus it receives; this shell
+/// only has to adapt the two `Fn(String)` log hooks still passed by value.
 pub fn log_line(line: String) {
-    log(line);
-}
-
-pub fn status(payload: serde_json::Value) {
-    with_bus(|bus| bus.status(payload));
-}
-
-pub fn audio_status(payload: serde_json::Value) {
-    with_bus(|bus| bus.audio_status(payload));
-}
-
-pub fn mic_route(display: impl Into<String>, routed: bool) {
-    with_bus(|bus| bus.mic_route(display, routed));
-}
-
-pub fn mic_level(db: f64) {
-    with_bus(|bus| bus.mic_level(db));
+    if let Some(bus) = BUS.get() {
+        bus.log(line);
+    }
 }
 
 fn spawn_forwarder(app: AppHandle, mut receiver: EventReceiver) {

@@ -25,10 +25,10 @@ impl SessionIntegration for TauriSessionHost {
 
 impl SessionHost for TauriSessionHost {
     fn capture_window_position(&self, pid: u32) -> Option<(i32, i32)> {
-        crate::commands::try_capture_window_pos(pid)
+        open_scrcpy_platform::window::try_capture_window_pos(pid)
     }
 
     fn force_kill(&self, pid: u32) {
-        crate::commands::force_kill_pid(pid);
+        open_scrcpy_core::process::force_kill_pid(pid);
     }
 }
