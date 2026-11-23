@@ -307,8 +307,6 @@ mod tests {
         assert_eq!(cameras[0].name, "0: A");
     }
 
-    use super::*;
-
     #[cfg(unix)]
     #[tokio::test]
     async fn local_version_times_out_on_hung_binary() {

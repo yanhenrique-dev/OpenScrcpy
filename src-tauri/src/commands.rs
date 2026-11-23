@@ -176,11 +176,15 @@ pub async fn run_scrcpy(
 mod tests {
     use super::*;
     use crate::config::{build_scrcpy_args, sanitize_filename_component};
+    #[cfg(unix)]
     use crate::runtime::terminate_child;
     use crate::{bump_session_generation, session_generation_is_current};
     use std::collections::HashMap;
+    #[cfg(unix)]
     use std::process::{Command as StdCommand, Stdio};
+    #[cfg(unix)]
     use std::time::Duration;
+    #[cfg(unix)]
     use tokio::io::{AsyncBufReadExt, BufReader};
     #[cfg(unix)]
     use tokio::process::Command as TokioCommand;
