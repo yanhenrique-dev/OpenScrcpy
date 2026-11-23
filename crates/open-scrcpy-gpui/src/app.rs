@@ -15,8 +15,9 @@ use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AppContext as _, ClipboardItem, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, Role, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Subscription, SystemNotification, TestSupportExt as _, Window, WindowBounds, div, relative,
+    ParentElement as _, PathPromptOptions, Render, Role, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Subscription, SystemNotification,
+    TestSupportExt as _, Window, WindowBounds, div, relative,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use open_scrcpy_platform::shortcuts::PlatformCommand;
@@ -390,6 +391,72 @@ impl AppShell {
         cx.notify();
     }
 
+    fn pick_files(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        let prompt: SharedString = t!("sidebar.flashPushFiles").to_string().into();
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: true,
+            prompt: Some(prompt),
+        });
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let Ok(selection) = receiver.await else {
+                return;
+            };
+            let Ok(Some(paths)) = selection else {
+                return;
+            };
+            for path in paths {
+                let is_apk = path
+                    .extension()
+                    .and_then(|extension| extension.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("apk"));
+                let path = path.to_string_lossy().to_string();
+                let outcome = if is_apk {
+                    services.install_apk(device.clone(), path.clone()).await
+                } else {
+                    services.push_file(device.clone(), path.clone()).await
+                };
+                let done = this
+                    .update(cx, |shell, cx| {
+                        shell.log_transfer(&path, is_apk, outcome);
+                        cx.notify();
+                    })
+                    .is_ok();
+                if !done {
+                    break;
+                }
+            }
+        })
+        .detach();
+    }
+
+    fn log_transfer(
+        &mut self,
+        path: &str,
+        is_apk: bool,
+        outcome: Result<Value, tokio::task::JoinError>,
+    ) {
+        match outcome {
+            Ok(value) if value.get("success").and_then(Value::as_bool) == Some(true) => {
+                let action = if is_apk { "Installed" } else { "Pushed" };
+                self.push_log(format!("[SYSTEM] {action} {path}"));
+            }
+            Ok(value) => self.push_error(
+                value
+                    .get("message")
+                    .and_then(Value::as_str)
+                    .unwrap_or("transfer failed")
+                    .to_string(),
+            ),
+            Err(error) => self.push_error(error.to_string()),
+        }
+    }
+
     fn connect_wireless(&mut self, cx: &mut Context<Self>) {
         let address = self.wireless_address.read(cx).value().trim().to_string();
         if address.is_empty() || self.wireless_busy {
@@ -658,6 +725,12 @@ impl AppShell {
                 )
             })
             .children(rows)
+            .child(
+                Button::new("push-files")
+                    .label(t!("sidebar.flashPushFiles").to_string())
+                    .disabled(self.active_device.is_none())
+                    .on_click(cx.listener(|this, _, _, cx| this.pick_files(cx))),
+            )
             .child(
                 div()
                     .flex()

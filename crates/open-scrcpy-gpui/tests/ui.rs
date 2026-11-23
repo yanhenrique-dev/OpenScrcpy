@@ -60,6 +60,12 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
+        // File transfer is available from the sidebar (disabled without a device).
+        assert_eq!(
+            window.find("push-files").label(),
+            Some("Flash / Push Files")
+        );
+
         // The console exposes the parity actions.
         assert_eq!(window.find("console-clear").label(), Some("Clear"));
         assert_eq!(window.find("console-copy").label(), Some("Copy"));

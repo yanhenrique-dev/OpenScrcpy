@@ -52,6 +52,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Wireless:** a sidebar tem `IP Connect` e `Start Pairing` ligados a
   `core::adb::connect`/`pair`; os passos e erros do adb vão para o console e o
   dispositivo conectado aparece no hub no próximo polling.
+- **Arquivos:** "Flash / Push Files" abre o seletor nativo (portal) e envia
+  cada arquivo escolhido com `core::adb::push_file`; arquivos `.apk` vão por
+  `install_apk`. Resultado e erros entram no console. O botão fica desabilitado
+  sem dispositivo; drag-and-drop externo ainda não está ligado.
 - **Serviços de plataforma:** instância única por sessão de usuário e atalho
   global `Ctrl+Alt+Shift+C` para recentralizar a janela do espelho ativo. A
   falha de registro é não-fatal e vai para o stderr.
@@ -162,6 +166,6 @@ comportamento esperado durante a convivência dos dois cascos.
 5. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.
 6. mDNS/histórico do wireless e arquivos/terminal/relatório.
 7. Tray/background: depende de API pública de hide/show (bloqueio 4.1).
-8. Arquivos (push/APK), terminal e updater.
+8. Drag-and-drop externo, terminal no console e updater.
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave
    `modeUnavailable` quando as quatro abas estiverem implementadas.

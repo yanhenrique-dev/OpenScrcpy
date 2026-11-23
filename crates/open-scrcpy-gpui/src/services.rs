@@ -132,6 +132,16 @@ impl AppServices {
         self.runtime.spawn(async { adb::list_devices(None).await })
     }
 
+    pub fn push_file(&self, device: String, path: String) -> JoinHandle<serde_json::Value> {
+        self.runtime
+            .spawn(async move { adb::push_file(&device, &path, None).await })
+    }
+
+    pub fn install_apk(&self, device: String, path: String) -> JoinHandle<serde_json::Value> {
+        self.runtime
+            .spawn(async move { adb::install_apk(&device, &path, None).await })
+    }
+
     /// Kills every tracked session synchronously; used from the window close
     /// handler before the process exits.
     pub fn teardown(&self) {
