@@ -334,6 +334,7 @@ export const ar: Translations = {
         clear: 'مسح',
         waitingForSequence: 'في انتظار التسلسل...',
         terminalPlaceholder: 'أدخل أمرًا (مثل: adb shell أو scrcpy --help)...',
+        run: 'تشغيل',
         diagnosticReportSaved: 'تم حفظ تقرير التشخيص في مجلد التنزيلات: {fileName}',
         reportSavedAlert: 'تم حفظ التقرير في مجلد التنزيلات: {fileName}'
     },

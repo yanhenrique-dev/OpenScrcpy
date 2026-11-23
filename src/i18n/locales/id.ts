@@ -331,6 +331,7 @@ languages: {
         clear: 'Hapus',
         waitingForSequence: 'Menunggu urutan...',
         terminalPlaceholder: 'Masukkan perintah (mis. adb shell, scrcpy --help)...',
+        run: 'Jalankan',
         diagnosticReportSaved: 'Laporan diagnostik disimpan ke Unduhan: {fileName}',
         reportSavedAlert: 'Laporan disimpan ke Unduhan: {fileName}'
     },

@@ -332,6 +332,7 @@ export const en = {
         clear: 'Clear',
         waitingForSequence: 'Waiting for sequence...',
         terminalPlaceholder: 'Enter command (e.g. adb shell, scrcpy --help)...',
+        run: 'Run',
         diagnosticReportSaved: 'Diagnostic report saved to Downloads: {fileName}',
         reportSavedAlert: 'Report saved to Downloads: {fileName}'
     },

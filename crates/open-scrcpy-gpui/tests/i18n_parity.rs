@@ -126,7 +126,7 @@ fn catalog() -> BTreeMap<String, BTreeMap<String, String>> {
 #[test]
 fn catalog_has_every_supported_locale_for_every_key() {
     let leaves = catalog();
-    assert_eq!(leaves.len(), 391, "unexpected number of keys");
+    assert_eq!(leaves.len(), 392, "unexpected number of keys");
     for (key, translations) in &leaves {
         let present: BTreeSet<_> = translations.keys().map(String::as_str).collect();
         let expected: BTreeSet<_> = SUPPORTED_LOCALES.into_iter().collect();

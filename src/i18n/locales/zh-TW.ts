@@ -331,6 +331,7 @@ export const zhTW: Translations = {
         clear: '清除',
         waitingForSequence: '等待指令...',
         terminalPlaceholder: '輸入指令 (例如 adb shell)...',
+        run: '執行',
         diagnosticReportSaved: '報告已儲存：{fileName}',
         reportSavedAlert: '報告已儲存：{fileName}'
     },

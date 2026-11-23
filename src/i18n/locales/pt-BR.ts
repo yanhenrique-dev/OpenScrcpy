@@ -331,6 +331,7 @@ export const ptBR: Translations = {
         clear: 'Limpar',
         waitingForSequence: 'Aguardando sequência...',
         terminalPlaceholder: 'Digite um comando (ex.: adb shell, scrcpy --help)...',
+        run: 'Executar',
         diagnosticReportSaved: '[SYSTEM] Relatório de diagnóstico salvo em Downloads: {fileName}',
         reportSavedAlert: 'Relatório salvo em Downloads: {fileName}'
     },

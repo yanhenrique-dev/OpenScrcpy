@@ -128,6 +128,16 @@ impl AppServices {
             .spawn(async move { adb::pair(move |line| bus.log(line), &address, &code, None).await })
     }
 
+    pub fn run_terminal(
+        &self,
+        device: Option<String>,
+        command: String,
+    ) -> JoinHandle<serde_json::Value> {
+        self.runtime.spawn(async move {
+            open_scrcpy_core::terminal::run_command(device.as_deref(), &command, None).await
+        })
+    }
+
     pub fn list_mdns(&self) -> JoinHandle<serde_json::Value> {
         self.runtime
             .spawn(async { adb::list_mdns_services(None).await })

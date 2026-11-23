@@ -2742,6 +2742,15 @@ logPanel:
     ru: "Введите команду (например, adb shell, scrcpy --help)..."
     id: "Masukkan perintah (mis. adb shell, scrcpy --help)..."
     ar: "أدخل أمرًا (مثل: adb shell أو scrcpy --help)..."
+  run:
+    en: "Run"
+    fr: "Exécuter"
+    pt-BR: "Executar"
+    zh-CN: "运行"
+    zh-TW: "執行"
+    ru: "Выполнить"
+    id: "Jalankan"
+    ar: "تشغيل"
   diagnosticReportSaved:
     en: "Diagnostic report saved to Downloads: %{fileName}"
     fr: "[SYSTEM] Rapport de diagnostic enregistré dans Téléchargements : %{fileName}"

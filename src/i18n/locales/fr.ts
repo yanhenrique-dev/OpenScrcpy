@@ -331,6 +331,7 @@ export const fr: Translations = {
         clear: 'Effacer',
         waitingForSequence: 'En attente de la séquence...',
         terminalPlaceholder: 'Saisissez une commande (ex. adb shell, scrcpy --help)...',
+        run: 'Exécuter',
         diagnosticReportSaved: '[SYSTEM] Rapport de diagnostic enregistré dans Téléchargements : {fileName}',
         reportSavedAlert: 'Rapport enregistré dans Téléchargements : {fileName}'
     },

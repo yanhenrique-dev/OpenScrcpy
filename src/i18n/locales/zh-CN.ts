@@ -331,6 +331,7 @@ export const zhCN: Translations = {
         clear: '清除',
         waitingForSequence: '等待指令...',
         terminalPlaceholder: '输入命令（例如 adb shell）...',
+        run: '运行',
         diagnosticReportSaved: '报告已保存：{fileName}',
         reportSavedAlert: '报告已保存：{fileName}'
     },

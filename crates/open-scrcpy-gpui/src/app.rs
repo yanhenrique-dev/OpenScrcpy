@@ -182,6 +182,8 @@ pub struct AppShell {
     mic_db: Option<f64>,
     renderers: Vec<(String, String)>,
     discovered: Vec<DiscoveredService>,
+    terminal_input: Entity<InputState>,
+    terminal_busy: bool,
 }
 
 impl AppShell {
@@ -264,6 +266,9 @@ impl AppShell {
             InputState::new(window, cx)
                 .placeholder(t!("sidebar.pairingCodePlaceholder").to_string())
         });
+        let terminal_input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
+        });
 
         Self {
             settings,
@@ -287,6 +292,8 @@ impl AppShell {
             mic_db: None,
             renderers: Vec::new(),
             discovered: Vec::new(),
+            terminal_input,
+            terminal_busy: false,
         }
     }
 
@@ -1969,6 +1976,50 @@ impl AppShell {
             )
     }
 
+    fn run_terminal_command(&mut self, cx: &mut Context<Self>) {
+        let command = self.terminal_input.read(cx).value().trim().to_string();
+        if command.is_empty() || self.terminal_busy {
+            return;
+        }
+        self.terminal_busy = true;
+        self.push_log(format!("> {command}"));
+        cx.notify();
+
+        let device = self.active_device.clone();
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.run_terminal(device, command).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.terminal_busy = false;
+                match result {
+                    Ok(value) => {
+                        let stdout = value
+                            .get("stdout")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default();
+                        let stderr = value
+                            .get("stderr")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default();
+                        for line in stdout.lines().chain(stderr.lines()) {
+                            if !line.trim().is_empty() {
+                                shell.push_log(format!("[TERMINAL] {line}"));
+                            }
+                        }
+                        if value.get("success").and_then(Value::as_bool) != Some(true)
+                            && let Some(message) = value.get("message").and_then(Value::as_str)
+                        {
+                            shell.push_error(message.to_string());
+                        }
+                    }
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
     fn clear_console(&mut self, cx: &mut Context<Self>) {
         if !self.logs.is_empty() {
             self.logs.clear();
@@ -2067,6 +2118,21 @@ impl AppShell {
                         Button::new("console-report")
                             .label(t!("logPanel.report").to_string())
                             .on_click(cx.listener(|this, _, _, cx| this.save_report(cx))),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .px_4()
+                    .pb_2()
+                    .child(Input::new(&self.terminal_input).flex_1())
+                    .child(
+                        Button::new("terminal-run")
+                            .label(t!("logPanel.run").to_string())
+                            .disabled(self.terminal_busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.run_terminal_command(cx))),
                     ),
             )
             .child(

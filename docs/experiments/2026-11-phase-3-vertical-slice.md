@@ -31,6 +31,8 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
   A toolbar tem **Clear**, **Copy** (clipboard do sistema) e **Report** (JSON de
   diagnóstico em Downloads com versão, locale, tema, modo, dispositivos e logs).
+  Um campo de terminal executa `adb`/`scrcpy` (parse e allowlist no core,
+  output limitado a 256 KiB) e despeja stdout/stderr no console.
 - **Notificações nativas:** fim inesperado de sessão (erro ou saída não
   solicitada) dispara `SystemNotification` com o dispositivo; parada manual não
   notifica.
@@ -153,7 +155,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
-| 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report) |
+| 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report, terminal adb/scrcpy) |
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única e recenter global prontos; tray/background bloqueados (4.1); drag-drop pendente |

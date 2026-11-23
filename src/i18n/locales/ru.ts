@@ -339,6 +339,7 @@ export const ru: Translations = {
     clear: 'Очистить',
     waitingForSequence: 'Ожидание последовательности...',
     terminalPlaceholder: 'Введите команду (например, adb shell, scrcpy --help)...',
+    run: 'Выполнить',
     diagnosticReportSaved: 'Диагностический отчёт сохранён в Загрузки: {fileName}',
     reportSavedAlert: 'Отчёт сохранён в Загрузки: {fileName}',
   },
