@@ -404,6 +404,11 @@ Cada fatia entrega UI + ligação com o core + testes + i18n + acessibilidade + 
 
 **Portão:** matrix de plataformas assinada; nenhum bloqueador de acessibilidade; RTL com decisão explícita.
 
+> **Execução parcial (2026-11-23):** auditoria AccessKit automatizada cobre os
+> três estados do shell (principal, idioma, Sobre) e o console ganhou
+> `Role::Log`; leitor de tela real e RTL continuam pendentes. Ver
+> [docs/experiments/2026-11-phase-4-a11y.md](experiments/2026-11-phase-4-a11y.md).
+
 ---
 
 ## 10. Fase 5 — Empacotamento, updater e release (3–4 semanas)

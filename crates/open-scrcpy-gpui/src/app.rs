@@ -2543,6 +2543,8 @@ impl AppShell {
             .child(
                 div()
                     .id("console-body")
+                    .role(Role::Log)
+                    .aria_label(t!("logPanel.systemConsole").to_string())
                     .flex()
                     .flex_col()
                     .flex_1()
