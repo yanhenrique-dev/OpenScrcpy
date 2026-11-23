@@ -22,6 +22,7 @@ use gpui_kit::{
     StatefulInteractiveElement as _, Styled as _, Subscription, SystemNotification,
     TestSupportExt as _, Window, WindowBounds, div, relative,
 };
+use open_scrcpy_core::capabilities::Capabilities;
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use open_scrcpy_core::scrcpy::CameraInfo;
 use open_scrcpy_platform::shortcuts::PlatformCommand;
@@ -207,6 +208,7 @@ pub struct AppShell {
     console_scroll: ScrollHandle,
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
+    capabilities: Option<Capabilities>,
     desktop_width: Entity<SliderState>,
     desktop_height: Entity<SliderState>,
     desktop_dpi: Entity<SliderState>,
@@ -252,6 +254,7 @@ impl AppShell {
             spawn_renderer_load(cx, services.clone());
             spawn_wireless_discovery(cx, services.clone());
             spawn_core_check(cx, services.clone());
+            spawn_capability_load(cx, services.clone());
         }
 
         let bitrate = cx.new(|_| {
@@ -388,6 +391,7 @@ impl AppShell {
             console_scroll: ScrollHandle::new(),
             cameras: Vec::new(),
             cameras_busy: false,
+            capabilities: None,
             desktop_width,
             desktop_height,
             desktop_dpi,
@@ -1130,7 +1134,15 @@ impl AppShell {
             return;
         }
         self.starting = true;
-        self.push_log(format!("[SYSTEM] Starting mirror session for {device}..."));
+        let session_label = match self.mode {
+            CaptureMode::Desktop => "desktop",
+            CaptureMode::Camera => "camera",
+            CaptureMode::Microphone => "microphone",
+            CaptureMode::Screen => "mirror",
+        };
+        self.push_log(format!(
+            "[SYSTEM] Starting {session_label} session for {device}..."
+        ));
         cx.notify();
 
         let config = self.session_config(&device);
@@ -2211,15 +2223,22 @@ impl AppShell {
                             .children(max_size_options),
                     ),
             )
-            .child(
-                Switch::new("desktop-flex")
-                    .checked(desktop.flex_display)
-                    .label(t!("controlPanel.flexDisplay").to_string())
-                    .on_click(cx.listener(|this, checked, _, cx| {
-                        this.settings.desktop.flex_display = *checked;
-                        this.persist();
-                        cx.notify();
-                    })),
+            .when(
+                self.capabilities
+                    .as_ref()
+                    .is_none_or(|caps| caps.supports("flex-display")),
+                |this| {
+                    this.child(
+                        Switch::new("desktop-flex")
+                            .checked(desktop.flex_display)
+                            .label(t!("controlPanel.flexDisplay").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.desktop.flex_display = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                },
             )
     }
 
@@ -3196,6 +3215,24 @@ fn spawn_renderer_load(cx: &mut Context<AppShell>, services: AppServices) {
             .unwrap_or_default();
         let _ = this.update(cx, |shell, cx| {
             shell.renderers = renderers;
+            cx.notify();
+        });
+    })
+    .detach();
+}
+
+fn spawn_capability_load(cx: &mut Context<AppShell>, services: AppServices) {
+    cx.spawn(async move |this, cx| {
+        let capabilities = services.detect_capabilities().await.ok();
+        let _ = this.update(cx, |shell, cx| {
+            let flex_supported = capabilities
+                .as_ref()
+                .is_none_or(|caps| caps.supports("flex-display"));
+            shell.capabilities = capabilities;
+            if !flex_supported && shell.settings.desktop.flex_display {
+                shell.settings.desktop.flex_display = false;
+                shell.persist();
+            }
             cx.notify();
         });
     })

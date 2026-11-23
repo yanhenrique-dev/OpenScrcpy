@@ -13,13 +13,14 @@
 #   APPIMAGE_TOOL     linuxdeploy-plugin-appimage AppImage (appimagetool host)
 #   LINUXDEPLOY       linuxdeploy AppImage
 #   GPUI_BIN          release binary (defaults to the crate target dir)
+#   OUTPUT            final AppImage path (defaults to the stable name)
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 crate="$root/crates/open-scrcpy-gpui"
 out_dir="$root/artifacts/gpui"
 app_dir="$out_dir/OpenScrcpy.AppDir"
-output="${out_dir}/OpenScrcpy-GPUI-x86_64.AppImage"
+output="${OUTPUT:-$out_dir/OpenScrcpy-GPUI-x86_64.AppImage}"
 
 bin="${1:-${GPUI_BIN:-$crate/target/release/openscrcpy}}"
 if [[ ! -x "$bin" ]]; then

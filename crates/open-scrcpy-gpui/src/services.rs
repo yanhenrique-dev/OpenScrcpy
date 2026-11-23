@@ -143,6 +143,15 @@ impl AppServices {
 
     /// Fetches the signed native manifest and compares it with this build.
     /// `OPENSCRCPY_UPDATE_URL` overrides the release URL for tests and forks.
+    pub fn detect_capabilities(&self) -> JoinHandle<open_scrcpy_core::capabilities::Capabilities> {
+        self.runtime.spawn(async {
+            open_scrcpy_core::capabilities::detect(&open_scrcpy_core::paths::binary_path(
+                "scrcpy", None,
+            ))
+            .await
+        })
+    }
+
     pub fn check_scrcpy(&self) -> JoinHandle<serde_json::Value> {
         self.runtime.spawn(async { adb::check_scrcpy(None).await })
     }
@@ -164,9 +173,17 @@ impl AppServices {
         self.runtime.spawn(async move {
             let url = std::env::var("OPENSCRCPY_UPDATE_URL")
                 .unwrap_or_else(|_| UPDATE_MANIFEST_URL.to_string());
-            let manifest = open_scrcpy_core::app_update::fetch_manifest(&url)
-                .await
-                .map_err(|error| error.to_string())?;
+            let manifest = match open_scrcpy_core::app_update::fetch_manifest(&url).await {
+                Ok(manifest) => manifest,
+                // The release channel does not exist yet; treat that as "no
+                // update" instead of surfacing a scary network error.
+                Err(open_scrcpy_core::app_update::UpdateError::Network(message))
+                    if message.contains("404") =>
+                {
+                    return Ok(None);
+                }
+                Err(error) => return Err(error.to_string()),
+            };
             let (status, asset) = open_scrcpy_core::app_update::check(
                 &manifest,
                 env!("CARGO_PKG_VERSION"),

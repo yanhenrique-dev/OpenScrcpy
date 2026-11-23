@@ -168,6 +168,23 @@ Nota do smoke: com o OpenScrcpy 2.0 aberto, o registro de
 `Ctrl+Alt+Shift+C` falha com "HotKey already registered" e o app segue — o
 comportamento esperado durante a convivência dos dois cascos.
 
+### 4.2 Compatibilidade com scrcpy 5.0.1
+
+O relato de uso com scrcpy 5.0.1 expôs três pontos, corrigidos nesta rodada:
+
+- o help do 5.x imprime `--new-display[=[<width>x<height>][/<dpi>]]`; o parser
+  tratava o `[` como parte do nome e concluía que o binário não tinha
+  `--new-display`, recusando o modo Desktop. O nome agora para no primeiro
+  caractere que não pertence a uma flag, com teste usando a linha real do 5.x;
+- o `--flex-display` foi removido no scrcpy 5.0; o toggle só aparece quando o
+  binário anuncia a flag, e o valor salvo é limpo caso contrário;
+- o log de início dizia "mirror session" em qualquer modo; agora usa o modo
+  ativo (mirror/desktop/camera/microphone).
+
+O check de update passou a tratar HTTP 404 do manifesto como "sem canal de
+release" em vez de erro de rede — o `latest-gpui.json` só existirá quando a
+release nativa for publicada.
+
 ## 5. O que falta nesta fase
 
 | Fatia | Situação |

@@ -174,7 +174,11 @@ fn option_name(line: &str) -> Option<&str> {
     }
     let rest = rest.split_once(", ").map_or(rest, |(_, long)| long);
     let long = rest.strip_prefix("--")?;
-    let name = long.split(|c: char| c == '=' || c.is_whitespace()).next()?;
+    // scrcpy prints optional values as `--new-display[=[<w>x<h>][/<dpi>]]`;
+    // stop at the first character that cannot belong to an option name.
+    let name = long
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+        .next()?;
     (!name.is_empty()).then_some(name)
 }
 
@@ -235,6 +239,8 @@ mod tests {
         "        Possible values: \"output\", \"mic\", \"mic-voice-communication\".\r\n",
         "    --camera-size=<width>x<height>\r\n",
         "        Select the camera size.\r\n",
+        "    --new-display[=[<width>x<height>][/<dpi>]]\r\n",
+        "        Create a new display.\r\n",
         "    -G\r\n",
     );
 
@@ -245,6 +251,8 @@ mod tests {
         assert!(options.contains("fullscreen"));
         assert!(options.contains("audio-source"));
         assert!(options.contains("camera-size"));
+        // The bracket for the optional value must not become part of the name.
+        assert!(options.contains("new-display"));
         // A short-only option and a description mention are not long options.
         assert!(!options.contains("G"));
         assert!(!options.contains("output"));
