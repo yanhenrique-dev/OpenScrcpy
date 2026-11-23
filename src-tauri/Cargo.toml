@@ -50,7 +50,7 @@ tauri-plugin-single-instance = "2.5.4"
 # scrcpy window geometry on KDE Wayland (where xdotool cannot see windows).
 # Already in the tree via tauri-plugin-opener/single-instance.
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus = "5"
+zbus = "6"
 # libappindicator loads the Ayatana library at runtime and panics when it is
 # missing. Probe it first so enabling the tray can fail with a clear error
 # instead of crashing the whole app. Already in the tree via tray-icon.
