@@ -14,9 +14,9 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AppContext as _, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _,
-    Render, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription,
-    TestSupportExt as _, Window, WindowBounds, div, relative,
+    AppContext as _, ClipboardItem, Context, Entity, InteractiveElement as _, IntoElement,
+    ParentElement as _, Render, Role, SharedString, StatefulInteractiveElement as _, Styled as _,
+    Subscription, SystemNotification, TestSupportExt as _, Window, WindowBounds, div, relative,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use rust_i18n::t;
@@ -43,7 +43,7 @@ fn theme_label(preference: ThemePreference) -> SharedString {
     .into()
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CaptureMode {
     Screen,
     Camera,
@@ -331,6 +331,7 @@ impl AppShell {
                     if !running {
                         self.mic_route = None;
                         self.mic_db = None;
+                        notify_unexpected_end(cx, &payload);
                     }
                 }
             }
@@ -1730,6 +1731,56 @@ impl AppShell {
             )
     }
 
+    fn clear_console(&mut self, cx: &mut Context<Self>) {
+        if !self.logs.is_empty() {
+            self.logs.clear();
+            cx.notify();
+        }
+    }
+
+    fn copy_console(&mut self, cx: &mut Context<Self>) {
+        if self.logs.is_empty() {
+            return;
+        }
+        let text = self.logs.join("\n");
+        cx.write_to_clipboard(ClipboardItem::new_string(text));
+        self.push_log(t!("logPanel.copied").to_string());
+        cx.notify();
+    }
+
+    fn save_report(&mut self, cx: &mut Context<Self>) {
+        let Some(downloads) = downloads_dir() else {
+            self.push_error("downloads directory is unavailable");
+            cx.notify();
+            return;
+        };
+        let report = build_report(ReportContext {
+            version: env!("CARGO_PKG_VERSION"),
+            locale: &self.settings.locale,
+            theme: &format!("{:?}", self.settings.theme),
+            devices: &self.devices,
+            active_device: self.active_device.as_deref(),
+            mode: self.mode,
+            running: self.running,
+            logs: &self.logs,
+        });
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|elapsed| elapsed.as_secs())
+            .unwrap_or_default();
+        let name = format!("opensrcpy-report-{timestamp}.json");
+        match serde_json::to_string_pretty(&report)
+            .map_err(|error| error.to_string())
+            .and_then(|content| open_scrcpy_core::report::write_report(&downloads, &content, &name))
+        {
+            Ok(path) => {
+                self.push_log(t!("logPanel.diagnosticReportSaved", fileName = path).to_string());
+            }
+            Err(error) => self.push_error(error),
+        }
+        cx.notify();
+    }
+
     fn console(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let mut lines = Vec::with_capacity(self.logs.len());
         for line in &self.logs {
@@ -1750,11 +1801,35 @@ impl AppShell {
             .border_color(cx.theme().border)
             .child(
                 div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
                     .px_4()
                     .py_2()
-                    .text_sm()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(t!("logPanel.systemConsole").to_string()),
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("logPanel.systemConsole").to_string()),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        Button::new("console-clear")
+                            .label(t!("logPanel.clear").to_string())
+                            .disabled(self.logs.is_empty())
+                            .on_click(cx.listener(|this, _, _, cx| this.clear_console(cx))),
+                    )
+                    .child(
+                        Button::new("console-copy")
+                            .label(t!("logPanel.copy").to_string())
+                            .disabled(self.logs.is_empty())
+                            .on_click(cx.listener(|this, _, _, cx| this.copy_console(cx))),
+                    )
+                    .child(
+                        Button::new("console-report")
+                            .label(t!("logPanel.report").to_string())
+                            .on_click(cx.listener(|this, _, _, cx| this.save_report(cx))),
+                    ),
             )
             .child(
                 div()
@@ -1848,6 +1923,60 @@ fn spawn_device_poll(cx: &mut Context<AppShell>, services: AppServices) {
     .detach();
 }
 
+fn downloads_dir() -> Option<std::path::PathBuf> {
+    directories::UserDirs::new().and_then(|dirs| dirs.download_dir().map(|path| path.to_path_buf()))
+}
+
+/// Everything the diagnostic report needs, so the builder stays a pure one-arg
+/// function and can be unit tested without a window.
+struct ReportContext<'a> {
+    version: &'a str,
+    locale: &'a str,
+    theme: &'a str,
+    devices: &'a [Device],
+    active_device: Option<&'a str>,
+    mode: CaptureMode,
+    running: bool,
+    logs: &'a [String],
+}
+
+fn build_report(context: ReportContext<'_>) -> Value {
+    serde_json::json!({
+        "app": "OpenScrcpy",
+        "version": context.version,
+        "locale": context.locale,
+        "theme": context.theme,
+        "mode": format!("{:?}", context.mode),
+        "running": context.running,
+        "activeDevice": context.active_device,
+        "devices": context.devices.iter().map(|device| serde_json::json!({
+            "serial": device.serial,
+            "model": device.model,
+            "state": format!("{:?}", device.state),
+        })).collect::<Vec<_>>(),
+        "logs": context.logs,
+    })
+}
+
+/// Native notification for a session that ended without the user asking.
+fn notify_unexpected_end(cx: &mut Context<AppShell>, payload: &Value) {
+    let reason = payload.get("reason").and_then(Value::as_str).unwrap_or("");
+    let success = payload.get("success").and_then(Value::as_bool);
+    let unexpected = reason == "error" || (reason == "exited" && success == Some(false));
+    if !unexpected {
+        return;
+    }
+    let device = payload.get("device").and_then(Value::as_str).unwrap_or("");
+    cx.show_system_notification(SystemNotification {
+        tag: format!("session-ended-{device}").into(),
+        title: t!("notifications.sessionEndedTitle").to_string().into(),
+        body: t!("notifications.sessionEndedBody", device = device)
+            .to_string()
+            .into(),
+        actions: Vec::new(),
+    });
+}
+
 /// Maps the core's dBFS meter to a 0..=1 bar width; -60 dB (or lower) is empty.
 fn mic_level_percent(db: f64) -> f32 {
     (((db.clamp(-60.0, 0.0)) + 60.0) / 60.0) as f32
@@ -1874,6 +2003,30 @@ mod tests {
         assert_eq!(devices[0].model, "Pixel 9");
         assert_eq!(devices[0].state, DeviceState::Online);
         assert_eq!(devices[1].state, DeviceState::Unauthorized);
+    }
+
+    #[test]
+    fn diagnostic_report_carries_state_and_logs() {
+        let devices = vec![Device {
+            serial: "device1".into(),
+            model: "Pixel".into(),
+            state: DeviceState::Online,
+        }];
+        let logs = vec!["[SYSTEM] hello".to_string()];
+        let report = build_report(ReportContext {
+            version: "3.0.0",
+            locale: "pt-BR",
+            theme: "Dark",
+            devices: &devices,
+            active_device: Some("device1"),
+            mode: CaptureMode::Screen,
+            running: true,
+            logs: &logs,
+        });
+        assert_eq!(report["version"], "3.0.0");
+        assert_eq!(report["locale"], "pt-BR");
+        assert_eq!(report["devices"][0]["serial"], "device1");
+        assert_eq!(report["logs"][0], "[SYSTEM] hello");
     }
 
     #[test]

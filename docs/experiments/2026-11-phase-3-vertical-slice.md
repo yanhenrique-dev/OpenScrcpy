@@ -28,6 +28,11 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   resumo mostra a configuração efetiva antes de iniciar.
 - **Console:** o `EventBus` do core é consumido por uma task GPUI; logs do
   `scrcpy`, status de sessão e erros aparecem no painel, com teto de 100 linhas.
+  A toolbar tem **Clear**, **Copy** (clipboard do sistema) e **Report** (JSON de
+  diagnóstico em Downloads com versão, locale, tema, modo, dispositivos e logs).
+- **Notificações nativas:** fim inesperado de sessão (erro ou saída não
+  solicitada) dispara `SystemNotification` com o dispositivo; parada manual não
+  notifica.
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
   (`core::session::teardown_sessions`), o mesmo código que o casco Tauri passou
   a usar.
@@ -99,7 +104,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **27 passed** (24 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **28 passed** (25 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 76 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -117,8 +122,8 @@ AppShell (Entity<AppShell>)
 | 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
 | 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
-| 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas) |
-| 3.9 Behavior (reconnect/background/notificações) | pendente |
+| 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas, clear/copy/report) |
+| 3.9 Behavior (reconnect/background/notificações) | **parcial**: notificação de fim inesperado pronta; background/tray e preferências de notificação pendentes |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | pendente |
 | 3.12 Chrome/titlebar | pendente (decoração nativa) |

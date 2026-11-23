@@ -58,6 +58,11 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
+        // The console exposes the parity actions.
+        assert_eq!(window.find("console-clear").label(), Some("Clear"));
+        assert_eq!(window.find("console-copy").label(), Some("Copy"));
+        assert_eq!(window.find("console-report").label(), Some("Report"));
+
         // The wireless transport is part of the sidebar contract.
         assert_eq!(window.find("wireless-connect").label(), Some("Connect"));
         assert!(window.find("pair-start").label().is_some());
