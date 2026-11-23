@@ -92,4 +92,12 @@ os três passos passaram:
 - `cargo clippy --locked --all-targets -- -D warnings`
 - `cargo test --locked` (32 unit + 1 a11y + 2 paridade + 1 UI)
 
-Falta apenas o primeiro run no GitHub Actions para validar o runner e o cache.
+O primeiro run no GitHub Actions passou em **todos os jobs** (2026-11-23, PR #23):
+
+- `Native GPUI shell` — PASS;
+- `Pull Request CI` verify (ubuntu-22.04, macos-latest, windows-latest) e
+  `build-check` — PASS.
+
+Os avisos de auditoria do lock do Tauri (`cookie` e `url`) foram corrigidos
+com `cookie 0.18.3` e `url 2.5.9`; os achados restantes são avisos informativos
+(`chrono`, `zbus_names`, `glib`), sem vulnerabilidade explorável reportada.
