@@ -1567,6 +1567,29 @@ impl AppShell {
         let rotation_options = DesktopSettings::ROTATIONS.map(|rotation| {
             Radio::new(format!("mirror-rotation-{rotation}")).label(format!("{rotation}°"))
         });
+        let audio_sources = [
+            "output",
+            "playback",
+            "mic",
+            "voice-call",
+            "voice-performance",
+        ];
+        let audio_source_index = audio_sources
+            .iter()
+            .position(|source| *source == settings.mirror_audio_source)
+            .unwrap_or(0);
+        let audio_source_options = audio_sources.map(|source| {
+            let label = match source {
+                "playback" => t!("sessionBehavior.audioSourcePlayback"),
+                "mic" => t!("sessionBehavior.audioSourceMic"),
+                "voice-call" => t!("sessionBehavior.audioSourceVoiceCall"),
+                "voice-performance" => t!("sessionBehavior.audioSourceVoicePerformance"),
+                _ => t!("sessionBehavior.audioSourceOutput"),
+            };
+            Radio::new(format!("mirror-audio-source-{source}")).label(label.to_string())
+        });
+        let audio_on = settings.audio;
+        let dup_enabled = audio_on && settings.mirror_audio_source == "playback";
 
         let fps_options =
             MirrorSettings::FPS.map(|fps| Radio::new(format!("fps-{fps}")).label(fps.to_string()));
@@ -1737,6 +1760,68 @@ impl AppShell {
                             .label(t!("appBehavior.autoReconnect").to_string())
                             .on_click(cx.listener(|this, checked, _, cx| {
                                 this.settings.mirror.auto_reconnect = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("sessionBehavior.audioSource").to_string()),
+                    )
+                    .child(
+                        RadioGroup::horizontal("mirror-audio-source")
+                            .selected_index(Some(audio_source_index))
+                            .disabled(!audio_on)
+                            .on_change(cx.listener(|this, index, _, cx| {
+                                let sources = [
+                                    "output",
+                                    "playback",
+                                    "mic",
+                                    "voice-call",
+                                    "voice-performance",
+                                ];
+                                let source = sources.get(*index).copied().unwrap_or("output");
+                                this.settings.mirror.mirror_audio_source = source.to_string();
+                                if source != "playback" {
+                                    this.settings.mirror.audio_dup = false;
+                                }
+                                this.persist();
+                                cx.notify();
+                            }))
+                            .children(audio_source_options),
+                    ),
+            )
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .flex_wrap()
+                    .gap_6()
+                    .child(
+                        Switch::new("mirror-audio-dup")
+                            .checked(settings.audio_dup)
+                            .disabled(!dup_enabled)
+                            .label(t!("sessionBehavior.audioDup").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.audio_dup = *checked;
+                                this.persist();
+                                cx.notify();
+                            })),
+                    )
+                    .child(
+                        Switch::new("mirror-require-audio")
+                            .checked(settings.require_audio)
+                            .disabled(!audio_on)
+                            .label(t!("sessionBehavior.requireAudio").to_string())
+                            .on_click(cx.listener(|this, checked, _, cx| {
+                                this.settings.mirror.require_audio = *checked;
                                 this.persist();
                                 cx.notify();
                             })),

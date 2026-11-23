@@ -110,6 +110,12 @@ pub struct MirrorSettings {
     /// `h264`, `h265` or `av1`.
     pub video_codec: String,
     pub audio: bool,
+    /// `output`, `playback`, `mic`, `voice-call` or `voice-performance`.
+    pub mirror_audio_source: String,
+    /// Keep the audio on the phone while capturing `playback`.
+    pub audio_dup: bool,
+    /// Fail instead of silently mirroring video only when audio capture fails.
+    pub require_audio: bool,
     pub vsync: bool,
     pub stay_awake: bool,
     pub turn_screen_off: bool,
@@ -140,6 +146,9 @@ impl Default for MirrorSettings {
             max_size: 0,
             video_codec: "h264".to_string(),
             audio: true,
+            mirror_audio_source: "output".to_string(),
+            audio_dup: false,
+            require_audio: false,
             vsync: true,
             stay_awake: false,
             turn_screen_off: false,
@@ -182,6 +191,14 @@ impl MirrorSettings {
         if self.renderer.is_empty() {
             self.renderer = "auto".to_string();
         }
+        if !open_scrcpy_core::validate::MIRROR_AUDIO_SOURCES
+            .contains(&self.mirror_audio_source.as_str())
+        {
+            self.mirror_audio_source = "output".to_string();
+        }
+        if self.mirror_audio_source != "playback" {
+            self.audio_dup = false;
+        }
         // A half-restored position would put the window somewhere arbitrary.
         if self.window_x.is_none() || self.window_y.is_none() {
             self.window_x = None;
@@ -197,6 +214,9 @@ impl MirrorSettings {
         config.fps = Some(self.fps);
         config.codec = Some(self.video_codec.clone());
         config.audio_enabled = Some(self.audio);
+        config.mirror_audio_source = Some(self.mirror_audio_source.clone());
+        config.audio_dup = Some(self.audio_dup);
+        config.require_audio = Some(self.require_audio);
         config.vsync = Some(self.vsync);
         config.stay_awake = Some(self.stay_awake);
         config.turn_off = Some(self.turn_screen_off);
@@ -900,6 +920,33 @@ mod tests {
         assert!(args.iter().any(|arg| arg.starts_with("--record=")));
         assert!(args.contains(&"--orientation".to_string()));
         assert!(args.contains(&"90".to_string()));
+    }
+
+    #[test]
+    fn mirror_audio_options_map_to_the_arguments() {
+        let mirror = MirrorSettings {
+            mirror_audio_source: "playback".into(),
+            audio_dup: true,
+            require_audio: true,
+            ..MirrorSettings::default()
+        };
+        let config = mirror.to_config("device1");
+        let args = open_scrcpy_core::config::build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--audio-source=playback".to_string()));
+        assert!(args.contains(&"--audio-dup".to_string()));
+        assert!(args.contains(&"--require-audio".to_string()));
+    }
+
+    #[test]
+    fn invalid_audio_source_falls_back_to_output() {
+        let mirror = MirrorSettings {
+            mirror_audio_source: "speaker".into(),
+            audio_dup: true,
+            ..MirrorSettings::default()
+        }
+        .normalized();
+        assert_eq!(mirror.mirror_audio_source, "output");
+        assert!(!mirror.audio_dup);
     }
 
     #[test]

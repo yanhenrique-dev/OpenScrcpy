@@ -21,8 +21,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   session` chama `core::session::stop_session`. Os botões ficam desabilitados
   quando não há dispositivo/seleção ou quando a sessão já está rodando.
 - **Painel Mirror:** bitrate (slider 1–50 Mbps), frame rate (30/60/90),
-  resolução máxima (Original/1920/1280/720), codec (H.264/H.265/AV1), áudio,
-  VSync, manter acordado, desligar a tela, reconexão automática, HID
+  resolução máxima (Original/1920/1280/720), codec (H.264/H.265/AV1), áudio
+  (fonte de captura, duplicação no aparelho e exigir áudio), VSync, manter
+  acordado, desligar a tela, reconexão automática, HID
   teclado/mouse, OTG (pure HID), always-on-top, borderless, fullscreen,
   gravação em vídeo, rotação e renderer (lista de drivers lida de
   `scrcpy --help` com fallback para Automático). Cada mudança é gravada no
@@ -140,7 +141,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **37 passed** (33 unit + 1 a11y + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **39 passed** (35 unit + 1 a11y + 2 paridade + 1 UI) |
 | `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |

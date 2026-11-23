@@ -202,6 +202,14 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         assert!(summary.contains("8 Mbps"), "unexpected summary: {summary}");
         assert!(summary.contains("H.264"), "unexpected summary: {summary}");
         assert!(window.find("mirror-record").label().is_some());
+        assert_eq!(
+            window.find("mirror-require-audio").label(),
+            Some("Require audio")
+        );
+        assert_eq!(
+            window.find("mirror-audio-dup").label(),
+            Some("Keep playing on device")
+        );
         assert!(window.find("mirror-hid-keyboard").label().is_some());
 
         window.click("mirror-audio", cx);
