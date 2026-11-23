@@ -2693,7 +2693,9 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "flate2",
+ "minisign-verify",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

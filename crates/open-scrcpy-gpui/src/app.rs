@@ -188,6 +188,8 @@ pub struct AppShell {
     terminal_busy: bool,
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
+    update_available: Option<String>,
+    checking_update: bool,
 }
 
 impl AppShell {
@@ -300,6 +302,8 @@ impl AppShell {
             terminal_busy: false,
             cameras: Vec::new(),
             cameras_busy: false,
+            update_available: None,
+            checking_update: false,
         }
     }
 
@@ -415,6 +419,40 @@ impl AppShell {
             "[SYSTEM] Recentred the mirror window for {device}."
         ));
         cx.notify();
+    }
+
+    fn check_update(&mut self, cx: &mut Context<Self>) {
+        if self.checking_update {
+            return;
+        }
+        self.checking_update = true;
+        self.push_log("[SYSTEM] Checking for a native update...".to_string());
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.check_app_update().await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.checking_update = false;
+                match result {
+                    Ok(Ok(Some(update))) => {
+                        shell.push_log(format!(
+                            "[SYSTEM] Version {} is available: {}",
+                            update.version, update.url
+                        ));
+                        shell.update_available = Some(update.version);
+                    }
+                    Ok(Ok(None)) => {
+                        shell.update_available = None;
+                        shell.push_log("[SYSTEM] OpenScrcpy is up to date.".to_string());
+                    }
+                    Ok(Err(error)) => shell.push_error(error),
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn pick_files(&mut self, cx: &mut Context<Self>) {
@@ -766,6 +804,21 @@ impl AppShell {
             )
             .child(div().flex_1())
             .child(self.theme_modes(cx))
+            .when_some(self.update_available.clone(), |this, version| {
+                this.child(
+                    div()
+                        .id("update-badge")
+                        .text_xs()
+                        .text_color(cx.theme().primary)
+                        .child(t!("header.updateBadge", v = version).to_string()),
+                )
+            })
+            .child(
+                Button::new("check-update")
+                    .label(t!("header.checkAppUpdate").to_string())
+                    .disabled(self.checking_update)
+                    .on_click(cx.listener(|this, _, _, cx| this.check_update(cx))),
+            )
             .child(
                 Button::new("locale-toggle")
                     .label(locale_label)

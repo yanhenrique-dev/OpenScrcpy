@@ -29,10 +29,26 @@ freetype, glibc e o driver de GPU**. Ou seja, este AppImage é um artefato de
 validação, não um pacote portátil. Empacotar Vulkan/fontconfig com segurança
 (ou declarar a matriz mínima) é trabalho da Fase 5 de verdade.
 
+## 2.1 Updater nativo (parcial)
+
+- `core::app_update` define o contrato do `latest-gpui.json`: versão semver,
+  notas e assets por alvo com `url` HTTPS, `signature` Minisign e `sha256`
+  opcional; parse valida tudo e rejeita URL insegura/checksum malformado.
+- `check` compara com a versão corrente e devolve UpToDate ou Available.
+- `download_verified` baixa (limite de 300 MiB), confere SHA-256, verifica a
+  assinatura Minisign e grava atomicamente — **ainda não instala**.
+- O header tem "Check for Updates"; o botão consulta
+  `releases/latest/download/latest-gpui.json` (override por
+  `OPENSCRCPY_UPDATE_URL`) e mostra o badge quando há versão nova.
+- Testes cobrem o vetor Minisign conhecido, parse/validação e comparação de
+  versões. Falta publicar o manifesto, instalar/substituir o AppImage,
+  reiniciar e o release-ponte da linha 2.x.
+
 ## 3. Limitações conhecidas
 
 - sem teste em VM limpa (bloqueio B7);
-- sem `.deb`/`.rpm`, sem assinatura e sem updater (`latest-gpui.json`);
+- sem `.deb`/`.rpm` e sem assinatura; o updater tem cliente e contrato, mas
+  ainda não instala;
 - sem CI de release para o binário nativo;
 - tray/background continuam bloqueados pela ausência de `Window::hide` no GPUI
   0.3.12 (ver [2026-11-phase-3-vertical-slice.md](2026-11-phase-3-vertical-slice.md));
@@ -56,5 +72,6 @@ O script aceita um caminho de binário como primeiro argumento (ou
 
 1. Smoke em VM limpa (Ubuntu 24.04 e 22.04) e decisão D9 da base mínima.
 2. Empacotar/declarar as dependências de runtime (Vulkan, fonte, Wayland/X11).
-3. `.deb` e assinatura; depois o updater com manifesto próprio.
+3. `.deb` e assinatura; publicar o `latest-gpui.json` e implementar
+   instalação/restart do updater.
 4. Job de CI de release para o binário nativo, sem Node/Vite.

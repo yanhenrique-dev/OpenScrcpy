@@ -46,6 +46,16 @@ impl SessionHost for GpuiSessionHost {
     }
 }
 
+/// A newer native release, as offered by the signed manifest.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AppUpdate {
+    pub version: String,
+    pub url: String,
+}
+
+const UPDATE_MANIFEST_URL: &str =
+    "https://github.com/yanhenrique-dev/OpenScrcpy/releases/latest/download/latest-gpui.json";
+
 /// Shared application services. Cloning is cheap: the runtime, the session
 /// registry and the host are `Arc`s and the bus is a channel handle.
 #[derive(Clone)]
@@ -126,6 +136,33 @@ impl AppServices {
         let bus = self.events.clone();
         self.runtime
             .spawn(async move { adb::pair(move |line| bus.log(line), &address, &code, None).await })
+    }
+
+    /// Fetches the signed native manifest and compares it with this build.
+    /// `OPENSCRCPY_UPDATE_URL` overrides the release URL for tests and forks.
+    pub fn check_app_update(&self) -> JoinHandle<Result<Option<AppUpdate>, String>> {
+        self.runtime.spawn(async move {
+            let url = std::env::var("OPENSCRCPY_UPDATE_URL")
+                .unwrap_or_else(|_| UPDATE_MANIFEST_URL.to_string());
+            let manifest = open_scrcpy_core::app_update::fetch_manifest(&url)
+                .await
+                .map_err(|error| error.to_string())?;
+            let (status, asset) = open_scrcpy_core::app_update::check(
+                &manifest,
+                env!("CARGO_PKG_VERSION"),
+                open_scrcpy_core::app_update::current_target(),
+            )
+            .map_err(|error| error.to_string())?;
+            match status {
+                open_scrcpy_core::app_update::UpdateStatus::UpToDate => Ok(None),
+                open_scrcpy_core::app_update::UpdateStatus::Available { version, .. } => {
+                    Ok(Some(AppUpdate {
+                        version,
+                        url: asset.map(|asset| asset.url).unwrap_or_default(),
+                    }))
+                }
+            }
+        })
     }
 
     pub fn list_cameras(&self, device: String) -> JoinHandle<serde_json::Value> {

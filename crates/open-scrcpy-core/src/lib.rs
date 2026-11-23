@@ -6,6 +6,7 @@
 //! these functions and own the windows, dialogs, notifications and events.
 
 pub mod adb;
+pub mod app_update;
 pub mod audio;
 pub mod capabilities;
 pub mod config;
