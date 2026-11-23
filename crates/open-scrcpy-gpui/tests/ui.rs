@@ -1,3 +1,4 @@
+use gpui_kit::base::LayoutDirection;
 use gpui_kit::component::ActiveTheme as _;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
@@ -219,6 +220,14 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             .to_string();
         assert!(label.contains("Français"), "unexpected label: {label}");
         assert_eq!(window.find("mode-screen").label(), Some("Écran"));
+
+        // Arabic flips the layout direction (and retranslates again).
+        window.click("locale-toggle", cx);
+        window.render_frame(cx);
+        window.click("locale-ar", cx);
+        window.render_frame(cx);
+        assert!(LayoutDirection::global(cx).is_rtl());
+        assert_ne!(window.find("mode-screen").label(), Some("Écran"));
 
         // About opens as a dialog with the external links.
         assert!(

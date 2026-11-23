@@ -8,6 +8,7 @@ rust_i18n::i18n!("locales", fallback = "en");
 
 mod app;
 mod i18n;
+mod layout;
 mod services;
 mod settings;
 mod theme;
@@ -53,6 +54,7 @@ pub fn run() {
         .with_assets(gpui_kit::assets::Assets)
         .run(move |cx| {
             gpui_kit::init(cx);
+            layout::apply(&settings.locale, cx);
             cx.set_app_identity("dev.yanhenrique.openscrcpy", "OpenScrcpy");
 
             let options = WindowOptions {

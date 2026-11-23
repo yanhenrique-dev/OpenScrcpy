@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
 use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::radio::{Radio, RadioGroup};
@@ -14,8 +15,9 @@ use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _, button::Button};
 use gpui_kit::prelude::FluentBuilder as _;
+use gpui_kit::px;
 use gpui_kit::{
-    AppContext as _, ClipboardItem, Context, Entity, ExternalPaths, InteractiveElement as _,
+    App, AppContext as _, ClipboardItem, Context, Entity, ExternalPaths, InteractiveElement as _,
     IntoElement, ParentElement as _, PathPromptOptions, Render, Role, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, SystemNotification,
     TestSupportExt as _, Window, WindowBounds, div, relative,
@@ -27,6 +29,7 @@ use rust_i18n::t;
 use serde_json::Value;
 
 use crate::i18n;
+use crate::layout;
 use crate::services::AppServices;
 use crate::settings::{
     AppSettings, CameraSettings, DesktopSettings, MicSettings, MirrorSettings, SettingsStore,
@@ -338,6 +341,7 @@ impl AppShell {
         }
         self.settings.locale = locale.to_string();
         i18n::apply(locale);
+        layout::apply(locale, cx);
         self.persist();
         cx.refresh_windows();
     }
@@ -921,12 +925,13 @@ impl AppShell {
         }
     }
 
-    fn panel_heading(&self) -> impl IntoElement {
+    fn panel_heading(&self, cx: &App) -> impl IntoElement {
         div()
             .id("panel-title")
             .role(Role::Heading)
             .aria_label(self.mode.label().to_string())
             .text_xl()
+            .text_start(cx)
             .child(self.mode.label())
             .test_support()
     }
@@ -953,7 +958,7 @@ impl AppShell {
             )
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .items_center()
                     .gap_2()
                     .child(
@@ -995,7 +1000,7 @@ impl AppShell {
         let version = env!("CARGO_PKG_VERSION");
 
         div()
-            .flex()
+            .flex_row_dir(cx)
             .items_center()
             .gap_3()
             .px_4()
@@ -1070,7 +1075,7 @@ impl AppShell {
             .w_64()
             .flex_shrink_0()
             .p_3()
-            .border_r_1()
+            .border_e(px(1.), cx)
             .border_color(cx.theme().border)
             .overflow_y_scroll()
             .child(
@@ -1976,7 +1981,7 @@ impl AppShell {
             .gap_4()
             .p_6()
             .overflow_y_scroll()
-            .child(self.panel_heading())
+            .child(self.panel_heading(cx))
             .child(self.session_bar(cx))
             .child(self.mic_settings(cx))
             .child(self.mic_status(cx))
@@ -2315,7 +2320,7 @@ impl AppShell {
             .gap_4()
             .p_6()
             .overflow_y_scroll()
-            .child(self.panel_heading())
+            .child(self.panel_heading(cx))
             .child(self.session_bar(cx))
             .child(self.camera_settings(cx))
             .child(
@@ -2341,7 +2346,7 @@ impl AppShell {
             .gap_4()
             .p_6()
             .overflow_y_scroll()
-            .child(self.panel_heading())
+            .child(self.panel_heading(cx))
             .child(self.session_bar(cx))
             .child(self.mirror_settings(cx))
             .child(
@@ -2367,7 +2372,7 @@ impl AppShell {
             .gap_4()
             .p_6()
             .overflow_y_scroll()
-            .child(self.panel_heading())
+            .child(self.panel_heading(cx))
             .child(self.session_bar(cx))
             .child(self.desktop_settings(cx))
             .child(
@@ -2578,7 +2583,7 @@ impl Render for AppShell {
             .child(self.header(cx))
             .child(
                 div()
-                    .flex()
+                    .flex_row_dir(cx)
                     .flex_1()
                     .min_h_0()
                     .child(self.sidebar(cx))
