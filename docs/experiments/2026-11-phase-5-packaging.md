@@ -75,3 +75,16 @@ O script aceita um caminho de binário como primeiro argumento (ou
 3. `.deb` e assinatura; publicar o `latest-gpui.json` e implementar
    instalação/restart do updater.
 4. Job de CI de release para o binário nativo, sem Node/Vite.
+
+## 2.2 CI do binário nativo
+
+`.github/workflows/gpui.yml` roda formatação, clippy e testes do
+`crates/open-scrcpy-gpui` em `ubuntu-24.04`, com ações pinadas por SHA e cache
+do `Cargo.lock` do crate.
+
+A lista de dependências de sistema foi exercitada em um container
+`ubuntu:24.04` (podman): a árvore compilou até o link e falhou por falta de
+`xcb` e `xkbcommon-x11`; os pacotes `libxcb1-dev` e `libxkbcommon-x11-dev`
+foram confirmados com `pkg-config`, e o workflow já os inclui. O job ainda não
+rodou no GitHub, então o status real do primeiro run é desconhecido — trate-o
+como não validado até o primeiro PR.

@@ -1,0 +1,57 @@
+name: Native GPUI shell
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+concurrency:
+  group: gpui-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The native shell needs Vulkan-capable wgpu and X11/Wayland headers.
+      # The list was exercised in an Ubuntu 24.04 container: the build needed
+      # the fontconfig, xcb and xkbcommon-x11 dev packages in addition to the
+      # X11/Wayland/freetype ones.
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config clang libclang-dev \
+            libssl-dev libfreetype-dev libfontconfig-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libwayland-dev
+
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/open-scrcpy-gpui/target
+          key: gpui-${{ hashFiles('crates/open-scrcpy-gpui/Cargo.lock') }}
+          restore-keys: gpui-
+
+      - name: Check formatting
+        working-directory: crates/open-scrcpy-gpui
+        run: cargo fmt --check
+
+      - name: Lint
+        working-directory: crates/open-scrcpy-gpui
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: crates/open-scrcpy-gpui
+        run: cargo test --locked
