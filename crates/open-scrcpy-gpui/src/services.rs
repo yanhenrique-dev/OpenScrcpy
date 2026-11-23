@@ -5,6 +5,7 @@
 //! executor. Events come back through the core [`EventBus`] and are consumed by
 //! a GPUI task that updates the shell entity.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use open_scrcpy_core::config::ScrcpyConfig;
@@ -51,6 +52,8 @@ impl SessionHost for GpuiSessionHost {
 pub struct AppUpdate {
     pub version: String,
     pub url: String,
+    pub signature: String,
+    pub sha256: Option<String>,
 }
 
 const UPDATE_MANIFEST_URL: &str =
@@ -173,12 +176,40 @@ impl AppServices {
             match status {
                 open_scrcpy_core::app_update::UpdateStatus::UpToDate => Ok(None),
                 open_scrcpy_core::app_update::UpdateStatus::Available { version, .. } => {
+                    let asset = asset.ok_or("manifest has no asset for this platform")?;
                     Ok(Some(AppUpdate {
                         version,
-                        url: asset.map(|asset| asset.url).unwrap_or_default(),
+                        url: asset.url,
+                        signature: asset.signature,
+                        sha256: asset.sha256,
                     }))
                 }
             }
+        })
+    }
+
+    /// Downloads and verifies the next release into the cache dir. It does not
+    /// install it; the shell owns process replacement and restart.
+    pub fn download_update(&self, update: AppUpdate) -> JoinHandle<Result<PathBuf, String>> {
+        let directory = directories::ProjectDirs::from("dev", "yanhenrique", "OpenScrcpy")
+            .map(|dirs| dirs.cache_dir().join("updates"));
+        self.runtime.spawn(async move {
+            let Some(directory) = directory else {
+                return Err("cache directory is unavailable".to_string());
+            };
+            let asset = open_scrcpy_core::app_update::PlatformAsset {
+                signature: update.signature,
+                url: update.url,
+                sha256: update.sha256,
+            };
+            open_scrcpy_core::app_update::download_verified(
+                &asset,
+                open_scrcpy_core::app_update::RELEASE_PUBLIC_KEY,
+                &directory,
+                "openscrcpy.AppImage",
+            )
+            .await
+            .map_err(|error| error.to_string())
         })
     }
 

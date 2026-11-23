@@ -30,7 +30,7 @@ use serde_json::Value;
 
 use crate::i18n;
 use crate::layout;
-use crate::services::AppServices;
+use crate::services::{AppServices, AppUpdate};
 use crate::settings::{
     AppSettings, CameraSettings, DesktopSettings, MicSettings, MirrorSettings, SettingsStore,
     ThemePreference,
@@ -192,6 +192,8 @@ pub struct AppShell {
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
     update_available: Option<String>,
+    pending_update: Option<AppUpdate>,
+    installing_update: bool,
     checking_update: bool,
     pairing_attempt: Option<u32>,
     scrcpy_ready: Option<bool>,
@@ -312,6 +314,8 @@ impl AppShell {
             cameras: Vec::new(),
             cameras_busy: false,
             update_available: None,
+            pending_update: None,
+            installing_update: false,
             checking_update: false,
             pairing_attempt: None,
             scrcpy_ready: None,
@@ -598,6 +602,60 @@ impl AppShell {
         cx.notify();
     }
 
+    fn install_update(&mut self, cx: &mut Context<Self>) {
+        let Some(update) = self.pending_update.clone() else {
+            return;
+        };
+        if self.installing_update {
+            return;
+        }
+        self.installing_update = true;
+        self.push_log(format!(
+            "[SYSTEM] Downloading OpenScrcpy {}...",
+            update.version
+        ));
+        cx.notify();
+
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.download_update(update).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.installing_update = false;
+                match result {
+                    Ok(Ok(path)) => shell.finish_update(path, cx),
+                    Ok(Err(error)) => shell.push_error(error),
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn finish_update(&mut self, download: PathBuf, cx: &mut Context<Self>) {
+        #[cfg(target_os = "linux")]
+        if let Ok(target) = std::env::var("APPIMAGE") {
+            let target = PathBuf::from(target);
+            if target.exists() {
+                self.push_log(format!(
+                    "[SYSTEM] Replacing {} and restarting...",
+                    target.display()
+                ));
+                match spawn_appimage_replacement(&target, &download) {
+                    Ok(()) => {
+                        cx.quit();
+                        return;
+                    }
+                    Err(error) => self.push_error(error),
+                }
+            }
+        }
+        self.push_log(format!(
+            "[SYSTEM] Update downloaded to {}; install it manually (AppImage self-replace is Linux/AppImage only).",
+            download.display()
+        ));
+    }
+
     fn start_download(&mut self, cx: &mut Context<Self>) {
         if self.downloading {
             return;
@@ -733,10 +791,12 @@ impl AppShell {
                             "[SYSTEM] Version {} is available: {}",
                             update.version, update.url
                         ));
-                        shell.update_available = Some(update.version);
+                        shell.update_available = Some(update.version.clone());
+                        shell.pending_update = Some(update);
                     }
                     Ok(Ok(None)) => {
                         shell.update_available = None;
+                        shell.pending_update = None;
                         shell.push_log("[SYSTEM] OpenScrcpy is up to date.".to_string());
                     }
                     Ok(Err(error)) => shell.push_error(error),
@@ -1166,11 +1226,10 @@ impl AppShell {
             .child(self.theme_modes(cx))
             .when_some(self.update_available.clone(), |this, version| {
                 this.child(
-                    div()
-                        .id("update-badge")
-                        .text_xs()
-                        .text_color(cx.theme().primary)
-                        .child(t!("header.updateBadge", v = version).to_string()),
+                    Button::new("install-update")
+                        .label(t!("header.updateBadge", v = version).to_string())
+                        .disabled(self.installing_update)
+                        .on_click(cx.listener(|this, _, _, cx| this.install_update(cx))),
                 )
             })
             .child(
@@ -2958,6 +3017,30 @@ fn resolve_pairing_address(discovered: &[DiscoveredService], typed: &str) -> Opt
 
 fn pairing_retry_delay(attempt: u32) -> Duration {
     Duration::from_secs(u64::from(attempt.clamp(1, 5)))
+}
+
+/// Waits for this process to exit, then replaces the AppImage and relaunches.
+/// Arguments are passed positionally so no path is interpolated into the
+/// script text.
+#[cfg(target_os = "linux")]
+fn spawn_appimage_replacement(
+    target: &std::path::Path,
+    download: &std::path::Path,
+) -> Result<(), String> {
+    const SCRIPT: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 0.2; done; mv -f "$2" "$3" && chmod +x "$3" && exec "$3""#;
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(SCRIPT)
+        .arg("sh")
+        .arg(std::process::id().to_string())
+        .arg(download)
+        .arg(target)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 fn needs_onboarding(ready: Option<bool>, done: bool) -> bool {

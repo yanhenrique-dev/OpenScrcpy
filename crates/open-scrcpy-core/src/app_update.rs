@@ -13,6 +13,10 @@ use minisign_verify::{PublicKey, Signature};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+/// Minisign public key reused from the 2.x updater, so the native manifest can
+/// be signed with the same release key.
+pub const RELEASE_PUBLIC_KEY: &str = "RWQcCyCyg6vilZ9J2/3pY++KjuRNgKr8DKtLosMXfhf0iCAgiHpMHxhv";
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct PlatformAsset {
     /// Detached Minisign signature published beside the artifact.
@@ -276,6 +280,11 @@ mod tests {
     // Test vector from the minisign-verify crate documentation.
     const PUBLIC_KEY: &str = "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3";
     const SIGNATURE: &str = "untrusted comment: signature from minisign secret key\nRUQf6LRCGA9i559r3g7V1qNyJDApGip8MfqcadIgT9CuhV3EMhHoN1mGTkUidF/z7SrlQgXdy8ofjb7bNJJylDOocrCo8KLzZwo=\ntrusted comment: timestamp:1633700835\tfile:test\tprehashed\nwLMDjy9FLAuxZ3q4NlEvkgtyhrr0gtTu6KC4KBJdITbbOeAi1zBIYo0v4iTgt8jJpIidRJnp94ABQkJAgAooBQ==";
+
+    #[test]
+    fn release_public_key_is_a_valid_minisign_key() {
+        PublicKey::from_base64(RELEASE_PUBLIC_KEY).expect("release key must parse");
+    }
 
     #[test]
     fn verifies_a_known_minisign_signature() {
