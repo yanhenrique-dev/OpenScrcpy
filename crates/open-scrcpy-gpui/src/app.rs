@@ -16,7 +16,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AppContext as _, Context, Entity, InteractiveElement as _, IntoElement, ParentElement as _,
     Render, Role, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription,
-    TestSupportExt as _, Window, WindowBounds, div,
+    TestSupportExt as _, Window, WindowBounds, div, relative,
 };
 use open_scrcpy_core::events::{AppEvent, EventReceiver};
 use rust_i18n::t;
@@ -169,6 +169,8 @@ pub struct AppShell {
     pairing_address: Entity<InputState>,
     pairing_code: Entity<InputState>,
     wireless_busy: bool,
+    mic_route: Option<(String, bool)>,
+    mic_db: Option<f64>,
 }
 
 impl AppShell {
@@ -266,6 +268,8 @@ impl AppShell {
             pairing_address,
             pairing_code,
             wireless_busy: false,
+            mic_route: None,
+            mic_db: None,
         }
     }
 
@@ -324,10 +328,19 @@ impl AppShell {
                 if let Some(running) = payload.get("running").and_then(Value::as_bool) {
                     self.running = running;
                     self.starting = false;
+                    if !running {
+                        self.mic_route = None;
+                        self.mic_db = None;
+                    }
                 }
             }
             AppEvent::AudioStatus(_) | AppEvent::WindowPos(_) => {}
-            AppEvent::MicRoute { .. } | AppEvent::MicLevel(_) => {}
+            AppEvent::MicRoute { display, routed } => {
+                self.mic_route = Some((display, routed));
+            }
+            AppEvent::MicLevel(db) => {
+                self.mic_db = Some(db);
+            }
         }
         cx.notify();
     }
@@ -1324,6 +1337,83 @@ impl AppShell {
         summary.into()
     }
 
+    fn mic_status(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let destination = match &self.mic_route {
+            Some((display, _)) if !display.is_empty() => display.clone(),
+            Some(_) => t!("controlPanel.micDestSearching").to_string(),
+            None => t!("controlPanel.micDestIdle").to_string(),
+        };
+        let percent = self.mic_db.map(mic_level_percent).unwrap_or(0.0);
+        let db_label = self
+            .mic_db
+            .map(|db| format!("{db:.0} dB"))
+            .unwrap_or_default();
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_2()
+            .child(
+                div()
+                    .id("mic-route")
+                    .aria_label(format!(
+                        "{}: {destination}",
+                        t!("controlPanel.micDestLabel")
+                    ))
+                    .test_support()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.micDestLabel").to_string()),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(destination),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .w_32()
+                            .text_sm()
+                            .child(t!("controlPanel.micLevelLabel").to_string()),
+                    )
+                    .child(
+                        div()
+                            .w_64()
+                            .h_2()
+                            .rounded_full()
+                            .bg(cx.theme().muted)
+                            .child(
+                                div()
+                                    .h_full()
+                                    .rounded_full()
+                                    .bg(cx.theme().primary)
+                                    .w(relative(percent)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .id("mic-level")
+                            .aria_label(format!("{}: {db_label}", t!("controlPanel.micLevelLabel")))
+                            .test_support()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(db_label),
+                    ),
+            )
+    }
+
     fn mic_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let summary = self.mic_summary();
 
@@ -1339,6 +1429,7 @@ impl AppShell {
             .child(self.panel_heading())
             .child(self.session_bar(cx))
             .child(self.mic_settings(cx))
+            .child(self.mic_status(cx))
             .child(
                 div()
                     .id("mic-summary")
@@ -1757,6 +1848,11 @@ fn spawn_device_poll(cx: &mut Context<AppShell>, services: AppServices) {
     .detach();
 }
 
+/// Maps the core's dBFS meter to a 0..=1 bar width; -60 dB (or lower) is empty.
+fn mic_level_percent(db: f64) -> f32 {
+    (((db.clamp(-60.0, 0.0)) + 60.0) / 60.0) as f32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1778,6 +1874,14 @@ mod tests {
         assert_eq!(devices[0].model, "Pixel 9");
         assert_eq!(devices[0].state, DeviceState::Online);
         assert_eq!(devices[1].state, DeviceState::Unauthorized);
+    }
+
+    #[test]
+    fn mic_level_percent_is_clamped() {
+        assert_eq!(mic_level_percent(0.0), 1.0);
+        assert_eq!(mic_level_percent(-60.0), 0.0);
+        assert_eq!(mic_level_percent(-120.0), 0.0);
+        assert!((mic_level_percent(-30.0) - 0.5).abs() < 1e-6);
     }
 
     #[test]

@@ -36,8 +36,10 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   `ScrcpyConfig::camera` e o resumo reflete as escolhas.
 - **Microfone:** ponte sem janela (`ScrcpyConfig::mic`) com fonte (mic cru /
   denoised), codec (Opus/AAC), bitrate, RNNoise e "definir como microfone
-  padrão" (Linux). O start usa o mesmo session bar e o teardown do core
-  descarrega o sink.
+  padrão" (Linux). O painel mostra o destino do stream (`mic-route`) e um
+  medidor de nível ao vivo (`mic-level`, dBFS → barra), consumidos do
+  `EventBus`. O start usa o mesmo session bar e o teardown do core descarrega
+  o sink.
 - **Desktop (virtual display):** presets de tamanho (1080p/1440p/4K/ultra-wide),
   DPI, rotação, tamanho máximo de vídeo e flex display; o resumo mostra a
   configuração e o start usa `ScrcpyConfig::desktop`. As preferências de
@@ -97,7 +99,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **26 passed** (23 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **27 passed** (24 unit + 2 paridade + 1 UI) |
 | `cargo test` (core) | 76 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -114,7 +116,7 @@ AppShell (Entity<AppShell>)
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **parcial**: performance, áudio, HID/OTG, janela, gravação e rotação prontos; falta o seletor de renderer (lista de drivers do scrcpy) |
 | 3.5 Camera | **parcial**: facing, aspecto, zoom, torch, high-speed, virtual mic e tamanho; descoberta/seleção de lente específica pendente |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
-| 3.7 Mic (source, meter, default source) | **parcial**: fonte, codec, bitrate, RNNoise e source padrão prontos; medidor de nível (`parec`) e o painel de destino pendentes |
+| 3.7 Mic (source, meter, default source) | **feito** (fonte, codec, bitrate, RNNoise, source padrão, destino e medidor em dBFS); smoke com hardware pendente |
 | 3.8 Sessão + logs | **feito** (iniciar/parar, status, console 100 linhas) |
 | 3.9 Behavior (reconnect/background/notificações) | pendente |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | pendente |
@@ -129,8 +131,8 @@ AppShell (Entity<AppShell>)
    o fluxo guiado de pairing (o IP/código manual já funciona).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.
-5. Medidor de nível do Mic (eventos `mic-level` do core) e painel de destino.
-6. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.
+5. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.
+6. mDNS/histórico do wireless e arquivos/terminal/relatório.
 7. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave
    `modeUnavailable` quando as quatro abas estiverem implementadas.
