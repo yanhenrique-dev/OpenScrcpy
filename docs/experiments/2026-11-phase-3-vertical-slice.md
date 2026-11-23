@@ -34,7 +34,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
   A toolbar tem **Clear**, **Copy** (clipboard do sistema) e **Report** (JSON de
   diagnóstico em Downloads com versão, locale, tema, modo, dispositivos e logs).
   Um campo de terminal executa `adb`/`scrcpy` (parse e allowlist no core,
-  output limitado a 256 KiB) e despeja stdout/stderr no console.
+  output limitado a 256 KiB) e despeja stdout/stderr no console. O painel
+  rola para o fim a cada linha nova e coloriza `[ERROR]`/`[WARN]` com os
+  tokens de perigo/aviso.
 - **Notificações nativas:** fim inesperado de sessão (erro ou saída não
   solicitada) dispara `SystemNotification` com o dispositivo; parada manual não
   notifica.
@@ -137,7 +139,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **36 passed** (32 unit + 1 a11y + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **37 passed** (33 unit + 1 a11y + 2 paridade + 1 UI) |
 | `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |

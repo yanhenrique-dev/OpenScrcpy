@@ -18,7 +18,7 @@ use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::px;
 use gpui_kit::{
     App, AppContext as _, ClipboardItem, Context, Entity, ExternalPaths, InteractiveElement as _,
-    IntoElement, ParentElement as _, PathPromptOptions, Render, Role, SharedString,
+    IntoElement, ParentElement as _, PathPromptOptions, Render, Role, ScrollHandle, SharedString,
     StatefulInteractiveElement as _, Styled as _, Subscription, SystemNotification,
     TestSupportExt as _, Window, WindowBounds, div, relative,
 };
@@ -204,6 +204,7 @@ pub struct AppShell {
     discovered: Vec<DiscoveredService>,
     terminal_input: Entity<InputState>,
     terminal_busy: bool,
+    console_scroll: ScrollHandle,
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
     update_available: Option<String>,
@@ -326,6 +327,7 @@ impl AppShell {
             discovered: Vec::new(),
             terminal_input,
             terminal_busy: false,
+            console_scroll: ScrollHandle::new(),
             cameras: Vec::new(),
             cameras_busy: false,
             update_available: None,
@@ -514,6 +516,7 @@ impl AppShell {
             let overflow = self.logs.len() - MAX_LOG_LINES;
             self.logs.drain(..overflow);
         }
+        self.console_scroll.scroll_to_bottom();
     }
 
     fn push_error(&mut self, error: impl Into<String>) {
@@ -2750,12 +2753,12 @@ impl AppShell {
     fn console(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let mut lines = Vec::with_capacity(self.logs.len());
         for line in &self.logs {
-            lines.push(
-                div()
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(line.clone()),
-            );
+            let color = match log_level(line) {
+                LogLevel::Error => cx.theme().danger,
+                LogLevel::Warning => cx.theme().warning,
+                LogLevel::Info => cx.theme().muted_foreground,
+            };
+            lines.push(div().text_xs().text_color(color).child(line.clone()));
         }
 
         div()
@@ -2821,7 +2824,8 @@ impl AppShell {
                     .flex_col()
                     .flex_1()
                     .min_h_0()
-                    .overflow_hidden()
+                    .overflow_y_scroll()
+                    .track_scroll(&self.console_scroll)
                     .gap_1()
                     .px_4()
                     .py_2()
@@ -3093,6 +3097,24 @@ fn needs_onboarding(ready: Option<bool>, done: bool) -> bool {
     ready == Some(false) && !done
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LogLevel {
+    Error,
+    Warning,
+    Info,
+}
+
+/// The core logs carry a `[LEVEL]` prefix; color those, keep the rest muted.
+fn log_level(line: &str) -> LogLevel {
+    if line.contains("[ERROR]") {
+        LogLevel::Error
+    } else if line.contains("[WARN]") || line.contains("[WARNING]") {
+        LogLevel::Warning
+    } else {
+        LogLevel::Info
+    }
+}
+
 fn downloads_dir() -> Option<std::path::PathBuf> {
     directories::UserDirs::new().and_then(|dirs| dirs.download_dir().map(|path| path.to_path_buf()))
 }
@@ -3234,6 +3256,13 @@ mod tests {
         assert_eq!(pairing_retry_delay(1), Duration::from_secs(1));
         assert_eq!(pairing_retry_delay(4), Duration::from_secs(4));
         assert_eq!(pairing_retry_delay(20), Duration::from_secs(5));
+    }
+
+    #[test]
+    fn log_levels_come_from_the_prefix() {
+        assert_eq!(log_level("[ERROR] boom"), LogLevel::Error);
+        assert_eq!(log_level("[WARN] careful"), LogLevel::Warning);
+        assert_eq!(log_level("[SYSTEM] hello"), LogLevel::Info);
     }
 
     #[test]
