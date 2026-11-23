@@ -327,6 +327,14 @@ Use esta matrix (preencha com PASS/FAIL e uma nota curta):
 
 ## 7. Fase 2 — Fundação do app GPUI (3–4 semanas)
 
+> **Execução parcial (2026-11-23):** `crates/open-scrcpy-gpui` existe com o
+> shell (header, device hub, abas de modo e console), tema claro/escuro/sistema,
+> troca dos 8 locales em runtime, settings versionados com escrita atômica e
+> bounds de janela restaurados. O pipeline TS→YAML e o teste de paridade cobrem
+> as 390 chaves nos 8 locales. Faltam fontes/ícones, a trait `Platform`, os
+> overlays e o panic hook; veja
+> [docs/experiments/2026-11-phase-2-foundation.md](experiments/2026-11-phase-2-foundation.md).
+
 **Objetivo:** ter um casco vazio, porém completo: tema, fontes, ícones, i18n, settings, janela, overlays e serviços.
 
 | ID | Entrega | Detalhe |
