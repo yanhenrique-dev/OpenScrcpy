@@ -58,6 +58,10 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
+        // The wireless transport is part of the sidebar contract.
+        assert_eq!(window.find("wireless-connect").label(), Some("Connect"));
+        assert!(window.find("pair-start").label().is_some());
+
         // Filter/settings controls write the persisted mirror settings and the
         // summary reflects them before the session starts.
         window.click("mode-screen", cx);

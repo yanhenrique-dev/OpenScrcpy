@@ -30,6 +30,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Teardown:** fechar a janela mata os filhos e descarrega o sink virtual
   (`core::session::teardown_sessions`), o mesmo código que o casco Tauri passou
   a usar.
+- **Wireless:** a sidebar tem `IP Connect` e `Start Pairing` ligados a
+  `core::adb::connect`/`pair`; os passos e erros do adb vão para o console e o
+  dispositivo conectado aparece no hub no próximo polling.
 - **Tema e locale** continuam funcionando junto com o resto.
 
 ## 2. Arquitetura
@@ -95,7 +98,7 @@ AppShell (Entity<AppShell>)
 | --- | --- |
 | 3.1 Header (menu de idioma real, update badge) | parcial: locale por botão de ciclo |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
-| 3.3 Wireless (IP/pairing/histórico) | pendente |
+| 3.3 Wireless (IP/pairing/histórico) | parcial: IP/pairing manual prontos; descoberta mDNS, histórico e o fluxo guiado de pairing pendentes |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | parcial: bitrate/fps/res/codec/áudio/vsync/reconnect prontos; faltam renderer, rotação, HID, recording, always-on-top/borderless |
 | 3.5 Camera | pendente (aba desabilitada por texto) |
 | 3.6 Desktop | pendente |
@@ -110,7 +113,8 @@ AppShell (Entity<AppShell>)
 
 1. Completar o Mirror: renderer, rotação, HID, recording,
    always-on-top/borderless e o "pure HID".
-2. Wireless: IP/pairing usando `core::adb`/`core::wireless`.
+2. Wireless: descoberta mDNS (`adb mdns services`), lista de pares recentes e
+   o fluxo guiado de pairing (o IP/código manual já funciona).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Tray/single-instance/hotkeys (F2.8 `Platform` + F3.11).
 5. Substituir o botão de ciclo de idioma pelo menu e remover a chave

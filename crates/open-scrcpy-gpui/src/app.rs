@@ -7,6 +7,7 @@
 use std::time::Duration;
 
 use gpui_kit::base::Selectable as _;
+use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
@@ -163,6 +164,10 @@ pub struct AppShell {
     logs: Vec<String>,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
+    wireless_address: Entity<InputState>,
+    pairing_address: Entity<InputState>,
+    pairing_code: Entity<InputState>,
+    wireless_busy: bool,
 }
 
 impl AppShell {
@@ -211,6 +216,17 @@ impl AppShell {
             }
         });
 
+        let wireless_address = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("sidebar.ipPlaceholder").to_string())
+        });
+        let pairing_address = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("sidebar.ipPortPlaceholder").to_string())
+        });
+        let pairing_code = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder(t!("sidebar.pairingCodePlaceholder").to_string())
+        });
+
         Self {
             settings,
             store,
@@ -223,6 +239,10 @@ impl AppShell {
             logs: Vec::new(),
             bitrate,
             _bitrate_subscription: bitrate_subscription,
+            wireless_address,
+            pairing_address,
+            pairing_code,
+            wireless_busy: false,
         }
     }
 
@@ -306,6 +326,51 @@ impl AppShell {
                 .map(|device| device.serial.clone());
         }
         cx.notify();
+    }
+
+    fn connect_wireless(&mut self, cx: &mut Context<Self>) {
+        let address = self.wireless_address.read(cx).value().trim().to_string();
+        if address.is_empty() || self.wireless_busy {
+            return;
+        }
+        self.wireless_busy = true;
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.connect(address).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.wireless_busy = false;
+                match result {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(error)) => shell.push_error(error),
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    fn pair_wireless(&mut self, cx: &mut Context<Self>) {
+        let address = self.pairing_address.read(cx).value().trim().to_string();
+        let code = self.pairing_code.read(cx).value().trim().to_string();
+        if address.is_empty() || code.is_empty() || self.wireless_busy {
+            return;
+        }
+        self.wireless_busy = true;
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let result = services.pair(address, code).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.wireless_busy = false;
+                match result {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(error)) => shell.push_error(error),
+                    Err(error) => shell.push_error(error.to_string()),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     fn start_session(&mut self, cx: &mut Context<Self>) {
@@ -437,7 +502,10 @@ impl AppShell {
             );
         }
 
+        let busy = self.wireless_busy;
+
         div()
+            .id("sidebar")
             .flex()
             .flex_col()
             .gap_2()
@@ -446,6 +514,7 @@ impl AppShell {
             .p_3()
             .border_r_1()
             .border_color(cx.theme().border)
+            .overflow_y_scroll()
             .child(
                 div()
                     .text_xs()
@@ -462,6 +531,42 @@ impl AppShell {
                 )
             })
             .children(rows)
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_2()
+                    .pt_3()
+                    .border_t_1()
+                    .border_color(cx.theme().border)
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("sidebar.wireless").to_string()),
+                    )
+                    .child(Input::new(&self.wireless_address).w_full())
+                    .child(
+                        Button::new("wireless-connect")
+                            .label(t!("sidebar.connect").to_string())
+                            .disabled(busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.connect_wireless(cx))),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("sidebar.startPairing").to_string()),
+                    )
+                    .child(Input::new(&self.pairing_address).w_full())
+                    .child(Input::new(&self.pairing_code).w_full())
+                    .child(
+                        Button::new("pair-start")
+                            .label(t!("sidebar.startPairing").to_string())
+                            .disabled(busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.pair_wireless(cx))),
+                    ),
+            )
     }
 
     fn mode_tabs(&mut self, cx: &mut Context<Self>) -> impl IntoElement {

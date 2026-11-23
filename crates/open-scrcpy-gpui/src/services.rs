@@ -109,6 +109,25 @@ impl AppServices {
             .spawn(async move { stop_session(&state, &device, host.as_ref()).await })
     }
 
+    /// `adb connect <address>`. The core logs every step to the bus.
+    pub fn connect(&self, address: String) -> JoinHandle<Result<serde_json::Value, String>> {
+        let bus = self.events.clone();
+        self.runtime.spawn(async move {
+            adb::connect(move |line| bus.log(line), &address, None, false).await
+        })
+    }
+
+    /// `adb pair <address> <code>`.
+    pub fn pair(
+        &self,
+        address: String,
+        code: String,
+    ) -> JoinHandle<Result<serde_json::Value, String>> {
+        let bus = self.events.clone();
+        self.runtime
+            .spawn(async move { adb::pair(move |line| bus.log(line), &address, &code, None).await })
+    }
+
     pub fn list_devices(&self) -> JoinHandle<serde_json::Value> {
         self.runtime.spawn(async { adb::list_devices(None).await })
     }
