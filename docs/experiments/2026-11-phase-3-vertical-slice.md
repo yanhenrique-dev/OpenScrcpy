@@ -58,7 +58,9 @@ O casco deixou de ser estático: ele fala com `open-scrcpy-core` e com o
 - **Wireless:** a sidebar tem `IP Connect`, descoberta **mDNS** (polling de
   `adb mdns services` a cada 5 s; clicar preenche o endereço de conexão ou de
   pairing), **pares recentes** persistidos (máx. 5, atualizados após um connect
-  bem-sucedido), e `Start Pairing` ligados a
+  bem-sucedido), e `Start Pairing` **guiado** (usa o serviço de pairing do mDNS
+  quando o campo está vazio, tenta até 20 vezes com backoff de 1–5 s e mostra
+  `attempt/N`), ligados a
   `core::adb::connect`/`pair`; os passos e erros do adb vão para o console e o
   dispositivo conectado aparece no hub no próximo polling.
 - **Arquivos:** "Flash / Push Files" abre o seletor nativo (portal) e envia
@@ -128,7 +130,7 @@ AppShell (Entity<AppShell>)
 | `cargo fmt --check` (gpui/core/tauri) | PASS |
 | `cargo clippy --all-targets -- -D warnings` (gpui) | PASS |
 | Smoke de abertura (`timeout 10 openscrcpy`) | PASS (ficou rodando, sem panic) |
-| `cargo test` (gpui) | **32 passed** (29 unit + 2 paridade + 1 UI) |
+| `cargo test` (gpui) | **36 passed** (32 unit + 1 a11y + 2 paridade + 1 UI) |
 | `cargo test` (core) | 79 passed, 1 ignored |
 | `npx tsc --noEmit` | PASS |
 | `npm test` | 166 passed (33 arquivos) |
@@ -161,7 +163,7 @@ comportamento esperado durante a convivência dos dois cascos.
 | --- | --- |
 | 3.1 Header (menu de idioma real, update badge) | **parcial**: menu de idioma, Sobre, check/badge de update prontos; botões de janela dependem do chrome (3.12) |
 | 3.2 Device hub | **feito** (USB; wireless/pairing ainda não) |
-| 3.3 Wireless (IP/pairing/histórico) | **feito**: IP/pairing manual, descoberta mDNS, pares recentes; falta o fluxo guiado que espera a tela de pairing (smoke com hardware pendente) |
+| 3.3 Wireless (IP/pairing/histórico) | **feito**: IP, pairing manual e guiado (mDNS + retries), pares recentes (smoke com hardware pendente) |
 | 3.4 Mirror (bitrate/fps/res/codec/renderer/OTG/áudio) | **feito**: performance, áudio, HID/OTG, janela, gravação, rotação e renderer; smoke com hardware pendente |
 | 3.5 Camera | **feito**: facing, lente (`--list-cameras`), aspecto, zoom, torch, high-speed, virtual mic e tamanho (smoke com hardware pendente) |
 | 3.6 Desktop | **parcial**: presets de tamanho, DPI, rotação, max size e flex; largura/altura/DPI livres e presets de ratio pendentes |
@@ -174,8 +176,7 @@ comportamento esperado durante a convivência dos dois cascos.
 
 ## 6. Próximos passos
 
-1. Fluxo guiado de pairing (esperar o serviço de pairing aparecer, mostrar
-   progresso e erro traduzido).
+1. Smoke de pairing com aparelho real (o fluxo guiado já existe).
 3. Camera/Desktop/Mic com os campos que já existem no DTO.
 4. Camera (3.5), que já tem os campos no DTO e as chaves de i18n.
 5. Camera: descobrir lentes via `scrcpy` e selecionar `camera_id`.

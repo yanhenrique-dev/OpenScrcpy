@@ -193,6 +193,7 @@ pub struct AppShell {
     cameras_busy: bool,
     update_available: Option<String>,
     checking_update: bool,
+    pairing_attempt: Option<u32>,
     scrcpy_ready: Option<bool>,
     downloading: bool,
     download_percent: Option<u64>,
@@ -312,6 +313,7 @@ impl AppShell {
             cameras_busy: false,
             update_available: None,
             checking_update: false,
+            pairing_attempt: None,
             scrcpy_ready: None,
             downloading: false,
             download_percent: None,
@@ -842,22 +844,79 @@ impl AppShell {
     }
 
     fn pair_wireless(&mut self, cx: &mut Context<Self>) {
-        let address = self.pairing_address.read(cx).value().trim().to_string();
-        let code = self.pairing_code.read(cx).value().trim().to_string();
-        if address.is_empty() || code.is_empty() || self.wireless_busy {
+        if self.wireless_busy {
             return;
         }
+        let typed = self.pairing_address.read(cx).value().trim().to_string();
+        let Some(address) = resolve_pairing_address(&self.discovered, &typed) else {
+            self.push_error(
+                "[SYSTEM] No pairing service found; enable Wireless debugging and enter IP:Port.",
+            );
+            cx.notify();
+            return;
+        };
+        let code = self.pairing_code.read(cx).value().trim().to_string();
+        if code.is_empty() {
+            return;
+        }
+
         self.wireless_busy = true;
+        self.pairing_attempt = Some(1);
+        self.push_log(format!("[SYSTEM] Pairing with {address}..."));
+        cx.notify();
+
         let services = self.services.clone();
         cx.spawn(async move |this, cx| {
-            let result = services.pair(address, code).await;
+            let mut last_error = String::new();
+            for attempt in 1..=PAIRING_MAX_ATTEMPTS {
+                if attempt > 1 {
+                    let delay = pairing_retry_delay(attempt);
+                    cx.background_executor().timer(delay).await;
+                }
+                let result = services.pair(address.clone(), code.clone()).await;
+                let success = match result {
+                    Ok(Ok(value)) => {
+                        let paired = value.get("success").and_then(Value::as_bool) == Some(true);
+                        if !paired {
+                            last_error = value
+                                .get("message")
+                                .and_then(Value::as_str)
+                                .unwrap_or("pairing failed")
+                                .to_string();
+                        }
+                        paired
+                    }
+                    Ok(Err(error)) => {
+                        last_error = error;
+                        false
+                    }
+                    Err(error) => {
+                        last_error = error.to_string();
+                        false
+                    }
+                };
+                if success {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.wireless_busy = false;
+                        shell.pairing_attempt = None;
+                        shell.push_log(format!("[SYSTEM] Paired with {address}."));
+                        cx.notify();
+                    });
+                    return;
+                }
+                if attempt < PAIRING_MAX_ATTEMPTS {
+                    let _ = this.update(cx, |shell, cx| {
+                        shell.pairing_attempt = Some(attempt + 1);
+                        cx.notify();
+                    });
+                }
+            }
             let _ = this.update(cx, |shell, cx| {
                 shell.wireless_busy = false;
-                match result {
-                    Ok(Ok(_)) => {}
-                    Ok(Err(error)) => shell.push_error(error),
-                    Err(error) => shell.push_error(error.to_string()),
-                }
+                shell.pairing_attempt = None;
+                shell.push_error(format!(
+                    "[SYSTEM] Pairing with {address} failed: {last_error}"
+                ));
                 cx.notify();
             });
         })
@@ -1195,7 +1254,19 @@ impl AppShell {
                             .label(t!("sidebar.startPairing").to_string())
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.pair_wireless(cx))),
-                    ),
+                    )
+                    .when_some(self.pairing_attempt, |this, attempt| {
+                        this.child(
+                            div()
+                                .id("pair-status")
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(format!(
+                                    "{} ({attempt}/{PAIRING_MAX_ATTEMPTS})",
+                                    t!("sidebar.pairModalWaiting")
+                                )),
+                        )
+                    }),
             )
     }
 
@@ -2794,6 +2865,26 @@ fn spawn_device_poll(cx: &mut Context<AppShell>, services: AppServices) {
     .detach();
 }
 
+const PAIRING_MAX_ATTEMPTS: u32 = 20;
+
+/// Address to pair with: what the user typed, or the first pairing service
+/// reported by mDNS. Pairing ports change, so the discovery list is the source
+/// of truth when the field is empty.
+fn resolve_pairing_address(discovered: &[DiscoveredService], typed: &str) -> Option<String> {
+    let typed = typed.trim();
+    if !typed.is_empty() {
+        return Some(typed.to_string());
+    }
+    discovered
+        .iter()
+        .find(|service| service.service.contains("_adb-tls-pairing"))
+        .map(|service| service.address.clone())
+}
+
+fn pairing_retry_delay(attempt: u32) -> Duration {
+    Duration::from_secs(u64::from(attempt.clamp(1, 5)))
+}
+
 fn needs_onboarding(ready: Option<bool>, done: bool) -> bool {
     ready == Some(false) && !done
 }
@@ -2902,6 +2993,38 @@ mod tests {
         assert_eq!(report["locale"], "pt-BR");
         assert_eq!(report["devices"][0]["serial"], "device1");
         assert_eq!(report["logs"][0], "[SYSTEM] hello");
+    }
+
+    #[test]
+    fn pairing_uses_the_typed_address_or_the_mdns_service() {
+        let discovered = vec![
+            DiscoveredService {
+                name: "phone".into(),
+                service: "_adb-tls-connect._tcp".into(),
+                address: "10.0.0.2:5555".into(),
+            },
+            DiscoveredService {
+                name: "phone".into(),
+                service: "_adb-tls-pairing._tcp".into(),
+                address: "10.0.0.2:37123".into(),
+            },
+        ];
+        assert_eq!(
+            resolve_pairing_address(&discovered, "  ").as_deref(),
+            Some("10.0.0.2:37123")
+        );
+        assert_eq!(
+            resolve_pairing_address(&discovered, "192.168.0.9:40000").as_deref(),
+            Some("192.168.0.9:40000")
+        );
+        assert!(resolve_pairing_address(&[], "").is_none());
+    }
+
+    #[test]
+    fn pairing_retry_delay_grows_then_caps() {
+        assert_eq!(pairing_retry_delay(1), Duration::from_secs(1));
+        assert_eq!(pairing_retry_delay(4), Duration::from_secs(4));
+        assert_eq!(pairing_retry_delay(20), Duration::from_secs(5));
     }
 
     #[test]
