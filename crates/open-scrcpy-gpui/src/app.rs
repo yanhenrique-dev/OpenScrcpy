@@ -280,6 +280,8 @@ pub struct AppShell {
     codec_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     renderer_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     rotation_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    mirror_audio_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    _audio_source_subscription: Subscription,
     camera_facing_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     camera_aspect_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     camera_max_size_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
@@ -641,6 +643,52 @@ impl AppShell {
             )
         });
 
+        let audio_values = [
+            (
+                "output",
+                t!("sessionBehavior.audioSourceOutput").to_string(),
+            ),
+            (
+                "playback",
+                t!("sessionBehavior.audioSourcePlayback").to_string(),
+            ),
+            ("mic", t!("sessionBehavior.audioSourceMic").to_string()),
+            (
+                "voice-call",
+                t!("sessionBehavior.audioSourceVoiceCall").to_string(),
+            ),
+            (
+                "voice-performance",
+                t!("sessionBehavior.audioSourceVoicePerformance").to_string(),
+            ),
+        ];
+        let audio_index = audio_values
+            .iter()
+            .position(|(value, _)| *value == settings.mirror.mirror_audio_source)
+            .unwrap_or(0);
+        let mirror_audio_select = cx.new(|cx| {
+            SelectState::new(
+                choice_select(audio_values.to_vec()),
+                Some(IndexPath::new(audio_index)),
+                window,
+                cx,
+            )
+        });
+        let audio_source_subscription = cx.subscribe_in(
+            &mirror_audio_select,
+            window,
+            |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                if let SelectEvent::Confirm(Some(value)) = event {
+                    this.settings.mirror.mirror_audio_source = value.clone();
+                    if value != "playback" {
+                        this.settings.mirror.audio_dup = false;
+                    }
+                    this.persist();
+                    cx.notify();
+                }
+            },
+        );
+
         let mirror_selects_subscriptions = vec![
             cx.subscribe_in(
                 &fps_select,
@@ -760,6 +808,8 @@ impl AppShell {
             codec_select,
             renderer_select,
             rotation_select,
+            mirror_audio_select,
+            _audio_source_subscription: audio_source_subscription,
             camera_facing_select,
             camera_aspect_select,
             camera_max_size_select,
@@ -2338,27 +2388,6 @@ impl AppShell {
         let settings = self.settings.mirror.clone();
         let bitrate = self.bitrate.read(cx).value().end().round() as u32;
 
-        let audio_sources = [
-            "output",
-            "playback",
-            "mic",
-            "voice-call",
-            "voice-performance",
-        ];
-        let audio_source_index = audio_sources
-            .iter()
-            .position(|source| *source == settings.mirror_audio_source)
-            .unwrap_or(0);
-        let audio_source_options = audio_sources.map(|source| {
-            let label = match source {
-                "playback" => t!("sessionBehavior.audioSourcePlayback"),
-                "mic" => t!("sessionBehavior.audioSourceMic"),
-                "voice-call" => t!("sessionBehavior.audioSourceVoiceCall"),
-                "voice-performance" => t!("sessionBehavior.audioSourceVoicePerformance"),
-                _ => t!("sessionBehavior.audioSourceOutput"),
-            };
-            Radio::new(format!("mirror-audio-source-{source}")).label(label.to_string())
-        });
         let audio_on = settings.audio;
         let dup_enabled = audio_on && settings.mirror_audio_source == "playback";
 
@@ -2516,26 +2545,12 @@ impl AppShell {
                             .child(t!("sessionBehavior.audioSource").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("mirror-audio-source")
-                            .selected_index(Some(audio_source_index))
+                        Select::new(&self.mirror_audio_select)
+                            .small()
+                            .w_48()
+                            .menu_width(px(220.))
                             .disabled(!audio_on)
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                let sources = [
-                                    "output",
-                                    "playback",
-                                    "mic",
-                                    "voice-call",
-                                    "voice-performance",
-                                ];
-                                let source = sources.get(*index).copied().unwrap_or("output");
-                                this.settings.mirror.mirror_audio_source = source.to_string();
-                                if source != "playback" {
-                                    this.settings.mirror.audio_dup = false;
-                                }
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(audio_source_options),
+                            .accessibility_label(t!("sessionBehavior.audioSource").to_string()),
                     ),
             )
             .child(
