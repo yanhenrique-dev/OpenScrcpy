@@ -88,7 +88,7 @@ pub(crate) fn on_window_event(window: &Window, event: &WindowEvent) {
         return;
     }
     if let WindowEvent::CloseRequested { api, .. } = event {
-        let state = window.state::<ScrcpyState>();
+        let state = window.state::<std::sync::Arc<ScrcpyState>>();
         if state.background_mode.load(Ordering::Relaxed) {
             api.prevent_close();
             let _ = window.hide();

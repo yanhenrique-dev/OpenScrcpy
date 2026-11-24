@@ -1,10 +1,20 @@
-mod audio;
-mod capabilities;
 mod commands;
 mod download;
-mod process;
+mod events;
+mod session_adapter;
 mod tray;
-mod validate;
+
+// Re-export the extracted domain at the old paths so `crate::validate`,
+// `crate::process`, `crate::download` and friends keep working while the
+// remaining command modules move out of the Tauri crate.
+pub use open_scrcpy_core::runtime::{RetryContext, RetryOrigin, SessionRuntime};
+pub use open_scrcpy_core::state::{
+    bump_session_generation, session_generation_is_current, ScrcpyState, SessionHandle, StopRequest,
+};
+pub use open_scrcpy_core::{
+    adb, audio, capabilities, config, paths, process, report, runtime, scrcpy, session, terminal,
+    update, validate, wireless,
+};
 // Windows-only: drag the borderless scrcpy window with the mouse
 // (Ctrl+Alt+Shift+W).
 #[cfg(target_os = "windows")]
@@ -12,68 +22,17 @@ mod grab;
 // Linux-only: KDE Plasma Wayland window position/recentre bridge (KWin
 // scripting over D-Bus); xdotool handles X11.
 #[cfg(target_os = "linux")]
-mod kwin;
+pub use open_scrcpy_platform::kwin;
 // Cross-platform global OS shortcuts (e.g. Ctrl+Alt+Shift+C to recentre the
 // active mirror window), shared with grab.rs's Windows-only drag toggle.
 mod shortcuts;
 use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicUsize};
+use std::sync::Mutex;
 use tauri::Manager;
-use tokio::sync::{oneshot, Notify};
 
 #[cfg(target_os = "linux")]
 use std::os::unix::process::CommandExt;
-
-/// One running session. The monitor task owns the `Child`; the registry keeps
-/// only what other commands need: the PID to target, a channel to ask the
-/// task to stop, and a notification that it finished.
-pub struct SessionHandle {
-    pub generation: u64,
-    /// Whether this session owns the persisted mirror-window position. Only
-    /// windowed mirror sessions do; camera/desktop/fullscreen must not read or
-    /// overwrite it.
-    pub track_position: bool,
-    pub pid: Arc<AtomicU32>,
-    pub stop: oneshot::Sender<StopRequest>,
-    pub done: Arc<Notify>,
-}
-
-#[derive(Debug)]
-pub struct StopRequest {
-    /// Position captured by `stop_scrcpy` while the window still exists.
-    pub position: Option<(i32, i32)>,
-}
-
-pub struct ScrcpyState {
-    pub sessions: Mutex<HashMap<String, SessionHandle>>,
-    /// Devices with a run_scrcpy call currently preparing a child. Keeps two
-    /// concurrent starts from both spawning before either registers.
-    pub starting_devices: Mutex<HashSet<String>>,
-    /// Serializes the binary update swap with the "reserve a device" step of
-    /// run_scrcpy, closing the check-then-start race in download_scrcpy.
-    pub binary_swap: tokio::sync::Mutex<()>,
-    /// Serializes virtual-sink creation/unload with the per-session user
-    /// count. Without it, a stopping session could unload the sink between
-    /// another session's `ensure_mic_sink` and its reservation, silently
-    /// sending the new audio stream to the default output.
-    pub mic_sink_lock: tokio::sync::Mutex<()>,
-    /// Number of sessions holding a reservation on the shared OpenScrcpy Mic
-    /// sink (microphone bridge or camera with virtual mic). A start reserves
-    /// before spawning, so the count can briefly include a session that is
-    /// still preparing. The sink is unloaded when it reaches zero.
-    pub mic_sink_users: AtomicUsize,
-    /// Logical session generation per device serial, bumped by every
-    /// run_scrcpy. Mic sidecar loops (route watcher, level meter) capture the
-    /// value at spawn and exit once it moves past theirs: a replaced session
-    /// reuses the same registry key, so the plain `contains_key` check alone
-    /// cannot tell the previous session's loops apart from the new one.
-    pub session_generations: Mutex<HashMap<String, u64>>,
-    pub active_device: Mutex<Option<String>>,
-    /// Mirrors the persisted "keep running in the background" preference.
-    /// When set, closing the main window hides it instead of exiting.
-    pub background_mode: AtomicBool,
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -145,20 +104,23 @@ pub fn run() {
 
     let app = builder
         .setup(|app| {
+            events::init(app.handle());
             // Resolve once: portable installs keep scrcpy next to the exe;
             // read-only locations (/usr/bin, Program Files) use app data.
             download::init_install_dir(app.handle());
 
-            app.manage(ScrcpyState {
+            app.manage(std::sync::Arc::new(ScrcpyState {
                 sessions: Mutex::new(HashMap::new()),
                 starting_devices: Mutex::new(HashSet::new()),
                 binary_swap: tokio::sync::Mutex::new(()),
                 mic_sink_lock: tokio::sync::Mutex::new(()),
                 mic_sink_users: AtomicUsize::new(0),
+                mic_default_source_users: AtomicUsize::new(0),
+                mic_previous_default_source: Mutex::new(None),
                 session_generations: Mutex::new(HashMap::new()),
                 active_device: Mutex::new(None),
                 background_mode: AtomicBool::new(false),
-            });
+            }));
 
             // Ctrl+Alt+Shift+C (recentre the active mirror window) on every
             // platform, plus Ctrl+Alt+Shift+W (drag the borderless window) on

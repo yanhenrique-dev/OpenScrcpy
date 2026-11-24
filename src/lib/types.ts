@@ -125,6 +125,9 @@ export interface ScrcpyConfig {
     mirrorAudioSource?: MirrorAudioSource;
     /** Mirror + playback only: keep the audio playing on the phone. */
     audioDup?: boolean;
+    /** Retry a session that ends unexpectedly (USB/ADB drop or crash) with
+     *  backoff. Deliberate stops and a closed scrcpy window are not retried. */
+    autoReconnect?: boolean;
     /** Fail the session instead of silently mirroring video only when the
      *  device cannot capture audio. Off by default for older-device support. */
     requireAudio?: boolean;
@@ -166,6 +169,9 @@ export interface ScrcpyConfig {
     micCodec?: MicCodec;
     micBitrate?: number;
     micDenoise?: boolean;
+    /** Linux: make Monitor of OpenScrcpy Mic the system default input while
+     *  the bridge runs, restoring the previous default when it stops. */
+    micSetDefaultSource?: boolean;
 }
 
 export type ConfigFieldSetter = <K extends keyof ScrcpyConfig>(

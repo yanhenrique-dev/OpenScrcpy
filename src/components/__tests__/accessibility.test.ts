@@ -73,6 +73,13 @@ describe('accessibility', () => {
         await expectNoViolations(container);
     });
 
+    it('keeps the microphone control panel free of axe violations', async () => {
+        const { container } = render(ControlPanel, {
+            props: controlPanelProps({ ...DEFAULT_CONFIG, sessionMode: 'mic' })
+        });
+        await expectNoViolations(container);
+    });
+
     it('keeps the console free of axe violations', async () => {
         const { container } = render(LogPanel);
         await expectNoViolations(container);

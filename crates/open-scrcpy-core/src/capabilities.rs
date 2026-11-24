@@ -30,7 +30,7 @@ const KNOWN_AUDIO_SOURCES: &[&str] = &[
 ];
 
 #[derive(Debug, Default)]
-pub(crate) struct Capabilities {
+pub struct Capabilities {
     version: Option<String>,
     options: HashSet<String>,
     audio_sources: HashSet<String>,
@@ -40,20 +40,20 @@ pub(crate) struct Capabilities {
 impl Capabilities {
     /// False only when the help output was recognized as scrcpy's. An
     /// unrecognized binary keeps the old permissive behavior.
-    pub(crate) fn supports(&self, flag: &str) -> bool {
+    pub fn supports(&self, flag: &str) -> bool {
         !self.reliable || self.options.contains(flag)
     }
 
-    pub(crate) fn supports_audio_source(&self, source: &str) -> bool {
+    pub fn supports_audio_source(&self, source: &str) -> bool {
         !self.reliable || self.audio_sources.contains(source)
     }
 
-    pub(crate) fn version(&self) -> &str {
+    pub fn version(&self) -> &str {
         self.version.as_deref().unwrap_or("unknown")
     }
 
-    #[cfg(test)]
-    pub(crate) fn for_test(options: &[&str], audio_sources: &[&str]) -> Self {
+    /// Test constructor for a detected capability set.
+    pub fn for_test(options: &[&str], audio_sources: &[&str]) -> Self {
         Self {
             version: Some("5.0.1".to_string()),
             options: options.iter().map(|option| (*option).to_string()).collect(),
@@ -67,7 +67,7 @@ impl Capabilities {
 }
 
 /// Runs `scrcpy --help` and parses the supported long options.
-pub(crate) async fn detect(exe_path: &str) -> Capabilities {
+pub async fn detect(exe_path: &str) -> Capabilities {
     let mut command = create_command(exe_path);
     command.arg("--help");
     let output = match output_with_timeout(command, HELP_TIMEOUT).await {
@@ -98,7 +98,7 @@ pub(crate) async fn detect(exe_path: &str) -> Capabilities {
 /// Removes unsupported long options from an argument vector, including the
 /// following token for options that take a separate value. Returns the kept
 /// arguments and the names of the skipped options.
-pub(crate) fn filter_args(args: Vec<String>, caps: &Capabilities) -> (Vec<String>, Vec<String>) {
+pub fn filter_args(args: Vec<String>, caps: &Capabilities) -> (Vec<String>, Vec<String>) {
     if !caps.reliable {
         return (args, Vec::new());
     }
@@ -124,7 +124,7 @@ pub(crate) fn filter_args(args: Vec<String>, caps: &Capabilities) -> (Vec<String
     (kept, skipped)
 }
 
-pub(crate) fn skipped_message(caps: &Capabilities, skipped: &[String]) -> Option<String> {
+pub fn skipped_message(caps: &Capabilities, skipped: &[String]) -> Option<String> {
     if skipped.is_empty() {
         return None;
     }
@@ -174,7 +174,11 @@ fn option_name(line: &str) -> Option<&str> {
     }
     let rest = rest.split_once(", ").map_or(rest, |(_, long)| long);
     let long = rest.strip_prefix("--")?;
-    let name = long.split(|c: char| c == '=' || c.is_whitespace()).next()?;
+    // scrcpy prints optional values as `--new-display[=[<w>x<h>][/<dpi>]]`;
+    // stop at the first character that cannot belong to an option name.
+    let name = long
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+        .next()?;
     (!name.is_empty()).then_some(name)
 }
 
@@ -235,6 +239,8 @@ mod tests {
         "        Possible values: \"output\", \"mic\", \"mic-voice-communication\".\r\n",
         "    --camera-size=<width>x<height>\r\n",
         "        Select the camera size.\r\n",
+        "    --new-display[=[<width>x<height>][/<dpi>]]\r\n",
+        "        Create a new display.\r\n",
         "    -G\r\n",
     );
 
@@ -245,6 +251,8 @@ mod tests {
         assert!(options.contains("fullscreen"));
         assert!(options.contains("audio-source"));
         assert!(options.contains("camera-size"));
+        // The bracket for the optional value must not become part of the name.
+        assert!(options.contains("new-display"));
         // A short-only option and a description mention are not long options.
         assert!(!options.contains("G"));
         assert!(!options.contains("output"));

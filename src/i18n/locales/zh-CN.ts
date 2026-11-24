@@ -41,6 +41,8 @@ export const zhCN: Translations = {
         languageLabel: '语言',
         scrcpyEngine: 'Scrcpy 引擎',
         scrcpyReady: 'Scrcpy 已就绪',
+
+        scrcpyMissing: '未安装 scrcpy',
         syncingComponents: '正在同步组件 {progress}%',
         installCore: '安装核心',
         selectFolder: '选择文件夹',
@@ -86,6 +88,8 @@ export const zhCN: Translations = {
         syncing: '同步中...',
         refresh: '刷新',
         noDevicesDetected: '未检测到设备',
+
+        noDevice: '无设备',
         deviceUnauthorized: '请在设备上授权',
         deviceOffline: '离线',
         deviceUnavailable: '不可用',
@@ -134,9 +138,9 @@ export const zhCN: Translations = {
         desktop: '桌面',
         microphone: '麦克风',
         micBridgeTitle: '麦克风桥接',
-        micBridgeDesc: '无窗口：手机麦克风以音频输入的形式到达电脑。在 Discord、OBS 或录屏软件中选择「OpenScrcpy Mic」作为麦克风。',
-        micAndroidReq: '需要 Android 12 或更高版本，并在手机上授予麦克风权限。',
-        micDestLinux: 'Linux：桥接启动时自动创建虚拟设备「OpenScrcpy Mic」。',
+        micBridgeDesc: '无窗口：手机麦克风以音频输入的形式到达电脑。在 Discord、OBS 或录屏软件中选择「Monitor of OpenScrcpy Mic」作为麦克风（部分应用显示为「OpenScrcpy Mic」）。',
+        micAndroidReq: '需要 Android 11 或更高版本。Android 11 需在开始前解锁手机；Android 12+ 可直接使用。请在手机上允许麦克风权限。',
+        micDestLinux: 'Linux：桥接启动时自动创建虚拟输入「Monitor of OpenScrcpy Mic」。',
         micDestOther: 'Windows/macOS：此版本音频会输出到默认设备（虚拟驱动将在未来版本提供）。',
         micActive: '桥接运行中',
         micStartHint: '桥接显示在控制台中：scrcpy 日志会跟踪音频流。',
@@ -153,6 +157,8 @@ export const zhCN: Translations = {
         micCodecLabel: '编解码',
         micDenoiseLabel: '清理噪音 (RNNoise)',
         micDenoiseTooltip: '实验性：电脑端 PipeWire RNNoise DSP；不可用时桥接将不降噪运行。',
+        micSetDefaultSource: '设为默认麦克风',
+        micSetDefaultSourceTooltip: 'Linux：桥接运行期间将 Monitor of OpenScrcpy Mic 设为系统默认输入，停止时恢复之前的默认设备。部分应用会保留自己选择的设备。仅适用于新会话。',
         engineConfiguration: '引擎配置',
         otgOnly: '仅 OTG',
         audioOk: '音频正常',
@@ -216,6 +222,7 @@ export const zhCN: Translations = {
         engageCamera: '开始相机',
         ejectToDesktop: '开始虚拟显示',
         stopSession: '停止',
+        stopConfirm: '停止 {device} 上的会话？',
         // v4 features
         flexDisplay: '弹性显示',
         flexDisplayTooltip: '跟随 scrcpy 窗口动态调整虚拟显示器大小（scrcpy v4+）。',
@@ -223,6 +230,7 @@ export const zhCN: Translations = {
         cameraTorchTooltip: '摄像头流传时开启设备手电筒（scrcpy v4+）。',
         cameraZoom: '摄像头缩放',
         cameraZoomTooltip: '摄像头捕捉的缩放级别。1.0 = 不缩放。（scrcpy v4+）',
+        cameraHighSpeed: '高速拍摄',
         cameraMicSink: '虚拟麦克风',
         cameraMicSinkTooltip: '将此次摄像头会话中的手机麦克风路由到 OpenScrcpy Mic 输入（在 OBS 或 Discord 中选择“Monitor of OpenScrcpy Mic”）。音频将离开默认输出；如果缺少 pactl 或无法创建 sink，音频仍从默认输出播放，控制台会显示 [MIC] 警告。仅限 Linux。',
         backgroundColor: '背景颜色',
@@ -239,7 +247,10 @@ export const zhCN: Translations = {
         keepInBackground: '在后台继续运行',
         keepInBackgroundTooltip: '关闭窗口时，OpenScrcpy 会隐藏到托盘，并保持镜像和麦克风会话运行。选择托盘菜单中的“退出”可停止它们。',
         notifications: '原生通知',
-        notificationsTooltip: '在设备连接、会话意外结束和有可用更新时通知你。通知仅在 OpenScrcpy 运行时出现；窗口处于焦点时不会显示设备和更新通知。'
+        autoUpdate: '自动更新',
+        notificationsTooltip: '在设备连接、会话意外结束和有可用更新时通知你。通知仅在 OpenScrcpy 运行时出现；窗口处于焦点时不会显示设备和更新通知。',
+        autoReconnect: '自动重新连接',
+        autoReconnectTooltip: '如果 scrcpy 意外退出（USB/ADB 断开或崩溃），使用指数退避（最长 30 秒）重试会话。主动停止或关闭 scrcpy 窗口不会重连。仅适用于新会话；控制台会记录每次尝试。'
     },
     tray: {
         show: '显示 OpenScrcpy',
@@ -259,6 +270,31 @@ export const zhCN: Translations = {
         updateTitle: '有可用更新',
         updateBody: 'OpenScrcpy {version} 已可用。'
     },
+    status: {
+        running: '会话运行中',
+        starting: '正在启动…',
+    },
+
+    settings: {
+
+        appearance: '外观'
+
+    },
+
+    storage: {
+
+        title: '存储',
+
+        internal: '内部',
+
+        shared: '共享',
+
+        used: '已用',
+
+        free: '可用'
+
+    },
+
     sessionBehavior: {
         title: '行为设置',
         stayAwake: '保持设备唤醒',
@@ -315,6 +351,9 @@ export const zhCN: Translations = {
         off: '关闭'
     },
     logPanel: {
+        allLogs: '全部',
+        systemLogs: '系统',
+        errorLogs: '错误',
         systemConsole: '系统控制台',
         report: '导出报告',
         reportTitle: '将诊断报告导出到“下载”文件夹',
@@ -326,6 +365,7 @@ export const zhCN: Translations = {
         clear: '清除',
         waitingForSequence: '等待指令...',
         terminalPlaceholder: '输入命令（例如 adb shell）...',
+        run: '运行',
         diagnosticReportSaved: '报告已保存：{fileName}',
         reportSavedAlert: '报告已保存：{fileName}'
     },

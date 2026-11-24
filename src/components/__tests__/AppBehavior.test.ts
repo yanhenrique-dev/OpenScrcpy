@@ -16,6 +16,7 @@ describe('AppBehavior', () => {
         localStorage.clear();
         scrcpy.backgroundMode = false;
         scrcpy.notificationsEnabled = false;
+        scrcpy.config = { ...scrcpy.config, autoReconnect: false };
     });
 
     it('persists the background preference', async () => {
@@ -43,6 +44,18 @@ describe('AppBehavior', () => {
 
         expect(scrcpy.notificationsEnabled).toBe(true);
         expect(localStorage.getItem('scrcpy_notifications')).toBe('true');
+        expect(toggle).toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('offers automatic reconnection for unexpected session ends', async () => {
+        render(AppBehavior);
+
+        const toggle = screen.getByRole('switch', { name: 'Reconnect automatically' });
+        expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+        await fireEvent.click(toggle);
+
+        expect(scrcpy.config.autoReconnect).toBe(true);
         expect(toggle).toHaveAttribute('aria-checked', 'true');
     });
 });

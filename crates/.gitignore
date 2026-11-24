@@ -1,0 +1,4 @@
+*/target
+*/Cargo.lock
+# The GPUI app is a binary: its lock is authoritative for reproducible builds.
+!open-scrcpy-gpui/Cargo.lock

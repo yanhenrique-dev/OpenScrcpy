@@ -76,6 +76,19 @@ jobs:
         run: cargo test
         working-directory: src-tauri
 
+      - name: Test extracted crates (Rust)
+        shell: bash
+        env:
+          # Reuse the shell's target directory so CI does not compile the same
+          # dependency graph three times.
+          CARGO_TARGET_DIR: ${{ github.workspace }}/src-tauri/target
+        run: |
+          for crate in crates/open-scrcpy-core crates/open-scrcpy-platform; do
+            echo "::group::$crate"
+            (cd "$crate" && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+            echo "::endgroup::"
+          done
+
       - name: Audit Rust dependencies
         if: runner.os == 'Linux'
         run: |

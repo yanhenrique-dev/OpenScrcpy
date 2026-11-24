@@ -26,7 +26,7 @@ Closes #
 
 - [ ] User-facing strings use the i18n locale files and every locale is updated
 - [ ] New Tauri commands are registered in `generate_handler!` and covered by the IPC contract test
-- [ ] Inputs that reach a process argument are validated in `src-tauri/src/validate.rs`
+- [ ] Inputs that reach a process argument are validated in `crates/open-scrcpy-core/src/validate.rs`
 - [ ] Tests were added or updated for the changed behaviour
 - [ ] Documentation (`README.md`, `GUIDE.md`, `docs/`) reflects the change
 - [ ] No secrets, binaries or generated files are included

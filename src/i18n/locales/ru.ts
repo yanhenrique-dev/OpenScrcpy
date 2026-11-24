@@ -44,6 +44,8 @@ export const ru: Translations = {
     languageLabel: 'Язык',
     scrcpyEngine: 'Движок scrcpy',
     scrcpyReady: 'scrcpy готов',
+
+    scrcpyMissing: 'scrcpy не установлен',
     syncingComponents: 'Синхронизация компонентов {progress}%',
     installCore: 'Установить ядро',
     selectFolder: 'Выбрать папку',
@@ -90,6 +92,8 @@ export const ru: Translations = {
     syncing: 'Синхронизация...',
     refresh: 'Обновить',
     noDevicesDetected: 'Устройства не обнаружены',
+
+    noDevice: 'Нет устройства',
     deviceUnauthorized: 'Разрешите на устройстве',
     deviceOffline: 'Не в сети',
     deviceUnavailable: 'Недоступно',
@@ -139,9 +143,9 @@ export const ru: Translations = {
     desktop: 'Рабочий стол',
     microphone: 'Микрофон',
     micBridgeTitle: 'Мост микрофона',
-    micBridgeDesc: 'Без окна: микрофон телефона поступает на ПК как аудиовход. Выберите «OpenScrcpy Mic» как микрофон в Discord, OBS или рекордере.',
-    micAndroidReq: 'Требуется Android 12 или новее и разрешение на микрофон на телефоне.',
-    micDestLinux: 'Linux: виртуальное устройство «OpenScrcpy Mic» создаётся автоматически при запуске моста.',
+    micBridgeDesc: 'Без окна: микрофон телефона поступает на ПК как аудиовход. Выберите «Monitor of OpenScrcpy Mic» как микрофон в Discord, OBS или рекордере (некоторые приложения показывают «OpenScrcpy Mic»).',
+    micAndroidReq: 'Требуется Android 11 или новее. На Android 11 разблокируйте телефон перед запуском; Android 12+ работает сразу. Разрешите доступ к микрофону на телефоне.',
+    micDestLinux: 'Linux: виртуальный вход «Monitor of OpenScrcpy Mic» создаётся автоматически при запуске моста.',
     micDestOther: 'Windows/macOS: в этой версии звук идёт на стандартный вывод (виртуальный драйвер — в будущей версии).',
     micActive: 'Мост активен',
     micStartHint: 'Мост виден в консоли: журнал scrcpy отражает поток аудио.',
@@ -158,6 +162,8 @@ export const ru: Translations = {
     micCodecLabel: 'Кодек',
     micDenoiseLabel: 'Шумодав (RNNoise)',
     micDenoiseTooltip: 'Экспериментально: DSP RNNoise PipeWire на ПК; если недоступно, мост работает без фильтра.',
+    micSetDefaultSource: 'Сделать микрофоном по умолчанию',
+    micSetDefaultSourceTooltip: 'Linux: использовать Monitor of OpenScrcpy Mic как системный вход по умолчанию, пока работает мост, и восстановить предыдущий вход при остановке. Некоторые приложения сохраняют собственное устройство. Применяется к новым сеансам.',
     engineConfiguration: 'Конфигурация движка',
     otgOnly: 'Только OTG',
     audioOk: 'Аудио OK',
@@ -221,6 +227,7 @@ export const ru: Translations = {
     engageCamera: 'Начать камеру',
     ejectToDesktop: 'Перейти на рабочий стол',
     stopSession: 'Остановить сессию',
+    stopConfirm: 'Остановить сеанс на {device}?',
     // v4 features
     flexDisplay: 'Гибкий дисплей',
     flexDisplayTooltip: 'Динамически изменяет размер виртуального дисплея вместе с окном scrcpy (scrcpy v4+).',
@@ -228,6 +235,7 @@ export const ru: Translations = {
     cameraTorchTooltip: 'Включает фонарик устройства во время трансляции камеры (scrcpy v4+).',
     cameraZoom: 'Приближение камеры',
     cameraZoomTooltip: 'Уровень приближения для захвата камеры. 1.0 = без приближения. (scrcpy v4+)',
+    cameraHighSpeed: 'Высокоскоростная съёмка',
     cameraMicSink: 'Виртуальный микрофон',
     cameraMicSinkTooltip: 'Направляет микрофон телефона из этого сеанса камеры во вход OpenScrcpy Mic (выберите «Monitor of OpenScrcpy Mic» в OBS или Discord). Звук уходит с устройства вывода по умолчанию; если pactl отсутствует или sink не удаётся создать, он остаётся там, а в консоли появляется предупреждение [MIC]. Только Linux.',
     backgroundColor: 'Цвет фона',
@@ -245,7 +253,10 @@ export const ru: Translations = {
     keepInBackground: 'Продолжать работу в фоне',
     keepInBackgroundTooltip: 'При закрытии окна OpenScrcpy скрывается в трей, а сеансы зеркалирования и микрофона продолжают работать. Чтобы остановить их, выберите «Выход» в меню трея.',
     notifications: 'Системные уведомления',
-    notificationsTooltip: 'Уведомляет о подключении устройств, неожиданном завершении сеансов и доступных обновлениях. Уведомления появляются только при запущенном OpenScrcpy; уведомления об устройствах и обновлениях скрываются, когда окно в фокусе.'
+    autoUpdate: 'Автоматические обновления',
+    notificationsTooltip: 'Уведомляет о подключении устройств, неожиданном завершении сеансов и доступных обновлениях. Уведомления появляются только при запущенном OpenScrcpy; уведомления об устройствах и обновлениях скрываются, когда окно в фокусе.',
+    autoReconnect: 'Переподключаться автоматически',
+    autoReconnectTooltip: 'Если scrcpy завершается неожиданно (обрыв USB/ADB или сбой), повторять запуск сеанса с экспоненциальной задержкой до 30 секунд. Намеренная остановка или закрытое окно scrcpy не переподключаются. Применяется к новым сеансам; каждая попытка записывается в консоль.'
   },
   tray: {
     show: 'Показать OpenScrcpy',
@@ -265,6 +276,31 @@ export const ru: Translations = {
     updateTitle: 'Доступно обновление',
     updateBody: 'Доступен OpenScrcpy {version}.'
   },
+  status: {
+      running: 'Сеанс активен',
+      starting: 'Запуск…',
+  },
+
+  settings: {
+
+      appearance: 'Внешний вид'
+
+  },
+
+  storage: {
+
+      title: 'Хранилище',
+
+      internal: 'Внутреннее',
+
+      shared: 'Общее',
+
+      used: 'занято',
+
+      free: 'свободно'
+
+  },
+
   sessionBehavior: {
     title: 'Поведение сессии',
     stayAwake: 'Устройство не спит',
@@ -323,6 +359,12 @@ export const ru: Translations = {
   },
 
   logPanel: {
+
+      allLogs: 'Все',
+
+      systemLogs: 'Система',
+
+      errorLogs: 'Ошибки',
     systemConsole: 'Системная консоль',
     report: 'Отчёт',
     reportTitle: 'Экспортировать диагностический отчёт в Загрузки',
@@ -334,6 +376,7 @@ export const ru: Translations = {
     clear: 'Очистить',
     waitingForSequence: 'Ожидание последовательности...',
     terminalPlaceholder: 'Введите команду (например, adb shell, scrcpy --help)...',
+    run: 'Выполнить',
     diagnosticReportSaved: 'Диагностический отчёт сохранён в Загрузки: {fileName}',
     reportSavedAlert: 'Отчёт сохранён в Загрузки: {fileName}',
   },

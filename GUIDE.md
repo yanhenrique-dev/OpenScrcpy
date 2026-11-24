@@ -139,6 +139,16 @@ Audio capture has device-side requirements that the app cannot override:
 
 When capture fails, the console logs an `[AUDIO]` warning and the **audio badge** next to the session state shows `Audio unavailable`. If every audio codec fails, it shows `Audio failed` while the video keeps running. When the session stops (for example with **Require audio** enabled), the error remains in the console.
 
+### 🎙 Microphone Bridge
+**Microphone** mode turns the phone microphone into a virtual **recording input** on the PC. It does not change the PC's default output or input; choose `Monitor of OpenScrcpy Mic` in Discord, OBS or your recorder (some apps show `OpenScrcpy Mic`).
+
+- Requires Android 11+; on Android 11 unlock the device before starting, and Android 12+ works out of the box. Allow microphone permission on the phone.
+- Linux needs `pactl`/`parec` (usually `pulseaudio-utils` or the PipeWire equivalent). The sink is created when the bridge starts and removed when the last session using it stops.
+- **Set as default microphone** (Linux, off by default): while the bridge runs, OpenScrcpy sets `Monitor of OpenScrcpy Mic` as the system default input and restores the previous default when it stops. Some apps keep their own selected device. A manual default change during the session wins over the restore. The setting applies to new sessions.
+- If the app is force-killed, the system default may stay on the virtual source; select your normal microphone again or restart the app.
+- If `pactl` is missing or the sink cannot be created, the bridge still starts but audio plays on the default output; the console logs an `[MIC]` warning.
+- A camera virtual-mic session and a microphone bridge on different devices share the same sink, so their audio is mixed and the level meter shows the combined level.
+
 ### 🖥 Graphics Renderer (Render API)
 You can choose which graphics renderer the core engine should request for video display.
 
@@ -186,8 +196,10 @@ uses the system notification center for:
 
 Device and update notices are suppressed while the OpenScrcpy window is
 focused, so they do not duplicate what is already on screen. Unexpected session
-ends are always reported. Notifications only arrive while the app is running;
-combine them with background mode if you want them after closing the window.
+ends are reported when **Reconnect automatically** is off; with it on, the
+session stays active and the console logs the retries instead. Notifications
+only arrive while the app is running; combine them with background mode if you
+want them after closing the window.
 
 - **Windows:** notifications work for installed builds. Development builds
   appear with the PowerShell name and icon.
@@ -195,6 +207,23 @@ combine them with background mode if you want them after closing the window.
   asks or if you previously denied them.
 - **Linux:** a notification daemon is required; KDE, GNOME and most desktop
   environments provide one.
+
+### 🔄 Automatic Reconnection
+
+Enable **Reconnect automatically** in the **Application** card. If scrcpy ends
+unexpectedly (USB/ADB drop or a crash), OpenScrcpy retries the session with
+exponential backoff from 2 seconds up to 30 seconds while the device is
+missing. It reopens the session when the device becomes available again.
+
+- A deliberate **Stop** or closing the scrcpy window is not reconnected.
+- Capture failures and terminal codec failures are not retried; fix the
+  device/codec and start the session again.
+- The device must come back with the **same ADB serial**. A new wireless port
+  or mDNS name means the retry cannot find it; start a new session.
+- The session stays active while it waits; the console shows `[RECONNECT]`
+  lines for each attempt.
+- This also works with **Keep running in the background**.
+- The setting applies to new sessions; change it before starting one.
 
 ---
 

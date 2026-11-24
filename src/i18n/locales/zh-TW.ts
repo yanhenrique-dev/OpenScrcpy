@@ -41,6 +41,8 @@ export const zhTW: Translations = {
         languageLabel: '語言',
         scrcpyEngine: 'Scrcpy 引擎',
         scrcpyReady: 'Scrcpy 已就緒',
+
+        scrcpyMissing: '未安裝 scrcpy',
         syncingComponents: '同步元件中 {progress}%',
         installCore: '安裝核心',
         selectFolder: '選擇資料夾',
@@ -86,6 +88,8 @@ export const zhTW: Translations = {
         syncing: '同步中...',
         refresh: '重新整理',
         noDevicesDetected: '未偵測到裝置',
+
+        noDevice: '無裝置',
         deviceUnauthorized: '請在裝置上授權',
         deviceOffline: '離線',
         deviceUnavailable: '無法使用',
@@ -134,9 +138,9 @@ export const zhTW: Translations = {
         desktop: '桌面',
         microphone: '麥克風',
         micBridgeTitle: '麥克風橋接',
-        micBridgeDesc: '無視窗：手機麥克風以音訊輸入的形式到達電腦。在 Discord、OBS 或錄音程式中選擇「OpenScrcpy Mic」作為麥克風。',
-        micAndroidReq: '需要 Android 12 或更新版本，並在手機上允許麥克風權限。',
-        micDestLinux: 'Linux：橋接啟動時自動建立虛擬裝置「OpenScrcpy Mic」。',
+        micBridgeDesc: '無視窗：手機麥克風以音訊輸入的形式到達電腦。在 Discord、OBS 或錄音程式中選擇「Monitor of OpenScrcpy Mic」作為麥克風（部分應用程式顯示為「OpenScrcpy Mic」）。',
+        micAndroidReq: '需要 Android 11 或更新版本。Android 11 需在開始前解鎖手機；Android 12+ 可直接使用。請在手機上允許麥克風權限。',
+        micDestLinux: 'Linux：橋接啟動時自動建立虛擬輸入「Monitor of OpenScrcpy Mic」。',
         micDestOther: 'Windows/macOS：此版本音訊會輸出到預設裝置（虛擬驅動將在未來版本提供）。',
         micActive: '橋接執行中',
         micStartHint: '橋接顯示在主控台中：scrcpy 記錄會追蹤音訊流。',
@@ -153,6 +157,8 @@ export const zhTW: Translations = {
         micCodecLabel: '編解碼器',
         micDenoiseLabel: '清理噪音 (RNNoise)',
         micDenoiseTooltip: '實驗性：電腦端 PipeWire RNNoise DSP；不可用時橋接將不降噪執行。',
+        micSetDefaultSource: '設為預設麥克風',
+        micSetDefaultSourceTooltip: 'Linux：橋接執行期間將 Monitor of OpenScrcpy Mic 設為系統預設輸入，停止時還原先前的預設裝置。部分應用程式會保留自己選擇的裝置。僅適用於新工作階段。',
         engineConfiguration: '引擎設定',
         otgOnly: '純 OTG',
         audioOk: '音訊正常',
@@ -216,6 +222,7 @@ export const zhTW: Translations = {
         engageCamera: '開始相機',
         ejectToDesktop: '開始虛擬顯示',
         stopSession: '停止',
+        stopConfirm: '停止 {device} 上的工作階段？',
         // v4 features
         flexDisplay: '彈性顯示',
         flexDisplayTooltip: '隨 scrcpy 視窗動態調整虛擬顯示器大小（scrcpy v4+）。',
@@ -223,6 +230,7 @@ export const zhTW: Translations = {
         cameraTorchTooltip: '擒射攏預時開啟裝置手電筒（scrcpy v4+）。',
         cameraZoom: '錢頭縮放',
         cameraZoomTooltip: '擒射時的縮放級別。1.0 = 不縮放。（scrcpy v4+）',
+        cameraHighSpeed: '高速拍攝',
         cameraMicSink: '虛擬麥克風',
         cameraMicSinkTooltip: '將此次攝影機會話中的手機麥克風路由到 OpenScrcpy Mic 輸入（在 OBS 或 Discord 中選擇「Monitor of OpenScrcpy Mic」）。音訊將離開預設輸出；如果缺少 pactl 或無法建立 sink，音訊仍從預設輸出播放，主控台會顯示 [MIC] 警告。僅限 Linux。',
         backgroundColor: '背景顏色',
@@ -239,7 +247,10 @@ export const zhTW: Translations = {
         keepInBackground: '在背景繼續執行',
         keepInBackgroundTooltip: '關閉視窗時，OpenScrcpy 會隱藏到系統匣，並保持鏡像與麥克風工作階段執行。選擇系統匣選單中的「結束」可停止它們。',
         notifications: '原生通知',
-        notificationsTooltip: '在裝置連線、工作階段意外結束和有可用更新時通知你。通知僅在 OpenScrcpy 執行時出現；視窗取得焦點時不會顯示裝置與更新通知。'
+        autoUpdate: '自動更新',
+        notificationsTooltip: '在裝置連線、工作階段意外結束和有可用更新時通知你。通知僅在 OpenScrcpy 執行時出現；視窗取得焦點時不會顯示裝置與更新通知。',
+        autoReconnect: '自動重新連線',
+        autoReconnectTooltip: '如果 scrcpy 意外結束（USB/ADB 中斷或當機），使用指數退避（最長 30 秒）重試工作階段。主動停止或關閉 scrcpy 視窗不會重新連線。僅適用於新工作階段；主控台會記錄每次嘗試。'
     },
     tray: {
         show: '顯示 OpenScrcpy',
@@ -259,6 +270,31 @@ export const zhTW: Translations = {
         updateTitle: '有可用更新',
         updateBody: 'OpenScrcpy {version} 已可用。'
     },
+    status: {
+        running: '工作階段執行中',
+        starting: '正在啟動…',
+    },
+
+    settings: {
+
+        appearance: '外觀'
+
+    },
+
+    storage: {
+
+        title: '儲存',
+
+        internal: '內部',
+
+        shared: '共享',
+
+        used: '已用',
+
+        free: '可用'
+
+    },
+
     sessionBehavior: {
         title: '行為設定',
         stayAwake: '保持裝置喚醒',
@@ -315,6 +351,9 @@ export const zhTW: Translations = {
         off: '關閉'
     },
     logPanel: {
+        allLogs: '全部',
+        systemLogs: '系統',
+        errorLogs: '錯誤',
         systemConsole: '系統主控台',
         report: '匯出報告',
         reportTitle: '匯出診斷報告至「下載」資料夾',
@@ -326,6 +365,7 @@ export const zhTW: Translations = {
         clear: '清除',
         waitingForSequence: '等待指令...',
         terminalPlaceholder: '輸入指令 (例如 adb shell)...',
+        run: '執行',
         diagnosticReportSaved: '報告已儲存：{fileName}',
         reportSavedAlert: '報告已儲存：{fileName}'
     },

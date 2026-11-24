@@ -41,6 +41,8 @@ languages: {
         languageLabel: 'Bahasa',
         scrcpyEngine: 'Sistem Scrcpy',
         scrcpyReady: 'Scrcpy Siap',
+
+        scrcpyMissing: 'scrcpy belum terpasang',
         syncingComponents: 'Menyinkronkan Komponen {progress}%',
         installCore: 'Pasang Inti',
         selectFolder: 'Pilih Folder',
@@ -86,6 +88,8 @@ languages: {
         syncing: 'Menyinkronkan...',
         refresh: 'Segarkan',
         noDevicesDetected: 'Tidak ada perangkat terdeteksi',
+
+        noDevice: 'Tidak ada perangkat',
         deviceUnauthorized: 'Izinkan di perangkat',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Tidak tersedia',
@@ -134,9 +138,9 @@ languages: {
         desktop: 'Desktop',
         microphone: 'Mikrofon',
         micBridgeTitle: 'Jembatan Mikrofon',
-        micBridgeDesc: 'Tanpa jendela: mikrofon ponsel masuk ke PC sebagai input audio. Pilih "OpenScrcpy Mic" sebagai mikrofon di Discord, OBS, atau perekam.',
-        micAndroidReq: 'Butuh Android 12 ke atas dan izin mikrofon di ponsel.',
-        micDestLinux: 'Linux: perangkat virtual "OpenScrcpy Mic" dibuat otomatis saat jembatan mulai.',
+        micBridgeDesc: 'Tanpa jendela: mikrofon ponsel masuk ke PC sebagai input audio. Pilih "Monitor of OpenScrcpy Mic" sebagai mikrofon di Discord, OBS, atau perekam (sebagian aplikasi menampilkannya sebagai "OpenScrcpy Mic").',
+        micAndroidReq: 'Butuh Android 11 ke atas. Di Android 11, buka kunci ponsel sebelum memulai; Android 12+ berfungsi langsung. Izinkan mikrofon di ponsel.',
+        micDestLinux: 'Linux: input virtual "Monitor of OpenScrcpy Mic" dibuat otomatis saat jembatan mulai.',
         micDestOther: 'Windows/macOS: di versi ini audio keluar ke output bawaan (driver virtual di rilis mendatang).',
         micActive: 'Jembatan aktif',
         micStartHint: 'Jembatan tampil di konsol: log scrcpy mengikuti aliran audio.',
@@ -153,6 +157,8 @@ languages: {
         micCodecLabel: 'Kodek',
         micDenoiseLabel: 'Bersihkan derau (RNNoise)',
         micDenoiseTooltip: 'Eksperimental: DSP RNNoise PipeWire di PC; bila tak tersedia, jembatan berjalan tanpa filter.',
+        micSetDefaultSource: 'Jadikan mikrofon default',
+        micSetDefaultSourceTooltip: 'Linux: jadikan Monitor of OpenScrcpy Mic input default sistem selama jembatan berjalan, lalu pulihkan default sebelumnya saat berhenti. Sebagian aplikasi tetap memakai perangkat pilihannya sendiri. Berlaku untuk sesi baru.',
         engineConfiguration: 'Konfigurasi',
         otgOnly: 'OTG Saja',
         audioOk: 'Audio OK',
@@ -216,6 +222,7 @@ languages: {
         engageCamera: 'Mulai kamera',
         ejectToDesktop: 'Mulai layar virtual',
         stopSession: 'Hentikan Sesi',
+        stopConfirm: 'Hentikan sesi di {device}?',
         // v4 features
         flexDisplay: 'Tampilan Fleksibel',
         flexDisplayTooltip: 'Ubah ukuran tampilan virtual secara dinamis agar sesuai dengan ukuran jendela scrcpy (scrcpy v4+).',
@@ -223,6 +230,7 @@ languages: {
         cameraTorchTooltip: 'Aktifkan lampu kilat perangkat saat streaming kamera (scrcpy v4+).',
         cameraZoom: 'Zoom Kamera',
         cameraZoomTooltip: 'Tingkat zoom untuk tangkapan kamera. 1.0 = tanpa zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'Tangkapan berkecepatan tinggi',
         cameraMicSink: 'Mikrofon virtual',
         cameraMicSinkTooltip: 'Mengarahkan mikrofon ponsel dari sesi kamera ini ke input OpenScrcpy Mic (pilih "Monitor of OpenScrcpy Mic" di OBS atau Discord). Audio keluar dari output default; jika pactl tidak ada atau sink tidak dapat dibuat, audio tetap di sana dan konsol menampilkan peringatan [MIC]. Hanya Linux.',
         backgroundColor: 'Warna BG',
@@ -239,7 +247,10 @@ languages: {
         keepInBackground: 'Tetap berjalan di latar belakang',
         keepInBackgroundTooltip: 'Menutup jendela akan menyembunyikan OpenScrcpy ke tray dan menjaga sesi cermin serta mikrofon tetap berjalan. Pilih Keluar di menu tray untuk menghentikannya.',
         notifications: 'Notifikasi bawaan',
-        notificationsTooltip: 'Memberi tahu tentang perangkat yang terhubung, sesi yang berakhir tak terduga, dan pembaruan yang tersedia. Notifikasi hanya muncul saat OpenScrcpy berjalan; pemberitahuan perangkat dan pembaruan disembunyikan saat jendela difokuskan.'
+        autoUpdate: 'Pembaruan otomatis',
+        notificationsTooltip: 'Memberi tahu tentang perangkat yang terhubung, sesi yang berakhir tak terduga, dan pembaruan yang tersedia. Notifikasi hanya muncul saat OpenScrcpy berjalan; pemberitahuan perangkat dan pembaruan disembunyikan saat jendela difokuskan.',
+        autoReconnect: 'Sambung ulang otomatis',
+        autoReconnectTooltip: 'Jika scrcpy berhenti secara tak terduga (USB/ADB terputus atau crash), coba mulai ulang sesi dengan backoff eksponensial hingga 30 detik. Penghentian yang disengaja atau jendela scrcpy yang ditutup tidak akan disambungkan ulang. Berlaku untuk sesi baru; konsol mencatat setiap percobaan.'
     },
     tray: {
         show: 'Tampilkan OpenScrcpy',
@@ -259,6 +270,31 @@ languages: {
         updateTitle: 'Pembaruan tersedia',
         updateBody: 'OpenScrcpy {version} tersedia.'
     },
+    status: {
+        running: 'Sesi berjalan',
+        starting: 'Memulai…',
+    },
+
+    settings: {
+
+        appearance: 'Tampilan'
+
+    },
+
+    storage: {
+
+        title: 'Penyimpanan',
+
+        internal: 'Internal',
+
+        shared: 'Bersama',
+
+        used: 'terpakai',
+
+        free: 'bebas'
+
+    },
+
     sessionBehavior: {
         title: 'Pengaturan Sesi',
         stayAwake: 'Perangkat Terjaga',
@@ -315,6 +351,9 @@ languages: {
         off: 'Matikan'
     },
     logPanel: {
+        allLogs: 'Semua',
+        systemLogs: 'Sistem',
+        errorLogs: 'Kesalahan',
         systemConsole: 'Konsol Sistem',
         report: 'Laporan',
         reportTitle: 'Ekspor laporan diagnostik ke Unduhan',
@@ -326,6 +365,7 @@ languages: {
         clear: 'Hapus',
         waitingForSequence: 'Menunggu urutan...',
         terminalPlaceholder: 'Masukkan perintah (mis. adb shell, scrcpy --help)...',
+        run: 'Jalankan',
         diagnosticReportSaved: 'Laporan diagnostik disimpan ke Unduhan: {fileName}',
         reportSavedAlert: 'Laporan disimpan ke Unduhan: {fileName}'
     },

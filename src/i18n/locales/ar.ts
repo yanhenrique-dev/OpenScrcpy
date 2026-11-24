@@ -44,6 +44,8 @@ export const ar: Translations = {
         languageLabel: 'اللغة',
         scrcpyEngine: 'محرك Scrcpy',
         scrcpyReady: 'Scrcpy جاهز',
+
+        scrcpyMissing: 'لم يتم تثبيت scrcpy',
         syncingComponents: 'جارٍ مزامنة المكونات {progress}%',
         installCore: 'تثبيت المكونات الأساسية',
         selectFolder: 'اختيار مجلد',
@@ -89,6 +91,8 @@ export const ar: Translations = {
         syncing: 'جارٍ المزامنة...',
         refresh: 'تحديث',
         noDevicesDetected: 'لم يتم اكتشاف أي جهاز',
+
+        noDevice: 'لا يوجد جهاز',
         deviceUnauthorized: 'اسمح على الجهاز',
         deviceOffline: 'غير متصل',
         deviceUnavailable: 'غير متاح',
@@ -137,9 +141,9 @@ export const ar: Translations = {
         desktop: 'سطح المكتب',
         microphone: 'ميكروفون',
         micBridgeTitle: 'جسر الميكروفون',
-        micBridgeDesc: 'بدون نافذة: يصل ميكروفون الهاتف إلى الحاسوب كمدخَل صوتي. اختر "OpenScrcpy Mic" كميكروفون في Discord أو OBS أو المسجل.',
-        micAndroidReq: 'يتطلب Android 12 أو أحدث وإذن الميكروفون على الهاتف.',
-        micDestLinux: 'لينكس: يُنشأ الجهاز الافتراضي "OpenScrcpy Mic" تلقائيًا عند بدء الجسر.',
+        micBridgeDesc: 'بدون نافذة: يصل ميكروفون الهاتف إلى الحاسوب كمدخَل صوتي. اختر "Monitor of OpenScrcpy Mic" كميكروفون في Discord أو OBS أو المسجل (بعض التطبيقات تعرضه باسم "OpenScrcpy Mic").',
+        micAndroidReq: 'يتطلب Android 11 أو أحدث. في Android 11، افتح قفل الهاتف قبل البدء؛ Android 12+ يعمل مباشرة. اسمح بإذن الميكروفون على الهاتف.',
+        micDestLinux: 'لينكس: يُنشأ الإدخال الافتراضي "Monitor of OpenScrcpy Mic" تلقائيًا عند بدء الجسر.',
         micDestOther: 'ويندوز/ماك: في هذا الإصدار يخرج الصوت إلى المخرج الافتراضي (السائق الافتراضي في إصدار قادم).',
         micActive: 'الجسر نشط',
         micStartHint: 'يظهر الجسر في الطرفية: سجل scrcpy يتتبع تدفق الصوت.',
@@ -156,6 +160,8 @@ export const ar: Translations = {
         micCodecLabel: 'الترميز',
         micDenoiseLabel: 'تنقية الضوضاء (RNNoise)',
         micDenoiseTooltip: 'تجريبي: معالجة RNNoise على الحاسوب؛ عند عدم توفرها تعمل الجسور دون تنقية.',
+        micSetDefaultSource: 'تعيين كميكروفون افتراضي',
+        micSetDefaultSourceTooltip: 'Linux: اجعل Monitor of OpenScrcpy Mic إدخال النظام الافتراضي أثناء تشغيل الجسر، واستعد الإدخال السابق عند التوقف. بعض التطبيقات تحتفظ بالجهاز الذي اختارته. ينطبق على الجلسات الجديدة.',
         engineConfiguration: 'إعدادات المحرك',
         otgOnly: 'OTG فقط',
         audioOk: 'الصوت يعمل',
@@ -219,6 +225,7 @@ export const ar: Translations = {
         engageCamera: 'تشغيل الكاميرا',
         ejectToDesktop: 'العرض على سطح المكتب',
         stopSession: 'إنهاء الجلسة',
+        stopConfirm: 'إيقاف الجلسة على {device}؟',
         // v4 features
         flexDisplay: 'العرض المرن',
         flexDisplayTooltip: 'تغيير حجم الشاشة الافتراضية تلقائيًا ليتوافق مع حجم نافذة Scrcpy (الإصدار v4+).',
@@ -226,6 +233,7 @@ export const ar: Translations = {
         cameraTorchTooltip: 'تشغيل فلاش الجهاز أثناء بث الكاميرا (Scrcpy v4+).',
         cameraZoom: 'تكبير الكاميرا',
         cameraZoomTooltip: 'مستوى تكبير الكاميرا. القيمة 1.0 تعني عدم وجود تكبير (Scrcpy v4+).',
+        cameraHighSpeed: 'التقاط عالي السرعة',
         cameraMicSink: 'ميكروفون افتراضي',
         cameraMicSinkTooltip: 'يوجّه ميكروفون الهاتف من جلسة الكاميرا هذه إلى إدخال OpenScrcpy Mic (اختر "Monitor of OpenScrcpy Mic" في OBS أو Discord). يغادر الصوت مخرج الصوت الافتراضي؛ وإذا لم يكن pactl متوفرًا أو تعذّر إنشاء sink، يبقى هناك ويعرض الطرفية تحذير [MIC]. على Linux فقط.',
         backgroundColor: 'لون الخلفية',
@@ -242,7 +250,10 @@ export const ar: Translations = {
         keepInBackground: 'الاستمرار في الخلفية',
         keepInBackgroundTooltip: 'عند إغلاق النافذة يختفي OpenScrcpy إلى شريط النظام وتبقى جلسات النسخ والمايكروفون قيد التشغيل. اختر «خروج» من قائمة شريط النظام لإيقافها.',
         notifications: 'إشعارات النظام',
-        notificationsTooltip: 'ينبهك عند توصيل الأجهزة أو انتهاء الجلسات بشكل غير متوقع أو توفر تحديثات. تظهر الإشعارات فقط أثناء تشغيل OpenScrcpy، وتُخفى إشعارات الأجهزة والتحديثات عندما تكون النافذة في المقدمة.'
+        autoUpdate: 'التحديثات التلقائية',
+        notificationsTooltip: 'ينبهك عند توصيل الأجهزة أو انتهاء الجلسات بشكل غير متوقع أو توفر تحديثات. تظهر الإشعارات فقط أثناء تشغيل OpenScrcpy، وتُخفى إشعارات الأجهزة والتحديثات عندما تكون النافذة في المقدمة.',
+        autoReconnect: 'إعادة الاتصال تلقائيًا',
+        autoReconnectTooltip: 'إذا انتهى scrcpy بشكل غير متوقع (انقطاع USB/ADB أو تعطل)، أعد محاولة الجلسة بتراجع أسي حتى 30 ثانية. الإيقاف المتعمد أو إغلاق نافذة scrcpy لا يعيد الاتصال. ينطبق على الجلسات الجديدة؛ وتسجل الطرفية كل محاولة.'
     },
     tray: {
         show: 'إظهار OpenScrcpy',
@@ -262,6 +273,31 @@ export const ar: Translations = {
         updateTitle: 'يتوفر تحديث',
         updateBody: 'يتوفر OpenScrcpy {version}.'
     },
+    status: {
+        running: 'الجلسة قيد التشغيل',
+        starting: 'جارٍ البدء…',
+    },
+
+    settings: {
+
+        appearance: 'المظهر'
+
+    },
+
+    storage: {
+
+        title: 'التخزين',
+
+        internal: 'داخلي',
+
+        shared: 'مشترك',
+
+        used: 'مستخدم',
+
+        free: 'متاح'
+
+    },
+
     sessionBehavior: {
         title: 'سلوك الجلسة',
         stayAwake: 'إبقاء الجهاز مستيقظًا',
@@ -318,6 +354,9 @@ export const ar: Translations = {
         off: 'إيقاف'
     },
        logPanel: {
+           allLogs: 'الكل',
+           systemLogs: 'النظام',
+           errorLogs: 'الأخطاء',
         systemConsole: 'وحدة تحكم النظام',
         report: 'تقرير',
         reportTitle: 'تصدير تقرير التشخيص إلى مجلد التنزيلات',
@@ -329,6 +368,7 @@ export const ar: Translations = {
         clear: 'مسح',
         waitingForSequence: 'في انتظار التسلسل...',
         terminalPlaceholder: 'أدخل أمرًا (مثل: adb shell أو scrcpy --help)...',
+        run: 'تشغيل',
         diagnosticReportSaved: 'تم حفظ تقرير التشخيص في مجلد التنزيلات: {fileName}',
         reportSavedAlert: 'تم حفظ التقرير في مجلد التنزيلات: {fileName}'
     },

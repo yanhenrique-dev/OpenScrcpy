@@ -41,6 +41,9 @@ Run the same gates as CI:
 npm run lint
 npm test
 (cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+for crate in crates/open-scrcpy-core crates/open-scrcpy-platform; do
+  (cd "$crate" && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test)
+done
 npm run tauri build -- --no-bundle
 ```
 
@@ -53,9 +56,9 @@ npm run tauri build -- --no-bundle
 | --- | --- | --- |
 | TypeScript + Svelte | `npm run lint` | `tsc --noEmit` and `svelte-check` |
 | Frontend tests | `npm test` | Vitest + Testing Library |
-| Rust formatting | `cargo fmt --check` | run inside `src-tauri/` |
-| Rust lints | `cargo clippy --all-targets -- -D warnings` | warnings are errors |
-| Rust tests | `cargo test` | run inside `src-tauri/` |
+| Rust formatting | `cargo fmt --check` | run inside `src-tauri/`, `crates/open-scrcpy-core/` and `crates/open-scrcpy-platform/` |
+| Rust lints | `cargo clippy --all-targets -- -D warnings` | warnings are errors; same three packages |
+| Rust tests | `cargo test` | run inside `src-tauri/`, `crates/open-scrcpy-core/` and `crates/open-scrcpy-platform/` |
 | IPC contract | `npm test` | every `invoke()` must be registered and every registered command used |
 
 ## Code conventions
@@ -69,7 +72,7 @@ npm run tauri build -- --no-bundle
 - Rust commands live in `src-tauri/src/`. Register a new command in the
   `generate_handler!` list in `lib.rs` and call it through `invoke()` from the
   frontend, otherwise the IPC contract test fails.
-- Validate values that become process arguments in `src-tauri/src/validate.rs`.
+- Validate values that become process arguments in `crates/open-scrcpy-core/src/validate.rs`.
   The webview is not a trust boundary: treat persisted state and IPC payloads as
   untrusted.
 - Tauri merges `tauri.<platform>.conf.json` with JSON Merge Patch (RFC 7386),

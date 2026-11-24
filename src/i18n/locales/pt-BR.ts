@@ -41,6 +41,8 @@ export const ptBR: Translations = {
         languageLabel: 'Idioma',
         scrcpyEngine: 'Motor Scrcpy',
         scrcpyReady: 'Scrcpy Pronto',
+
+        scrcpyMissing: 'scrcpy não instalado',
         syncingComponents: 'Sincronizando Componentes {progress}%',
         installCore: 'Instalar Núcleo',
         selectFolder: 'Selecionar Pasta',
@@ -86,6 +88,8 @@ export const ptBR: Translations = {
         syncing: 'Sincronizando...',
         refresh: 'Atualizar',
         noDevicesDetected: 'Nenhum dispositivo detectado',
+
+        noDevice: 'Nenhum dispositivo',
         deviceUnauthorized: 'Autorize no aparelho',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Indisponível',
@@ -134,9 +138,9 @@ export const ptBR: Translations = {
         desktop: 'Área de Trabalho',
         microphone: 'Microfone',
         micBridgeTitle: 'Ponte de Microfone',
-        micBridgeDesc: 'Sem janela: o microfone do celular chega ao PC como entrada de áudio. Escolha "OpenScrcpy Mic" como microfone no Discord, OBS ou gravador.',
-        micAndroidReq: 'Requer Android 12 ou superior e permissão de microfone no celular.',
-        micDestLinux: 'Linux: o dispositivo virtual "OpenScrcpy Mic" é criado automaticamente quando a ponte inicia.',
+        micBridgeDesc: 'Sem janela: o microfone do celular chega ao PC como entrada de áudio. Escolha "Monitor of OpenScrcpy Mic" como microfone no Discord, OBS ou gravador (algumas apps mostram "OpenScrcpy Mic").',
+        micAndroidReq: 'Requer Android 11 ou superior. No Android 11, desbloqueie o celular antes de iniciar; Android 12+ funciona sem esse passo. Permita o microfone no celular.',
+        micDestLinux: 'Linux: a entrada virtual "Monitor of OpenScrcpy Mic" é criada automaticamente quando a ponte inicia.',
         micDestOther: 'Windows/macOS: nesta versão o áudio sai pela saída padrão (driver virtual em versão futura).',
         micActive: 'Ponte ativa',
         micStartHint: 'A ponte aparece no console: o log do scrcpy mostra o fluxo do áudio.',
@@ -153,6 +157,8 @@ export const ptBR: Translations = {
         micCodecLabel: 'Codec',
         micDenoiseLabel: 'Limpar ruído (RNNoise)',
         micDenoiseTooltip: 'Experimental: DSP RNNoise do PipeWire no PC; se falhar, a ponte segue sem filtro.',
+        micSetDefaultSource: 'Definir como microfone padrão',
+        micSetDefaultSourceTooltip: 'Linux: torna Monitor of OpenScrcpy Mic a entrada padrão do sistema enquanto a ponte corre, e restaura o default anterior ao parar. Algumas apps mantêm o dispositivo que já escolheram. Aplica-se a novas sessões.',
         engineConfiguration: 'Configuração do Motor',
         otgOnly: 'Somente OTG',
         audioOk: 'Áudio OK',
@@ -216,6 +222,7 @@ export const ptBR: Translations = {
         engageCamera: 'Iniciar câmera',
         ejectToDesktop: 'Iniciar tela virtual',
         stopSession: 'Encerrar Sessão',
+        stopConfirm: 'Encerrar a sessão em {device}?',
         // v4 features
         flexDisplay: 'Tela Flexível',
         flexDisplayTooltip: 'Redimensiona dinamicamente o display virtual junto com a janela do scrcpy (scrcpy v4+).',
@@ -223,6 +230,7 @@ export const ptBR: Translations = {
         cameraTorchTooltip: 'Ativa a lanterna do dispositivo enquanto transmite a câmera (scrcpy v4+).',
         cameraZoom: 'Zoom da Câmera',
         cameraZoomTooltip: 'Nível de zoom para captura da câmera. 1.0 = sem zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'Captura em alta velocidade',
         cameraMicSink: 'Microfone virtual',
         cameraMicSinkTooltip: 'Encaminha o microfone do telemóvel desta sessão de câmara para a entrada OpenScrcpy Mic (escolhe "Monitor of OpenScrcpy Mic" no OBS ou no Discord). O áudio deixa a saída padrão; se o pactl não existir ou o sink não puder ser criado, continua nessa saída e o console mostra um aviso [MIC]. Apenas no Linux.',
         backgroundColor: 'Cor do Fundo',
@@ -239,7 +247,10 @@ export const ptBR: Translations = {
         keepInBackground: 'Continuar em segundo plano',
         keepInBackgroundTooltip: 'Ao fechar a janela, o OpenScrcpy fica na bandeja e mantém as sessões de espelhamento e microfone ativas. Escolha "Sair" no menu da bandeja para encerrá-las.',
         notifications: 'Notificações nativas',
-        notificationsTooltip: 'Avisa sobre dispositivos ligados/desligados, sessões terminadas inesperadamente e atualizações disponíveis. As notificações só aparecem com o OpenScrcpy aberto; avisos de dispositivos e atualizações são suprimidos enquanto a janela está em foco.'
+        autoUpdate: 'Atualizações automáticas',
+        notificationsTooltip: 'Avisa sobre dispositivos ligados/desligados, sessões terminadas inesperadamente e atualizações disponíveis. As notificações só aparecem com o OpenScrcpy aberto; avisos de dispositivos e atualizações são suprimidos enquanto a janela está em foco.',
+        autoReconnect: 'Reconectar automaticamente',
+        autoReconnectTooltip: 'Se o scrcpy terminar inesperadamente (queda do USB/ADB ou crash), tenta reiniciar a sessão com backoff exponencial até 30 segundos. Uma paragem deliberada ou o fecho da janela do scrcpy não são reconectados. Aplica-se a novas sessões; o console registra cada tentativa.'
     },
     tray: {
         show: 'Mostrar OpenScrcpy',
@@ -259,6 +270,31 @@ export const ptBR: Translations = {
         updateTitle: 'Atualização disponível',
         updateBody: 'O OpenScrcpy {version} está disponível.'
     },
+    status: {
+        running: 'Sessão ativa',
+        starting: 'Iniciando…',
+    },
+
+    settings: {
+
+        appearance: 'Aparência'
+
+    },
+
+    storage: {
+
+        title: 'Armazenamento',
+
+        internal: 'Interno',
+
+        shared: 'Compartilhado',
+
+        used: 'usado',
+
+        free: 'livre'
+
+    },
+
     sessionBehavior: {
         title: 'Comportamento da Sessão',
         stayAwake: 'Dispositivo Desperto',
@@ -315,6 +351,9 @@ export const ptBR: Translations = {
         off: 'Desl'
     },
     logPanel: {
+        allLogs: 'Tudo',
+        systemLogs: 'Sistema',
+        errorLogs: 'Erros',
         systemConsole: 'Console do Sistema',
         report: 'Relatório',
         reportTitle: 'Exportar relatório de diagnóstico para Downloads',
@@ -326,6 +365,7 @@ export const ptBR: Translations = {
         clear: 'Limpar',
         waitingForSequence: 'Aguardando sequência...',
         terminalPlaceholder: 'Digite um comando (ex.: adb shell, scrcpy --help)...',
+        run: 'Executar',
         diagnosticReportSaved: '[SYSTEM] Relatório de diagnóstico salvo em Downloads: {fileName}',
         reportSavedAlert: 'Relatório salvo em Downloads: {fileName}'
     },

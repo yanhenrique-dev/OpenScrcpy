@@ -42,6 +42,8 @@ export const en = {
         languageLabel: 'Language',
         scrcpyEngine: 'Scrcpy Engine',
         scrcpyReady: 'Scrcpy Ready',
+
+        scrcpyMissing: 'scrcpy not installed',
         syncingComponents: 'Syncing Components {progress}%',
         installCore: 'Install Core',
         selectFolder: 'Select Folder',
@@ -87,6 +89,8 @@ export const en = {
         syncing: 'Syncing...',
         refresh: 'Refresh',
         noDevicesDetected: 'No devices detected',
+
+        noDevice: 'No device',
         deviceUnauthorized: 'Authorize on the device',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Unavailable',
@@ -135,9 +139,9 @@ export const en = {
         desktop: 'Desktop',
         microphone: 'Microphone',
         micBridgeTitle: 'Microphone Bridge',
-        micBridgeDesc: 'Windowless: your phone\'s microphone reaches the PC as an audio input. Pick "OpenScrcpy Mic" as the microphone in Discord, OBS or your recorder.',
-        micAndroidReq: 'Requires Android 12 or newer and microphone permission on the phone.',
-        micDestLinux: 'Linux: the virtual device "OpenScrcpy Mic" is created automatically when the bridge starts.',
+        micBridgeDesc: 'Windowless: your phone\'s microphone reaches the PC as an audio input. Pick "Monitor of OpenScrcpy Mic" as the microphone in Discord, OBS or your recorder (some apps label it "OpenScrcpy Mic").',
+        micAndroidReq: 'Requires Android 11 or newer. On Android 11, unlock the device before starting; Android 12+ works out of the box. Allow microphone permission on the phone.',
+        micDestLinux: 'Linux: the virtual input "Monitor of OpenScrcpy Mic" is created automatically when the bridge starts.',
         micDestOther: 'Windows/macOS: in this version audio plays to the default output (virtual driver in a future release).',
         micActive: 'Bridge active',
         micStartHint: 'The bridge shows up in the console: scrcpy\'s log follows the audio flow.',
@@ -154,6 +158,8 @@ export const en = {
         micCodecLabel: 'Codec',
         micDenoiseLabel: 'Clean noise (RNNoise)',
         micDenoiseTooltip: 'Experimental: PipeWire RNNoise DSP on the PC; when unavailable the bridge runs unfiltered.',
+        micSetDefaultSource: 'Set as default microphone',
+        micSetDefaultSourceTooltip: 'Linux: make Monitor of OpenScrcpy Mic the system default input while the bridge runs, and restore the previous default when it stops. Some apps keep their own selected device. Applies to new sessions.',
         engineConfiguration: 'Engine configuration',
         otgOnly: 'OTG only',
         audioOk: 'Audio OK',
@@ -217,6 +223,7 @@ export const en = {
         engageCamera: 'Start camera',
         ejectToDesktop: 'Start virtual display',
         stopSession: 'Stop session',
+        stopConfirm: 'Stop the session on {device}?',
         // v4 features
         flexDisplay: 'Flex display',
         flexDisplayTooltip: 'Dynamically resize the virtual display to match the scrcpy window size (scrcpy v4+).',
@@ -224,6 +231,7 @@ export const en = {
         cameraTorchTooltip: 'Enable the device flashlight while streaming the camera feed (scrcpy v4+).',
         cameraZoom: 'Camera zoom',
         cameraZoomTooltip: 'Zoom level for camera capture. 1.0 = no zoom. (scrcpy v4+)',
+        cameraHighSpeed: 'High-speed capture',
         cameraMicSink: 'Virtual microphone',
         cameraMicSinkTooltip: 'Route the phone microphone from this camera session into the OpenScrcpy Mic input (select "Monitor of OpenScrcpy Mic" in OBS or Discord). Audio leaves the default output; if pactl is missing or the sink cannot be created, it stays there and the console shows an [MIC] warning. Linux only.',
         backgroundColor: 'BG color',
@@ -240,7 +248,10 @@ export const en = {
         keepInBackground: 'Keep running in the background',
         keepInBackgroundTooltip: 'Closing the window hides OpenScrcpy to the tray and keeps mirror and microphone sessions running. Choose Quit in the tray menu to stop them.',
         notifications: 'Native notifications',
-        notificationsTooltip: 'Notify you about device connections, unexpected session ends and available updates. Notifications only appear while OpenScrcpy is running, and device/update notices are suppressed while the window is focused.'
+        autoUpdate: 'Automatic updates',
+        notificationsTooltip: 'Notify you about device connections, unexpected session ends and available updates. Notifications only appear while OpenScrcpy is running, and device/update notices are suppressed while the window is focused.',
+        autoReconnect: 'Reconnect automatically',
+        autoReconnectTooltip: 'If scrcpy exits unexpectedly (USB/ADB drop or crash), retry the session with exponential backoff up to 30 seconds. A deliberate Stop or a closed scrcpy window is not reconnected. Applies to new sessions; the console logs each attempt.'
     },
     tray: {
         show: 'Show OpenScrcpy',
@@ -260,6 +271,31 @@ export const en = {
         updateTitle: 'Update available',
         updateBody: 'OpenScrcpy {version} is available.'
     },
+    status: {
+        running: 'Session running',
+        starting: 'Starting…',
+    },
+
+    settings: {
+
+        appearance: 'Appearance'
+
+    },
+
+    storage: {
+
+        title: 'Storage',
+
+        internal: 'Internal',
+
+        shared: 'Shared',
+
+        used: 'used',
+
+        free: 'free'
+
+    },
+
     sessionBehavior: {
         title: 'Session behavior',
         stayAwake: 'Device awake',
@@ -316,6 +352,9 @@ export const en = {
         off: 'Off'
     },
     logPanel: {
+        allLogs: 'All',
+        systemLogs: 'System',
+        errorLogs: 'Errors',
         systemConsole: 'System Console',
         report: 'Report',
         reportTitle: 'Export diagnostic report to Downloads',
@@ -327,6 +366,7 @@ export const en = {
         clear: 'Clear',
         waitingForSequence: 'Waiting for sequence...',
         terminalPlaceholder: 'Enter command (e.g. adb shell, scrcpy --help)...',
+        run: 'Run',
         diagnosticReportSaved: 'Diagnostic report saved to Downloads: {fileName}',
         reportSavedAlert: 'Report saved to Downloads: {fileName}'
     },

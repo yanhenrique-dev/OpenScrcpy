@@ -1,0 +1,40 @@
+[package]
+name = "open-scrcpy-gpui"
+version = "3.0.0-alpha.1"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+name = "openscrcpy_gpui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "openscrcpy"
+path = "src/main.rs"
+
+[dependencies]
+# Pinned exactly: the Kit is pre-1.0 and moves `gpui-pre` with every release.
+gpui-kit = "=0.10.0"
+rust-i18n = "4.2"
+sys-locale = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "6"
+open-scrcpy-core = { path = "../open-scrcpy-core" }
+open-scrcpy-platform = { path = "../open-scrcpy-platform" }
+tokio = { version = "1.49.0", features = ["rt-multi-thread", "time", "process", "sync"] }
+
+[dev-dependencies]
+gpui-kit = { version = "=0.10.0", features = ["test-support"] }
+
+# Keep debug artifacts small on memory-constrained machines, like the Phase 0
+# spike did. The GPUI dependency tree is large.
+[profile.dev]
+debug = 0
+incremental = true
+
+[profile.release]
+debug = 0
+lto = false
+strip = true

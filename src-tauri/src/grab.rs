@@ -207,7 +207,7 @@ fn pump_messages() {
 
 /// True if `pid` is one of the scrcpy processes we launched.
 fn pid_is_ours<R: Runtime>(app: &AppHandle<R>, pid: u32) -> bool {
-    app.state::<ScrcpyState>()
+    app.state::<std::sync::Arc<ScrcpyState>>()
         .sessions
         .lock()
         .unwrap_or_else(|e| e.into_inner())
