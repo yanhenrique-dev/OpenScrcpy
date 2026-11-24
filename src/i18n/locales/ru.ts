@@ -44,6 +44,8 @@ export const ru: Translations = {
     languageLabel: 'Язык',
     scrcpyEngine: 'Движок scrcpy',
     scrcpyReady: 'scrcpy готов',
+
+    scrcpyMissing: 'scrcpy не установлен',
     syncingComponents: 'Синхронизация компонентов {progress}%',
     installCore: 'Установить ядро',
     selectFolder: 'Выбрать папку',
@@ -90,6 +92,8 @@ export const ru: Translations = {
     syncing: 'Синхронизация...',
     refresh: 'Обновить',
     noDevicesDetected: 'Устройства не обнаружены',
+
+    noDevice: 'Нет устройства',
     deviceUnauthorized: 'Разрешите на устройстве',
     deviceOffline: 'Не в сети',
     deviceUnavailable: 'Недоступно',
@@ -271,6 +275,33 @@ export const ru: Translations = {
     updateTitle: 'Доступно обновление',
     updateBody: 'Доступен OpenScrcpy {version}.'
   },
+  status: {
+      running: 'Сеанс активен',
+      starting: 'Запуск…',
+      upToDate: 'Актуально',
+      logLines: 'строк'
+  },
+
+  palette: {
+
+      open: 'Поиск или команда',
+
+      title: 'Команды',
+
+      placeholder: 'Поиск команд',
+
+      empty: 'Команды не найдены',
+
+      goTo: 'Перейти к {mode}'
+
+  },
+
+  settings: {
+
+      appearance: 'Внешний вид'
+
+  },
+
   sessionBehavior: {
     title: 'Поведение сессии',
     stayAwake: 'Устройство не спит',
@@ -329,6 +360,12 @@ export const ru: Translations = {
   },
 
   logPanel: {
+
+      allLogs: 'Все',
+
+      systemLogs: 'Система',
+
+      errorLogs: 'Ошибки',
     systemConsole: 'Системная консоль',
     report: 'Отчёт',
     reportTitle: 'Экспортировать диагностический отчёт в Загрузки',

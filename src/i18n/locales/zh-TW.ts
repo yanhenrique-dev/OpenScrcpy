@@ -41,6 +41,8 @@ export const zhTW: Translations = {
         languageLabel: '語言',
         scrcpyEngine: 'Scrcpy 引擎',
         scrcpyReady: 'Scrcpy 已就緒',
+
+        scrcpyMissing: '未安裝 scrcpy',
         syncingComponents: '同步元件中 {progress}%',
         installCore: '安裝核心',
         selectFolder: '選擇資料夾',
@@ -86,6 +88,8 @@ export const zhTW: Translations = {
         syncing: '同步中...',
         refresh: '重新整理',
         noDevicesDetected: '未偵測到裝置',
+
+        noDevice: '無裝置',
         deviceUnauthorized: '請在裝置上授權',
         deviceOffline: '離線',
         deviceUnavailable: '無法使用',
@@ -265,6 +269,33 @@ export const zhTW: Translations = {
         updateTitle: '有可用更新',
         updateBody: 'OpenScrcpy {version} 已可用。'
     },
+    status: {
+        running: '工作階段執行中',
+        starting: '正在啟動…',
+        upToDate: '已是最新',
+        logLines: '行'
+    },
+
+    palette: {
+
+        open: '搜尋或命令',
+
+        title: '命令',
+
+        placeholder: '搜尋命令',
+
+        empty: '找不到命令',
+
+        goTo: '前往 {mode}'
+
+    },
+
+    settings: {
+
+        appearance: '外觀'
+
+    },
+
     sessionBehavior: {
         title: '行為設定',
         stayAwake: '保持裝置喚醒',
@@ -321,6 +352,9 @@ export const zhTW: Translations = {
         off: '關閉'
     },
     logPanel: {
+        allLogs: '全部',
+        systemLogs: '系統',
+        errorLogs: '錯誤',
         systemConsole: '系統主控台',
         report: '匯出報告',
         reportTitle: '匯出診斷報告至「下載」資料夾',

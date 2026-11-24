@@ -41,6 +41,8 @@ export const ptBR: Translations = {
         languageLabel: 'Idioma',
         scrcpyEngine: 'Motor Scrcpy',
         scrcpyReady: 'Scrcpy Pronto',
+
+        scrcpyMissing: 'scrcpy não instalado',
         syncingComponents: 'Sincronizando Componentes {progress}%',
         installCore: 'Instalar Núcleo',
         selectFolder: 'Selecionar Pasta',
@@ -86,6 +88,8 @@ export const ptBR: Translations = {
         syncing: 'Sincronizando...',
         refresh: 'Atualizar',
         noDevicesDetected: 'Nenhum dispositivo detectado',
+
+        noDevice: 'Nenhum dispositivo',
         deviceUnauthorized: 'Autorize no aparelho',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Indisponível',
@@ -265,6 +269,33 @@ export const ptBR: Translations = {
         updateTitle: 'Atualização disponível',
         updateBody: 'O OpenScrcpy {version} está disponível.'
     },
+    status: {
+        running: 'Sessão ativa',
+        starting: 'Iniciando…',
+        upToDate: 'Atualizado',
+        logLines: 'linhas'
+    },
+
+    palette: {
+
+        open: 'Buscar ou comando',
+
+        title: 'Comandos',
+
+        placeholder: 'Buscar comandos',
+
+        empty: 'Nenhum comando encontrado',
+
+        goTo: 'Ir para {mode}'
+
+    },
+
+    settings: {
+
+        appearance: 'Aparência'
+
+    },
+
     sessionBehavior: {
         title: 'Comportamento da Sessão',
         stayAwake: 'Dispositivo Desperto',
@@ -321,6 +352,9 @@ export const ptBR: Translations = {
         off: 'Desl'
     },
     logPanel: {
+        allLogs: 'Tudo',
+        systemLogs: 'Sistema',
+        errorLogs: 'Erros',
         systemConsole: 'Console do Sistema',
         report: 'Relatório',
         reportTitle: 'Exportar relatório de diagnóstico para Downloads',

@@ -16,9 +16,11 @@ use gpui_kit::component::TitleBar;
 use gpui_kit::component::avatar::Avatar;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::notification::Notification;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
+use gpui_kit::component::status_bar::StatusBar;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::tab::{Tab, TabBar};
 use gpui_kit::component::tag::Tag;
@@ -112,6 +114,18 @@ struct DiscoveredService {
     name: String,
     service: String,
     address: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum PaletteAction {
+    Start,
+    Stop,
+    Mode(usize),
+    Settings,
+    Language,
+    About,
+    CheckUpdates,
+    Theme(ThemePreference),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -208,6 +222,7 @@ pub struct AppShell {
     running: bool,
     starting: bool,
     logs: Vec<String>,
+    log_filter: LogFilter,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
     camera_zoom: Entity<SliderState>,
@@ -220,6 +235,7 @@ pub struct AppShell {
     mic_db: Option<f64>,
     renderers: Vec<(String, String)>,
     discovered: Vec<DiscoveredService>,
+    palette_query: Entity<InputState>,
     terminal_input: Entity<InputState>,
     terminal_busy: bool,
     console_scroll: ScrollHandle,
@@ -379,6 +395,10 @@ impl AppShell {
             }),
         ];
 
+        let palette_query = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(t!("palette.placeholder").to_string())
+        });
+
         let terminal_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
         });
@@ -393,6 +413,7 @@ impl AppShell {
             running: false,
             starting: false,
             logs: Vec::new(),
+            log_filter: LogFilter::All,
             bitrate,
             _bitrate_subscription: bitrate_subscription,
             camera_zoom,
@@ -405,6 +426,7 @@ impl AppShell {
             mic_db: None,
             renderers: Vec::new(),
             discovered: Vec::new(),
+            palette_query,
             terminal_input,
             terminal_busy: false,
             console_scroll: ScrollHandle::new(),
@@ -480,24 +502,26 @@ impl AppShell {
         });
     }
 
-    fn open_behavior_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn open_settings_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let weak = cx.weak_entity();
-        window.open_dialog(cx, move |dialog, _, cx| {
-            let (notifications, remember) = weak
+        window.open_sheet(cx, move |sheet, _, cx| {
+            let (notifications, remember, current_locale, current_theme) = weak
                 .upgrade()
                 .map(|entity| {
                     let shell = entity.read(cx);
                     (
                         shell.settings.notifications_enabled,
                         shell.settings.remember_window_position,
+                        shell.settings.locale.clone(),
+                        shell.settings.theme,
                     )
                 })
-                .unwrap_or((true, true));
+                .unwrap_or((true, true, "en".to_string(), ThemePreference::System));
 
             let notify_weak = weak.clone();
             let remember_weak = weak.clone();
 
-            dialog.title(t!("appBehavior.title").to_string()).child(
+            sheet.title(t!("appBehavior.title").to_string()).child(
                 div()
                     .flex()
                     .flex_col()
@@ -531,6 +555,82 @@ impl AppShell {
                             .text_xs()
                             .text_color(cx.theme().muted_foreground)
                             .child(t!("appBehavior.keepInBackgroundTooltip").to_string()),
+                    )
+                    .child(
+                        div()
+                            .mt_2()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(t!("settings.appearance").to_string()),
+                    )
+                    .child({
+                        let theme_weak = weak.clone();
+                        let current = current_theme;
+                        div().flex_row_dir(cx).flex_wrap().gap_1().children(
+                            ThemePreference::ALL.map(|preference| {
+                                let theme_weak = theme_weak.clone();
+                                Button::new(format!("settings-theme-{}", preference.id()))
+                                    .label(theme_label(preference))
+                                    .ghost()
+                                    .compact()
+                                    .selected(current == preference)
+                                    .on_click(move |_, window, cx| {
+                                        let _ = theme_weak.update(cx, |this, cx| {
+                                            this.set_theme(preference, window, cx);
+                                        });
+                                        window.close_sheet(cx);
+                                    })
+                            }),
+                        )
+                    })
+                    .child(
+                        div()
+                            .mt_2()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_1()
+                            .child({
+                                let language_weak = weak.clone();
+                                Button::new("settings-language")
+                                    .label(format!(
+                                        "{}: {}",
+                                        t!("header.languageLabel"),
+                                        i18n::label(&current_locale)
+                                    ))
+                                    .outline()
+                                    .compact()
+                                    .on_click(move |_, window, cx| {
+                                        window.close_sheet(cx);
+                                        let _ = language_weak.update(cx, |this, cx| {
+                                            this.open_language_dialog(window, cx)
+                                        });
+                                    })
+                            })
+                            .child({
+                                let about_weak = weak.clone();
+                                Button::new("settings-about")
+                                    .label(t!("header.aboutTitle").to_string())
+                                    .ghost()
+                                    .compact()
+                                    .on_click(move |_, window, cx| {
+                                        window.close_sheet(cx);
+                                        let _ = about_weak.update(cx, |this, cx| {
+                                            this.open_about_dialog(window, cx)
+                                        });
+                                    })
+                            })
+                            .child({
+                                let update_weak = weak.clone();
+                                Button::new("settings-check-update")
+                                    .label(t!("header.checkAppUpdate").to_string())
+                                    .ghost()
+                                    .compact()
+                                    .on_click(move |_, window, cx| {
+                                        window.close_sheet(cx);
+                                        let _ = update_weak
+                                            .update(cx, |this, cx| this.check_update(cx));
+                                    })
+                            }),
                     ),
             )
         });
@@ -1203,6 +1303,117 @@ impl AppShell {
         .detach();
     }
 
+    fn open_command_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let weak = cx.weak_entity();
+        let query = self.palette_query.clone();
+        let start = self.start_label();
+        window.open_dialog(cx, move |dialog, _, cx| {
+            let filter = query.read(cx).value().trim().to_lowercase();
+            let mut items: Vec<(String, String, PaletteAction)> = vec![
+                (
+                    "palette-start".to_string(),
+                    start.clone(),
+                    PaletteAction::Start,
+                ),
+                (
+                    "palette-stop".to_string(),
+                    t!("controlPanel.stopSession").to_string(),
+                    PaletteAction::Stop,
+                ),
+                (
+                    "palette-settings".to_string(),
+                    t!("appBehavior.title").to_string(),
+                    PaletteAction::Settings,
+                ),
+                (
+                    "palette-language".to_string(),
+                    t!("header.languageLabel").to_string(),
+                    PaletteAction::Language,
+                ),
+                (
+                    "palette-about".to_string(),
+                    t!("header.aboutTitle").to_string(),
+                    PaletteAction::About,
+                ),
+                (
+                    "palette-update".to_string(),
+                    t!("header.checkAppUpdate").to_string(),
+                    PaletteAction::CheckUpdates,
+                ),
+            ];
+            for (index, mode) in CaptureMode::ALL.iter().enumerate() {
+                items.push((
+                    format!("palette-mode-{index}"),
+                    t!("palette.goTo", mode = mode.label()).to_string(),
+                    PaletteAction::Mode(index),
+                ));
+            }
+            for preference in ThemePreference::ALL {
+                items.push((
+                    format!("palette-theme-{}", preference.id()),
+                    theme_label(preference).to_string(),
+                    PaletteAction::Theme(preference),
+                ));
+            }
+            if !filter.is_empty() {
+                items.retain(|(_, label, _)| label.to_lowercase().contains(&filter));
+            }
+
+            let mut list = div().flex().flex_col().gap_1();
+            if items.is_empty() {
+                list = list.child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().muted_foreground)
+                        .child(t!("palette.empty").to_string()),
+                );
+            }
+            for (id, label, action) in items {
+                let weak = weak.clone();
+                list = list.child(Button::new(id).ghost().w_full().label(label).on_click(
+                    move |_, window, cx| {
+                        window.close_dialog(cx);
+                        let action = action.clone();
+                        let _ = weak
+                            .update(cx, |shell, cx| shell.run_palette_action(action, window, cx));
+                    },
+                ));
+            }
+
+            dialog
+                .title(t!("palette.title").to_string())
+                .child(Input::new(&query))
+                .child(list)
+        });
+    }
+
+    fn run_palette_action(
+        &mut self,
+        action: PaletteAction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match action {
+            PaletteAction::Start => self.start_session(cx),
+            PaletteAction::Stop => self.confirm_stop(window, cx),
+            PaletteAction::Mode(index) => self.select_mode(index, cx),
+            PaletteAction::Settings => self.open_settings_sheet(window, cx),
+            PaletteAction::Language => self.open_language_dialog(window, cx),
+            PaletteAction::About => self.open_about_dialog(window, cx),
+            PaletteAction::CheckUpdates => self.check_update(cx),
+            PaletteAction::Theme(preference) => self.set_theme(preference, window, cx),
+        }
+    }
+
+    fn start_label(&self) -> String {
+        match self.mode {
+            CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
+            CaptureMode::Microphone => t!("controlPanel.startMicBridge").to_string(),
+            CaptureMode::Camera => t!("controlPanel.engageCamera").to_string(),
+            _ => t!("controlPanel.startMission").to_string(),
+        }
+    }
+
     fn start_session(&mut self, cx: &mut Context<Self>) {
         let Some(device) = self.active_device.clone() else {
             return;
@@ -1340,12 +1551,7 @@ impl AppShell {
     fn session_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let can_start = self.active_device.is_some() && !self.starting && !self.running;
         let can_stop = self.running;
-        let start_label = match self.mode {
-            CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
-            CaptureMode::Microphone => t!("controlPanel.startMicBridge").to_string(),
-            CaptureMode::Camera => t!("controlPanel.engageCamera").to_string(),
-            _ => t!("controlPanel.startMission").to_string(),
-        };
+        let start_label = self.start_label();
 
         div()
             .flex()
@@ -1416,12 +1622,59 @@ impl AppShell {
                     .items_center()
                     .gap_2()
                     .pl_2()
+                    .flex_1()
                     .child(div().id("app-title").text_sm().child("OpenScrcpy"))
                     .child(
                         div()
                             .text_xs()
                             .text_color(cx.theme().muted_foreground)
                             .child(format!("v{version}")),
+                    )
+                    .child(
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_1()
+                            .child(div().w_1p5().h_1p5().rounded_full().bg(if self.running {
+                                cx.theme().success
+                            } else if self.starting {
+                                cx.theme().warning
+                            } else if self.scrcpy_ready == Some(true) {
+                                cx.theme().success
+                            } else {
+                                cx.theme().danger
+                            }))
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(if self.running {
+                                        t!("status.running").to_string()
+                                    } else if self.starting {
+                                        t!("status.starting").to_string()
+                                    } else if self.scrcpy_ready == Some(true) {
+                                        t!("header.scrcpyReady").to_string()
+                                    } else {
+                                        t!("header.scrcpyMissing").to_string()
+                                    }),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(self.active_device.clone().unwrap_or_default()),
+                    )
+                    .child(div().flex_1())
+                    .child(
+                        Button::new("command-palette")
+                            .icon(IconName::Search)
+                            .label(t!("palette.open").to_string())
+                            .ghost()
+                            .compact()
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.open_command_palette(window, cx)
+                            })),
                     ),
             )
     }
@@ -1467,7 +1720,7 @@ impl AppShell {
                     .label(t!("appBehavior.title").to_string())
                     .ghost()
                     .on_click(
-                        cx.listener(|this, _, window, cx| this.open_behavior_dialog(window, cx)),
+                        cx.listener(|this, _, window, cx| this.open_settings_sheet(window, cx)),
                     ),
             )
             .child(
@@ -3163,17 +3416,19 @@ impl AppShell {
         }
     }
 
-    fn copy_console(&mut self, cx: &mut Context<Self>) {
+    fn copy_console(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.logs.is_empty() {
             return;
         }
         let text = self.logs.join("\n");
         cx.write_to_clipboard(ClipboardItem::new_string(text));
-        self.push_log(t!("logPanel.copied").to_string());
+        let message = t!("logPanel.copied").to_string();
+        window.push_notification(Notification::success(message.clone()), cx);
+        self.push_log(message);
         cx.notify();
     }
 
-    fn save_report(&mut self, cx: &mut Context<Self>) {
+    fn save_report(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(downloads) = downloads_dir() else {
             self.push_error("downloads directory is unavailable");
             cx.notify();
@@ -3199,6 +3454,8 @@ impl AppShell {
             .and_then(|content| open_scrcpy_core::report::write_report(&downloads, &content, &name))
         {
             Ok(path) => {
+                let message = t!("logPanel.reportSavedAlert", fileName = path).to_string();
+                window.push_notification(Notification::success(message.clone()), cx);
                 self.push_log(t!("logPanel.diagnosticReportSaved", fileName = path).to_string());
             }
             Err(error) => self.push_error(error),
@@ -3206,15 +3463,101 @@ impl AppShell {
         cx.notify();
     }
 
+    fn status_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let (label, color) = if self.running {
+            (t!("status.running").to_string(), cx.theme().success)
+        } else if self.starting {
+            (t!("status.starting").to_string(), cx.theme().warning)
+        } else if self.scrcpy_ready == Some(true) {
+            (t!("header.scrcpyReady").to_string(), cx.theme().success)
+        } else {
+            (t!("header.scrcpyMissing").to_string(), cx.theme().danger)
+        };
+        let device = self
+            .active_device
+            .clone()
+            .unwrap_or_else(|| t!("sidebar.noDevice").to_string());
+        let updates = self
+            .update_available
+            .as_ref()
+            .map(|version| t!("header.updateAvailableShort", v = version.as_str()).to_string())
+            .unwrap_or_else(|| t!("status.upToDate").to_string());
+
+        StatusBar::new()
+            .left(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_1()
+                            .child(div().w_1p5().h_1p5().rounded_full().bg(color))
+                            .child(div().text_xs().child(label)),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(device),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(self.mode.label()),
+                    ),
+            )
+            .right(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_3()
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("{} {}", self.logs.len(), t!("status.logLines"))),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(updates),
+                    ),
+            )
+    }
+
     fn console(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let mut lines = Vec::with_capacity(self.logs.len());
         for line in &self.logs {
+            let visible = match self.log_filter {
+                LogFilter::All => true,
+                LogFilter::Errors => log_level(line) == LogLevel::Error,
+                LogFilter::System => line.starts_with("[SYSTEM]") || line.contains("[server]"),
+            };
+            if !visible {
+                continue;
+            }
             let color = match log_level(line) {
                 LogLevel::Error => cx.theme().danger,
                 LogLevel::Warning => cx.theme().warning,
                 LogLevel::Info => cx.theme().muted_foreground,
             };
-            lines.push(div().text_xs().text_color(color).child(line.clone()));
+            lines.push(
+                div()
+                    .text_xs()
+                    .text_color(color)
+                    .when(line.starts_with("[SYSTEM] Starting "), |this| {
+                        this.mt_1()
+                            .pt_1()
+                            .border_t_1()
+                            .border_color(cx.theme().border)
+                    })
+                    .child(line.clone()),
+            );
         }
 
         div()
@@ -3237,6 +3580,45 @@ impl AppShell {
                             .text_color(cx.theme().muted_foreground)
                             .child(t!("logPanel.systemConsole").to_string()),
                     )
+                    .child(
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                Button::new("log-filter-all")
+                                    .label(t!("logPanel.allLogs").to_string())
+                                    .ghost()
+                                    .compact()
+                                    .selected(self.log_filter == LogFilter::All)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.log_filter = LogFilter::All;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("log-filter-system")
+                                    .label(t!("logPanel.systemLogs").to_string())
+                                    .ghost()
+                                    .compact()
+                                    .selected(self.log_filter == LogFilter::System)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.log_filter = LogFilter::System;
+                                        cx.notify();
+                                    })),
+                            )
+                            .child(
+                                Button::new("log-filter-errors")
+                                    .label(t!("logPanel.errorLogs").to_string())
+                                    .ghost()
+                                    .compact()
+                                    .selected(self.log_filter == LogFilter::Errors)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.log_filter = LogFilter::Errors;
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
                     .child(div().flex_1())
                     .child(
                         Button::new("console-clear")
@@ -3252,14 +3634,18 @@ impl AppShell {
                             .ghost()
                             .compact()
                             .disabled(self.logs.is_empty())
-                            .on_click(cx.listener(|this, _, _, cx| this.copy_console(cx))),
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.copy_console(window, cx)),
+                            ),
                     )
                     .child(
                         Button::new("console-report")
                             .label(t!("logPanel.report").to_string())
                             .ghost()
                             .compact()
-                            .on_click(cx.listener(|this, _, _, cx| this.save_report(cx))),
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.save_report(window, cx)),
+                            ),
                     ),
             )
             .child(
@@ -3356,6 +3742,7 @@ impl Render for AppShell {
                     ),
             )
             .child(self.console(cx))
+            .child(self.status_bar(cx))
     }
 }
 
@@ -3585,6 +3972,13 @@ enum LogLevel {
     Error,
     Warning,
     Info,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LogFilter {
+    All,
+    System,
+    Errors,
 }
 
 /// The core logs carry a `[LEVEL]` prefix; color those, keep the rest muted.

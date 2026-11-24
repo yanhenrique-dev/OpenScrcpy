@@ -42,6 +42,8 @@ export const en = {
         languageLabel: 'Language',
         scrcpyEngine: 'Scrcpy Engine',
         scrcpyReady: 'Scrcpy Ready',
+
+        scrcpyMissing: 'scrcpy not installed',
         syncingComponents: 'Syncing Components {progress}%',
         installCore: 'Install Core',
         selectFolder: 'Select Folder',
@@ -87,6 +89,8 @@ export const en = {
         syncing: 'Syncing...',
         refresh: 'Refresh',
         noDevicesDetected: 'No devices detected',
+
+        noDevice: 'No device',
         deviceUnauthorized: 'Authorize on the device',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Unavailable',
@@ -266,6 +270,33 @@ export const en = {
         updateTitle: 'Update available',
         updateBody: 'OpenScrcpy {version} is available.'
     },
+    status: {
+        running: 'Session running',
+        starting: 'Starting…',
+        upToDate: 'Up to date',
+        logLines: 'logs'
+    },
+
+    palette: {
+
+        open: 'Search or command',
+
+        title: 'Commands',
+
+        placeholder: 'Search commands',
+
+        empty: 'No commands found',
+
+        goTo: 'Go to {mode}'
+
+    },
+
+    settings: {
+
+        appearance: 'Appearance'
+
+    },
+
     sessionBehavior: {
         title: 'Session behavior',
         stayAwake: 'Device awake',
@@ -322,6 +353,9 @@ export const en = {
         off: 'Off'
     },
     logPanel: {
+        allLogs: 'All',
+        systemLogs: 'System',
+        errorLogs: 'Errors',
         systemConsole: 'System Console',
         report: 'Report',
         reportTitle: 'Export diagnostic report to Downloads',

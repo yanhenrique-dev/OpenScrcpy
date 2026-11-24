@@ -41,6 +41,8 @@ languages: {
         languageLabel: 'Bahasa',
         scrcpyEngine: 'Sistem Scrcpy',
         scrcpyReady: 'Scrcpy Siap',
+
+        scrcpyMissing: 'scrcpy belum terpasang',
         syncingComponents: 'Menyinkronkan Komponen {progress}%',
         installCore: 'Pasang Inti',
         selectFolder: 'Pilih Folder',
@@ -86,6 +88,8 @@ languages: {
         syncing: 'Menyinkronkan...',
         refresh: 'Segarkan',
         noDevicesDetected: 'Tidak ada perangkat terdeteksi',
+
+        noDevice: 'Tidak ada perangkat',
         deviceUnauthorized: 'Izinkan di perangkat',
         deviceOffline: 'Offline',
         deviceUnavailable: 'Tidak tersedia',
@@ -265,6 +269,33 @@ languages: {
         updateTitle: 'Pembaruan tersedia',
         updateBody: 'OpenScrcpy {version} tersedia.'
     },
+    status: {
+        running: 'Sesi berjalan',
+        starting: 'Memulai…',
+        upToDate: 'Terbaru',
+        logLines: 'baris'
+    },
+
+    palette: {
+
+        open: 'Cari atau perintah',
+
+        title: 'Perintah',
+
+        placeholder: 'Cari perintah',
+
+        empty: 'Tidak ada perintah',
+
+        goTo: 'Buka {mode}'
+
+    },
+
+    settings: {
+
+        appearance: 'Tampilan'
+
+    },
+
     sessionBehavior: {
         title: 'Pengaturan Sesi',
         stayAwake: 'Perangkat Terjaga',
@@ -321,6 +352,9 @@ languages: {
         off: 'Matikan'
     },
     logPanel: {
+        allLogs: 'Semua',
+        systemLogs: 'Sistem',
+        errorLogs: 'Kesalahan',
         systemConsole: 'Konsol Sistem',
         report: 'Laporan',
         reportTitle: 'Ekspor laporan diagnostik ke Unduhan',

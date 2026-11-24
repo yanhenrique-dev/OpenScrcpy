@@ -44,6 +44,8 @@ export const ar: Translations = {
         languageLabel: 'اللغة',
         scrcpyEngine: 'محرك Scrcpy',
         scrcpyReady: 'Scrcpy جاهز',
+
+        scrcpyMissing: 'لم يتم تثبيت scrcpy',
         syncingComponents: 'جارٍ مزامنة المكونات {progress}%',
         installCore: 'تثبيت المكونات الأساسية',
         selectFolder: 'اختيار مجلد',
@@ -89,6 +91,8 @@ export const ar: Translations = {
         syncing: 'جارٍ المزامنة...',
         refresh: 'تحديث',
         noDevicesDetected: 'لم يتم اكتشاف أي جهاز',
+
+        noDevice: 'لا يوجد جهاز',
         deviceUnauthorized: 'اسمح على الجهاز',
         deviceOffline: 'غير متصل',
         deviceUnavailable: 'غير متاح',
@@ -268,6 +272,33 @@ export const ar: Translations = {
         updateTitle: 'يتوفر تحديث',
         updateBody: 'يتوفر OpenScrcpy {version}.'
     },
+    status: {
+        running: 'الجلسة قيد التشغيل',
+        starting: 'جارٍ البدء…',
+        upToDate: 'محدّث',
+        logLines: 'أسطر'
+    },
+
+    palette: {
+
+        open: 'بحث أو أمر',
+
+        title: 'الأوامر',
+
+        placeholder: 'ابحث عن الأوامر',
+
+        empty: 'لم يتم العثور على أوامر',
+
+        goTo: 'الانتقال إلى {mode}'
+
+    },
+
+    settings: {
+
+        appearance: 'المظهر'
+
+    },
+
     sessionBehavior: {
         title: 'سلوك الجلسة',
         stayAwake: 'إبقاء الجهاز مستيقظًا',
@@ -324,6 +355,9 @@ export const ar: Translations = {
         off: 'إيقاف'
     },
        logPanel: {
+           allLogs: 'الكل',
+           systemLogs: 'النظام',
+           errorLogs: 'الأخطاء',
         systemConsole: 'وحدة تحكم النظام',
         report: 'تقرير',
         reportTitle: 'تصدير تقرير التشخيص إلى مجلد التنزيلات',

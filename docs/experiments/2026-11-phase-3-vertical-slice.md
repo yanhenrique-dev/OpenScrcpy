@@ -221,6 +221,25 @@ Ficaram de fora, de propósito: `Combobox`
 atual cobre o estado vazio). `Bubble` e `Checkbox` seguem descartados por não
 haver conversa nem multi-seleção real.
 
+### 4.4 Casco enxuto (primeira aplicação do plano de UI)
+
+- **Title bar** ganhou o status da sessão (pronto/iniciando/ativo/sem core), o
+  dispositivo ativo e o botão **Buscar ou comando**, que abre a paleta.
+- **Command palette**: diálogo com `Input` filtrando comandos de sessão,
+  navegação de modo, configurações, idioma, Sobre, update e tema; o item fecha
+  a paleta antes de abrir outro overlay.
+- **Status bar**: estado, dispositivo, modo, linhas de log e update.
+- **Settings sheet**: o antigo diálogo "Aplicativo" virou `Sheet`, com
+  notificações, posição da janela, tema, idioma, Sobre e verificar update.
+- **Toasts**: copiar console e salvar relatório confirmam por `Notification`.
+- **Console**: filtros Tudo/Sistema/Erros e separador visual no início de
+  sessão.
+- **Índice**: 408 chaves por locale; 39 testes GPUI.
+
+Ainda pendentes do plano: ficha do dispositivo, pairing em Stepper/OtpInput,
+`GroupBox`/`Select`, console redimensionável e paleta usando o componente
+`Command` nativo.
+
 ## 5. O que falta nesta fase
 
 | Fatia | Situação |

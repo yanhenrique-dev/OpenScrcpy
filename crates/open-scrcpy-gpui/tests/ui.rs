@@ -80,6 +80,14 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             window.find("check-update").label(),
             Some("Check for Updates")
         );
+        window.click("command-palette", cx);
+        window.render_frame(cx);
+        assert!(window.find("palette-start").label().is_some());
+        window.click("palette-about", cx);
+        window.render_frame(cx);
+        assert!(window.find("about-repository").label().is_some());
+        window.close_dialog(cx);
+        window.render_frame(cx);
         window.click("app-settings", cx);
         window.render_frame(cx);
         assert_eq!(
@@ -92,7 +100,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         );
         window.click("settings-notifications", cx);
         window.render_frame(cx);
-        window.close_dialog(cx);
+        window.close_sheet(cx);
         window.render_frame(cx);
 
         // File transfer is available from the sidebar (disabled without a device).

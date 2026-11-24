@@ -41,6 +41,8 @@ export const zhCN: Translations = {
         languageLabel: '语言',
         scrcpyEngine: 'Scrcpy 引擎',
         scrcpyReady: 'Scrcpy 已就绪',
+
+        scrcpyMissing: '未安装 scrcpy',
         syncingComponents: '正在同步组件 {progress}%',
         installCore: '安装核心',
         selectFolder: '选择文件夹',
@@ -86,6 +88,8 @@ export const zhCN: Translations = {
         syncing: '同步中...',
         refresh: '刷新',
         noDevicesDetected: '未检测到设备',
+
+        noDevice: '无设备',
         deviceUnauthorized: '请在设备上授权',
         deviceOffline: '离线',
         deviceUnavailable: '不可用',
@@ -265,6 +269,33 @@ export const zhCN: Translations = {
         updateTitle: '有可用更新',
         updateBody: 'OpenScrcpy {version} 已可用。'
     },
+    status: {
+        running: '会话运行中',
+        starting: '正在启动…',
+        upToDate: '已是最新',
+        logLines: '行'
+    },
+
+    palette: {
+
+        open: '搜索或命令',
+
+        title: '命令',
+
+        placeholder: '搜索命令',
+
+        empty: '未找到命令',
+
+        goTo: '转到 {mode}'
+
+    },
+
+    settings: {
+
+        appearance: '外观'
+
+    },
+
     sessionBehavior: {
         title: '行为设置',
         stayAwake: '保持设备唤醒',
@@ -321,6 +352,9 @@ export const zhCN: Translations = {
         off: '关闭'
     },
     logPanel: {
+        allLogs: '全部',
+        systemLogs: '系统',
+        errorLogs: '错误',
         systemConsole: '系统控制台',
         report: '导出报告',
         reportTitle: '将诊断报告导出到“下载”文件夹',
