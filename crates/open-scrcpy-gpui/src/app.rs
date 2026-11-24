@@ -11,6 +11,7 @@ use std::time::Duration;
 use gpui_kit::assets::IconName;
 use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
+use gpui_kit::component::IndexPath;
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::TitleBar;
 use gpui_kit::component::avatar::Avatar;
@@ -20,6 +21,8 @@ use gpui_kit::component::notification::Notification;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::resizable::{resizable_panel, v_resizable};
+use gpui_kit::component::searchable_list::{SearchableListItem, SearchableVec};
+use gpui_kit::component::select::{Select, SelectEvent, SelectState};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::tab::{Tab, TabBar};
@@ -114,6 +117,18 @@ struct DiscoveredService {
     name: String,
     service: String,
     address: String,
+}
+
+impl SearchableListItem for ThemePreference {
+    type Value = ThemePreference;
+
+    fn title(&self) -> SharedString {
+        theme_label(*self)
+    }
+
+    fn value(&self) -> &Self::Value {
+        self
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -211,6 +226,8 @@ pub struct AppShell {
     starting: bool,
     logs: Vec<String>,
     log_filter: LogFilter,
+    theme_select: Entity<SelectState<SearchableVec<ThemePreference>>>,
+    _theme_subscription: Subscription,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
     camera_zoom: Entity<SliderState>,
@@ -382,6 +399,29 @@ impl AppShell {
             }),
         ];
 
+        let theme_index = ThemePreference::ALL
+            .iter()
+            .position(|preference| *preference == settings.theme)
+            .unwrap_or(2);
+        let theme_select = cx.new(|cx| {
+            SelectState::new(
+                SearchableVec::new(ThemePreference::ALL.to_vec()),
+                Some(IndexPath::new(theme_index)),
+                window,
+                cx,
+            )
+            .searchable(true)
+        });
+        let theme_subscription = cx.subscribe_in(
+            &theme_select,
+            window,
+            |this, _, event: &SelectEvent<SearchableVec<ThemePreference>>, window, cx| {
+                if let SelectEvent::Confirm(Some(theme)) = event {
+                    this.set_theme(*theme, window, cx);
+                }
+            },
+        );
+
         let terminal_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
         });
@@ -397,6 +437,8 @@ impl AppShell {
             starting: false,
             logs: Vec::new(),
             log_filter: LogFilter::All,
+            theme_select,
+            _theme_subscription: theme_subscription,
             bitrate,
             _bitrate_subscription: bitrate_subscription,
             camera_zoom,
@@ -551,7 +593,7 @@ impl AppShell {
                         div().flex_row_dir(cx).flex_wrap().gap_1().children(
                             ThemePreference::ALL.map(|preference| {
                                 let theme_weak = theme_weak.clone();
-                                Button::new(format!("settings-theme-{}", preference.id()))
+                                Button::new(format!("settings-{}", preference.id()))
                                     .label(theme_label(preference))
                                     .ghost()
                                     .compact()
@@ -1467,27 +1509,6 @@ impl AppShell {
             )
     }
 
-    fn theme_modes(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex_row_dir(cx)
-            .items_center()
-            .gap_1()
-            .children(ThemePreference::ALL.map(|preference| {
-                Button::new(preference.id())
-                    .icon(match preference {
-                        ThemePreference::Light => IconName::Sun,
-                        ThemePreference::Dark => IconName::Moon,
-                        ThemePreference::System => IconName::Monitor,
-                    })
-                    .label(theme_label(preference))
-                    .ghost()
-                    .selected(self.settings.theme == preference)
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.set_theme(preference, window, cx)
-                    }))
-            }))
-    }
-
     fn titlebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let version = env!("CARGO_PKG_VERSION");
         let services = self.services.clone();
@@ -1563,7 +1584,13 @@ impl AppShell {
             .border_b_1()
             .border_color(cx.theme().border)
             .child(div().flex_1())
-            .child(self.theme_modes(cx))
+            .child(
+                div().w_40().child(
+                    Select::new(&self.theme_select)
+                        .small()
+                        .accessibility_label(t!("settings.appearance").to_string()),
+                ),
+            )
             .when_some(self.update_available.clone(), |this, version| {
                 this.child(
                     Button::new("install-update")
@@ -1653,12 +1680,14 @@ impl AppShell {
                                     .gap_0p5()
                                     .flex_1()
                                     .min_w_0()
-                                    .child(div().text_sm().child(name))
+                                    .child(div().text_sm().truncate().child(name))
                                     .child(
                                         div()
                                             .flex_row_dir(cx)
                                             .items_center()
+                                            .flex_wrap()
                                             .gap_1()
+                                            .min_w_0()
                                             .child(
                                                 div()
                                                     .w_1p5()
@@ -1698,7 +1727,7 @@ impl AppShell {
             .flex()
             .flex_col()
             .gap_2()
-            .w_64()
+            .w_72()
             .flex_shrink_0()
             .p_3()
             .border_e(px(1.), cx)

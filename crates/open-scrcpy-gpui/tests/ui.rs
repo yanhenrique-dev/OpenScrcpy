@@ -237,7 +237,9 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
 
         // Choosing a theme repaints the window with the new palette.
         let light_background = cx.theme().background;
-        window.click("theme-dark", cx);
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-theme-dark", cx);
         window.render_frame(cx);
         assert_ne!(cx.theme().background, light_background);
 
