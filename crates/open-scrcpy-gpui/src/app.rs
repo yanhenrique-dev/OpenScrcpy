@@ -1881,6 +1881,7 @@ impl AppShell {
         let version = env!("CARGO_PKG_VERSION");
         let services = self.services.clone();
         TitleBar::new()
+            .bg(cx.theme().background)
             .on_close_window(move |_, window, _| {
                 services.teardown();
                 window.remove_window();
