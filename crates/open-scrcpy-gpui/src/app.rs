@@ -1220,7 +1220,8 @@ impl AppShell {
             .filter(|device| device.state == DeviceState::Online)
             .map(|device| device.serial.clone())
             .filter(|serial| {
-                !self.android_versions.contains_key(serial)
+                (!self.android_versions.contains_key(serial)
+                    || !self.device_models.contains_key(serial))
                     && !self.android_version_requests.contains(serial)
             })
             .collect();
@@ -1241,9 +1242,15 @@ impl AppShell {
                         shell.android_versions.insert(serial.clone(), version);
                         changed = true;
                     }
-                    if let Some(model) = model {
-                        shell.device_models.insert(serial.clone(), model);
-                        changed = true;
+                    match model {
+                        Some(model) => {
+                            shell.push_log(format!("[SYSTEM] Device model for {serial}: {model}"));
+                            shell.device_models.insert(serial.clone(), model);
+                            changed = true;
+                        }
+                        None => {
+                            shell.push_log(format!("[WARN] Could not read the model for {serial}."))
+                        }
                     }
                     if changed {
                         cx.notify();
