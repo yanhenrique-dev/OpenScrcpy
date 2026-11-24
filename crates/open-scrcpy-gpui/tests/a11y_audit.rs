@@ -103,7 +103,9 @@ fn every_interactive_control_has_an_accessible_name(cx: &mut TestAppContext) {
             "the panel title must stay a heading"
         );
 
-        window.click("locale-toggle", cx);
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-language", cx);
         window.render_frame(cx);
         assert_interactive_elements_are_named(window, "language dialog");
         window.close_dialog(cx);

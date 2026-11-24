@@ -1938,11 +1938,6 @@ impl AppShell {
     }
 
     fn header(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        let locale_label = format!(
-            "{}: {}",
-            t!("header.languageLabel"),
-            i18n::label(&self.settings.locale)
-        );
         div()
             .flex_row_dir(cx)
             .items_center()
@@ -1972,20 +1967,6 @@ impl AppShell {
                     .on_click(
                         cx.listener(|this, _, window, cx| this.open_settings_sheet(window, cx)),
                     ),
-            )
-            .child(
-                Button::new("check-update")
-                    .icon(IconName::RefreshCw)
-                    .tooltip(t!("header.checkAppUpdate").to_string())
-                    .accessibility_label(t!("header.checkAppUpdate").to_string())
-                    .ghost()
-                    .disabled(self.checking_update)
-                    .on_click(cx.listener(|this, _, _, cx| this.check_update(cx))),
-            )
-            .child(
-                Button::new("locale-toggle").label(locale_label).on_click(
-                    cx.listener(|this, _, window, cx| this.open_language_dialog(window, cx)),
-                ),
             )
     }
 

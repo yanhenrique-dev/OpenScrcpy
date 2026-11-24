@@ -76,10 +76,6 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         switch_mode(&view, 1, window, cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
-        assert_eq!(
-            window.find("check-update").label(),
-            Some("Check for Updates")
-        );
         window.click("app-settings", cx);
         window.render_frame(cx);
         assert_eq!(
@@ -241,27 +237,18 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
 
         // Locale switching retranslates the whole window without a restart.
         // Keep it last: the switch is process-visible to later UI work.
-        let label = window
-            .find("locale-toggle")
-            .label()
-            .unwrap_or_default()
-            .to_string();
-        assert!(label.contains("English"), "unexpected label: {label}");
-
-        window.click("locale-toggle", cx);
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-language", cx);
         window.render_frame(cx);
         window.click("locale-fr", cx);
         window.render_frame(cx);
-        let label = window
-            .find("locale-toggle")
-            .label()
-            .unwrap_or_default()
-            .to_string();
-        assert!(label.contains("Français"), "unexpected label: {label}");
         assert_eq!(window.find("panel-title").label(), Some("Écran"));
 
         // Arabic flips the layout direction (and retranslates again).
-        window.click("locale-toggle", cx);
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-language", cx);
         window.render_frame(cx);
         window.click("locale-ar", cx);
         window.render_frame(cx);
