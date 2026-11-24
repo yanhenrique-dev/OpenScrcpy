@@ -1233,10 +1233,19 @@ impl AppShell {
                     .await
                     .ok()
                     .flatten();
+                let model = services.device_model(serial.clone()).await.ok().flatten();
                 let _ = this.update(cx, |shell, cx| {
                     shell.android_version_requests.remove(&serial);
+                    let mut changed = false;
                     if let Some(version) = version {
                         shell.android_versions.insert(serial.clone(), version);
+                        changed = true;
+                    }
+                    if let Some(model) = model {
+                        shell.device_models.insert(serial.clone(), model);
+                        changed = true;
+                    }
+                    if changed {
                         cx.notify();
                     }
                 });
