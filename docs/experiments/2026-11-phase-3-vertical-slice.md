@@ -204,13 +204,19 @@ recebeu:
   `Cancel`; o foco volta ao gatilho pelo próprio componente.
 - **Progress**: o download do core no onboarding agora tem barra determinada,
   além do texto de porcentagem.
+- **Segmented Tabs + ícones**: os quatro modos agora são uma `TabBar`
+  segmented (Monitor, câmera, janela e microfone nos ícones), com o modelo de
+  teclado do Kit (um tab stop, setas, Home/End, Enter). O header ganhou ícones
+  semânticos: sol/lua/monitor no tema, globo no idioma, engrenagem em
+  Aplicativo, info no Sobre, atualizar no check e download no update.
+  O app passou a usar `gpui_kit::assets::AllAssets` para ter o catálogo Lucide
+  completo (o `Assets` padrão só embute um subconjunto).
 - **TitleBar própria**: a janela usa `WindowDecorations::Client` e a `TitleBar`
   do Kit no topo, com marca, região de arraste e controles de janela; o botão
   fechar roda o teardown das sessões antes de remover a janela. A barra nativa
   do sistema deixou de ser usada (P8 revertido após feedback de uso).
 
-Ficaram de fora, de propósito: `TabBar` (os botões de modo têm IDs estáveis
-usados pelos testes de UI; a troca exige repensar a navegação), `Combobox`
+Ficaram de fora, de propósito: `Combobox`
 (útil quando a lista de lentes crescer), `Kbd` (cosmético) e `Empty` (o texto
 atual cobre o estado vazio). `Bubble` e `Checkbox` seguem descartados por não
 haver conversa nem multi-seleção real.

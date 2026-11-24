@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Duration;
 
+use gpui_kit::assets::IconName;
 use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
 use gpui_kit::component::Sizable as _;
@@ -19,6 +20,7 @@ use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::switch::Switch;
+use gpui_kit::component::tab::{Tab, TabBar};
 use gpui_kit::component::tag::Tag;
 use gpui_kit::component::{ActiveTheme as _, Disableable as _, WindowExt as _};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -84,12 +86,12 @@ enum CaptureMode {
 impl CaptureMode {
     const ALL: [Self; 4] = [Self::Screen, Self::Camera, Self::Desktop, Self::Microphone];
 
-    fn id(self) -> &'static str {
+    fn icon(self) -> IconName {
         match self {
-            Self::Screen => "mode-screen",
-            Self::Camera => "mode-camera",
-            Self::Desktop => "mode-desktop",
-            Self::Microphone => "mode-microphone",
+            Self::Screen => IconName::Monitor,
+            Self::Camera => IconName::Camera,
+            Self::Desktop => IconName::AppWindow,
+            Self::Microphone => IconName::Mic,
         }
     }
 
@@ -581,6 +583,13 @@ impl AppShell {
                         ),
                 )
         });
+    }
+
+    /// Selects a capture mode by its index in [`CaptureMode::ALL`].
+    pub fn select_mode(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(mode) = CaptureMode::ALL.get(index) {
+            self.switch_mode(*mode, cx);
+        }
     }
 
     fn switch_mode(&mut self, mode: CaptureMode, cx: &mut Context<Self>) {
@@ -1379,6 +1388,11 @@ impl AppShell {
             .gap_1()
             .children(ThemePreference::ALL.map(|preference| {
                 Button::new(preference.id())
+                    .icon(match preference {
+                        ThemePreference::Light => IconName::Sun,
+                        ThemePreference::Dark => IconName::Moon,
+                        ThemePreference::System => IconName::Monitor,
+                    })
                     .label(theme_label(preference))
                     .ghost()
                     .selected(self.settings.theme == preference)
@@ -1431,6 +1445,7 @@ impl AppShell {
             .when_some(self.update_available.clone(), |this, version| {
                 this.child(
                     Button::new("install-update")
+                        .icon(IconName::Download)
                         .label(t!("header.updateBadge", v = version).to_string())
                         .primary()
                         .disabled(self.installing_update)
@@ -1439,6 +1454,7 @@ impl AppShell {
             })
             .child(
                 Button::new("about")
+                    .icon(IconName::Info)
                     .label(t!("header.aboutTitle").to_string())
                     .ghost()
                     .on_click(
@@ -1447,6 +1463,7 @@ impl AppShell {
             )
             .child(
                 Button::new("app-settings")
+                    .icon(IconName::Settings)
                     .label(t!("appBehavior.title").to_string())
                     .ghost()
                     .on_click(
@@ -1455,6 +1472,7 @@ impl AppShell {
             )
             .child(
                 Button::new("check-update")
+                    .icon(IconName::RefreshCw)
                     .label(t!("header.checkAppUpdate").to_string())
                     .ghost()
                     .disabled(self.checking_update)
@@ -1716,19 +1734,28 @@ impl AppShell {
     }
 
     fn mode_tabs(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let active = CaptureMode::ALL
+            .iter()
+            .position(|mode| *mode == self.mode)
+            .unwrap_or(0);
         div()
-            .flex_row_dir(cx)
-            .items_center()
-            .gap_1()
             .p_2()
             .border_b_1()
             .border_color(cx.theme().border)
-            .children(CaptureMode::ALL.map(|mode| {
-                Button::new(mode.id())
-                    .label(mode.label())
-                    .selected(self.mode == mode)
-                    .on_click(cx.listener(move |this, _, _, cx| this.switch_mode(mode, cx)))
-            }))
+            .child(
+                TabBar::new("mode-tabs")
+                    .segmented()
+                    .selected_index(active)
+                    .on_click(cx.listener(|this, index, _, cx| {
+                        if let Some(mode) = CaptureMode::ALL.get(*index) {
+                            this.switch_mode(*mode, cx);
+                        }
+                    }))
+                    .children(
+                        CaptureMode::ALL
+                            .map(|mode| Tab::new().icon(mode.icon()).label(mode.label())),
+                    ),
+            )
     }
 
     fn mirror_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {

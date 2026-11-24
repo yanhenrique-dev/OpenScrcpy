@@ -8,7 +8,7 @@ use gpui_kit::{
 };
 use openscrcpy_gpui::{AppServices, AppSettings, AppShell, SettingsStore, ThemePreference};
 
-fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
+fn open_shell(cx: &mut TestAppContext) -> (gpui_kit::AnyWindowHandle, gpui_kit::Entity<AppShell>) {
     rust_i18n::set_locale("en");
     gpui_kit::component::set_locale("en");
     cx.update(kit_init);
@@ -20,7 +20,7 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
     };
     let (services, events) = AppServices::for_test();
     let (_platform_tx, platform_commands) = tokio::sync::mpsc::unbounded_channel();
-    let (handle, _view) = cx.update(|cx| {
+    let (handle, view) = cx.update(|cx| {
         gpui_kit::open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::new(
@@ -46,12 +46,24 @@ fn open_shell(cx: &mut TestAppContext) -> gpui_kit::AnyWindowHandle {
         )
         .expect("open the shell window")
     });
-    handle
+    (handle, view)
+}
+
+fn switch_mode(
+    view: &gpui_kit::Entity<AppShell>,
+    index: usize,
+    window: &mut gpui_kit::Window,
+    cx: &mut gpui_kit::App,
+) {
+    // TabBar tabs have no per-tab ElementId. Drive the same public selection
+    // path a command uses, then render the resulting panel.
+    view.update(cx, |shell, cx| shell.select_mode(index, cx));
+    window.render_frame(cx);
 }
 
 #[gpui_kit::test]
 fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
-    let handle = open_shell(cx);
+    let (handle, view) = open_shell(cx);
 
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
@@ -61,8 +73,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         assert!(sidebar_x < panel_x, "LTR sidebar must lead");
 
         // Mode tabs re-render the panel heading.
-        window.click("mode-camera", cx);
-        window.render_frame(cx);
+        switch_mode(&view, 1, window, cx);
         assert_eq!(window.find("panel-title").label(), Some("Camera"));
 
         assert_eq!(
@@ -134,8 +145,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
 
         // Desktop mode has its own panel and turns the same session bar into a
         // virtual-display start.
-        window.click("mode-desktop", cx);
-        window.render_frame(cx);
+        switch_mode(&view, 2, window, cx);
         assert_eq!(window.find("panel-title").label(), Some("Desktop"));
         assert_eq!(
             window.find("start-mission").label(),
@@ -162,8 +172,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         assert!(summary.contains("Flex"), "unexpected summary: {summary}");
 
         // Mic mode starts the windowless bridge and shares the session bar.
-        window.click("mode-microphone", cx);
-        window.render_frame(cx);
+        switch_mode(&view, 3, window, cx);
         assert_eq!(window.find("panel-title").label(), Some("Microphone"));
         assert_eq!(
             window.find("start-mission").label(),
@@ -192,8 +201,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
 
         // Filter/settings controls write the persisted mirror settings and the
         // summary reflects them before the session starts.
-        window.click("mode-screen", cx);
-        window.render_frame(cx);
+        switch_mode(&view, 0, window, cx);
         let summary = window
             .find("mirror-summary")
             .label()
@@ -252,7 +260,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             .unwrap_or_default()
             .to_string();
         assert!(label.contains("Français"), "unexpected label: {label}");
-        assert_eq!(window.find("mode-screen").label(), Some("Écran"));
+        assert_eq!(window.find("panel-title").label(), Some("Écran"));
 
         // Arabic flips the layout direction (and retranslates again).
         window.click("locale-toggle", cx);
@@ -260,7 +268,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.click("locale-ar", cx);
         window.render_frame(cx);
         assert!(LayoutDirection::global(cx).is_rtl());
-        assert_ne!(window.find("mode-screen").label(), Some("Écran"));
+        assert_ne!(window.find("panel-title").label(), Some("Écran"));
         let sidebar_x = window.find("push-files").bounds().origin.x;
         let panel_x = window.find("panel-title").bounds().origin.x;
         assert!(sidebar_x > panel_x, "RTL sidebar must follow the panel");
