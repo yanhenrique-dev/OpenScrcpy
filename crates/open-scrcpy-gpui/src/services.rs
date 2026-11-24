@@ -152,6 +152,11 @@ impl AppServices {
         })
     }
 
+    pub fn storage_usage(&self, serial: String) -> JoinHandle<serde_json::Value> {
+        self.runtime
+            .spawn(async move { adb::storage_usage(&serial).await })
+    }
+
     pub fn android_version(&self, serial: String) -> JoinHandle<Option<String>> {
         self.runtime
             .spawn(async move { adb::android_version(&serial).await })

@@ -281,6 +281,20 @@ export const zhTW: Translations = {
 
     },
 
+    storage: {
+
+        title: '儲存',
+
+        internal: '內部',
+
+        shared: '共享',
+
+        used: '已用',
+
+        free: '可用'
+
+    },
+
     sessionBehavior: {
         title: '行為設定',
         stayAwake: '保持裝置喚醒',

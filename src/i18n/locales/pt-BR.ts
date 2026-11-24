@@ -281,6 +281,20 @@ export const ptBR: Translations = {
 
     },
 
+    storage: {
+
+        title: 'Armazenamento',
+
+        internal: 'Interno',
+
+        shared: 'Compartilhado',
+
+        used: 'usado',
+
+        free: 'livre'
+
+    },
+
     sessionBehavior: {
         title: 'Comportamento da Sessão',
         stayAwake: 'Dispositivo Desperto',

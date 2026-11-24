@@ -84,6 +84,59 @@ pub async fn check_scrcpy(custom_path: Option<&str>) -> Value {
     }
 }
 
+/// Reads `df -k` for the internal and shared volumes. Read-only and silent
+/// on failure; the shell turns the JSON into the storage page.
+pub async fn storage_usage(serial: &str) -> serde_json::Value {
+    if validate::device(serial).is_err() {
+        return serde_json::json!({ "partitions": [] });
+    }
+    let adb_path = paths::binary_path("adb", None);
+    let mut cmd = process::create_command(&adb_path);
+    cmd.args([
+        "-s",
+        serial,
+        "shell",
+        "df",
+        "-k",
+        "/data",
+        "/storage/emulated/0",
+    ]);
+    let output = match process::output_with_timeout(cmd, Duration::from_secs(4)).await {
+        Ok(output) if output.status.success() => output,
+        _ => return serde_json::json!({ "partitions": [] }),
+    };
+    let text = String::from_utf8_lossy(&output.stdout);
+    serde_json::json!({ "partitions": parse_storage(&text) })
+}
+
+fn parse_storage(text: &str) -> Vec<serde_json::Value> {
+    let mut partitions = Vec::new();
+    for line in text.lines().skip(1) {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        if fields.len() < 5 {
+            continue;
+        }
+        let mount = fields[fields.len() - 1];
+        if !mount.starts_with('/') {
+            continue;
+        }
+        let parse = |value: &str| value.parse::<u64>().ok();
+        let free = fields[fields.len() - 3].parse::<u64>().ok();
+        let used = fields[fields.len() - 4].parse::<u64>().ok();
+        let total = fields[fields.len() - 5].parse::<u64>().ok();
+        if let (Some(total), Some(used), Some(free)) = (total, used, free) {
+            partitions.push(serde_json::json!({
+                "mount": mount,
+                "totalKb": total,
+                "usedKb": used,
+                "freeKb": free
+            }));
+        }
+        let _ = parse;
+    }
+    partitions
+}
+
 /// Reads the Android release version (e.g. `15`) from the device. Used by the
 /// shell to badge the device row; a failure is silent and simply omits it.
 pub async fn android_version(serial: &str) -> Option<String> {
@@ -426,6 +479,16 @@ pub fn device_is_online(output: &str, serial: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_storage_partitions() {
+        let text = "Filesystem 1K-blocks Used Available Use% Mounted on\n/dev/block/dm-5 11534336 900000 10634336 8% /data\n/dev/fuse 11534336 500000 11034336 5% /storage/emulated/0\n";
+        let parsed = parse_storage(text);
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0]["mount"], "/data");
+        assert_eq!(parsed[0]["totalKb"], 11534336u64);
+        assert_eq!(parsed[1]["usedKb"], 500000u64);
+    }
 
     #[test]
     fn cleans_getprop_output() {

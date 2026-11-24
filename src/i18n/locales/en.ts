@@ -282,6 +282,20 @@ export const en = {
 
     },
 
+    storage: {
+
+        title: 'Storage',
+
+        internal: 'Internal',
+
+        shared: 'Shared',
+
+        used: 'used',
+
+        free: 'free'
+
+    },
+
     sessionBehavior: {
         title: 'Session behavior',
         stayAwake: 'Device awake',

@@ -281,6 +281,20 @@ export const fr: Translations = {
 
     },
 
+    storage: {
+
+        title: 'Stockage',
+
+        internal: 'Interne',
+
+        shared: 'Partagé',
+
+        used: 'utilisé',
+
+        free: 'libre'
+
+    },
+
     sessionBehavior: {
         title: 'Comportement de la Session',
         stayAwake: 'Appareil éveillé',

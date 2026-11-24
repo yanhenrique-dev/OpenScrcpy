@@ -88,10 +88,17 @@ enum CaptureMode {
     Camera,
     Desktop,
     Microphone,
+    Storage,
 }
 
 impl CaptureMode {
-    const ALL: [Self; 4] = [Self::Screen, Self::Camera, Self::Desktop, Self::Microphone];
+    const ALL: [Self; 5] = [
+        Self::Screen,
+        Self::Camera,
+        Self::Desktop,
+        Self::Microphone,
+        Self::Storage,
+    ];
 
     fn icon(self) -> IconName {
         match self {
@@ -99,6 +106,7 @@ impl CaptureMode {
             Self::Camera => IconName::Camera,
             Self::Desktop => IconName::AppWindow,
             Self::Microphone => IconName::Mic,
+            Self::Storage => IconName::HardDrive,
         }
     }
 
@@ -108,10 +116,19 @@ impl CaptureMode {
             Self::Camera => t!("controlPanel.camera"),
             Self::Desktop => t!("controlPanel.desktop"),
             Self::Microphone => t!("controlPanel.microphone"),
+            Self::Storage => t!("storage.title"),
         }
         .to_string()
         .into()
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct StoragePartition {
+    mount: String,
+    total_kb: u64,
+    used_kb: u64,
+    free_kb: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -298,6 +315,9 @@ pub struct AppShell {
     cameras_error: bool,
     cameras_generation: u64,
     camera_cache: HashMap<String, Vec<CameraInfo>>,
+    storage: Vec<StoragePartition>,
+    storage_busy: bool,
+    storage_error: bool,
     capabilities: Option<Capabilities>,
     desktop_width: Entity<SliderState>,
     desktop_height: Entity<SliderState>,
@@ -773,6 +793,9 @@ impl AppShell {
             cameras_error: false,
             cameras_generation: 0,
             camera_cache: HashMap::new(),
+            storage: Vec::new(),
+            storage_busy: false,
+            storage_error: false,
             capabilities: None,
             desktop_width,
             desktop_height,
@@ -1055,6 +1078,9 @@ impl AppShell {
     }
 
     fn switch_mode(&mut self, mode: CaptureMode, cx: &mut Context<Self>) {
+        if mode == CaptureMode::Storage && !self.storage_busy {
+            self.load_storage(cx);
+        }
         self.mode = mode;
         cx.notify();
     }
@@ -1695,6 +1721,55 @@ impl AppShell {
         .detach();
     }
 
+    fn load_storage(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            return;
+        };
+        if self.storage_busy {
+            return;
+        }
+        self.storage_busy = true;
+        self.storage_error = false;
+        cx.notify();
+        let services = self.services.clone();
+        cx.spawn(async move |this, cx| {
+            let value = services.storage_usage(device).await;
+            let _ = this.update(cx, |shell, cx| {
+                shell.storage_busy = false;
+                match value {
+                    Ok(value) => {
+                        shell.storage = value
+                            .get("partitions")
+                            .and_then(Value::as_array)
+                            .map(|items| {
+                                items
+                                    .iter()
+                                    .filter_map(|item| {
+                                        Some(StoragePartition {
+                                            mount: item.get("mount")?.as_str()?.to_string(),
+                                            total_kb: item.get("totalKb")?.as_u64()?,
+                                            used_kb: item.get("usedKb")?.as_u64()?,
+                                            free_kb: item.get("freeKb")?.as_u64()?,
+                                        })
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        if shell.storage.is_empty() {
+                            shell.storage_error = true;
+                        }
+                    }
+                    Err(error) => {
+                        shell.storage_error = true;
+                        shell.push_error(error.to_string());
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
     fn start_label(&self) -> String {
         match self.mode {
             CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
@@ -1708,7 +1783,7 @@ impl AppShell {
         let Some(device) = self.active_device.clone() else {
             return;
         };
-        if self.starting || self.running {
+        if self.starting || self.running || self.mode == CaptureMode::Storage {
             return;
         }
         self.starting = true;
@@ -1716,6 +1791,7 @@ impl AppShell {
             CaptureMode::Desktop => "desktop",
             CaptureMode::Camera => "camera",
             CaptureMode::Microphone => "microphone",
+            CaptureMode::Storage => "storage",
             CaptureMode::Screen => "mirror",
         };
         self.push_log(format!(
@@ -1839,7 +1915,10 @@ impl AppShell {
     }
 
     fn session_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        let can_start = self.active_device.is_some() && !self.starting && !self.running;
+        let can_start = self.active_device.is_some()
+            && !self.starting
+            && !self.running
+            && self.mode != CaptureMode::Storage;
         let can_stop = self.running;
         let start_label = self.start_label();
 
@@ -2604,6 +2683,94 @@ impl AppShell {
                             .accessibility_label(t!("controlPanel.rotation").to_string()),
                     ),
             )
+    }
+
+    fn storage_panel(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let device = self.active_device.clone().unwrap_or_default();
+        let mut rows = Vec::new();
+        for partition in &self.storage {
+            let used = partition.used_kb as f32 / 1024.0 / 1024.0;
+            let free = partition.free_kb as f32 / 1024.0 / 1024.0;
+            let total = partition.total_kb.max(1) as f32;
+            let percent = (partition.used_kb as f32 / total * 100.0).clamp(0.0, 100.0);
+            let label = if partition.mount == "/data" {
+                t!("storage.internal").to_string()
+            } else {
+                t!("storage.shared").to_string()
+            };
+            rows.push(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .flex_row_dir(cx)
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .child(format!("{label} ({})", partition.mount)),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(cx.theme().muted_foreground)
+                                    .child(format!(
+                                        "{} {used:.1} GB · {} {free:.1} GB",
+                                        t!("storage.used"),
+                                        t!("storage.free")
+                                    )),
+                            ),
+                    )
+                    .child(
+                        Progress::new(format!("storage-{}", partition.mount))
+                            .value(percent)
+                            .accessibility_label(format!("{label} {percent:.0}%")),
+                    ),
+            );
+        }
+
+        div()
+            .id("storage-panel")
+            .flex()
+            .flex_col()
+            .gap_3()
+            .p_4()
+            .child(
+                div()
+                    .id("panel-title")
+                    .role(Role::Heading)
+                    .aria_label(t!("storage.title").to_string())
+                    .text_2xl()
+                    .child(t!("storage.title").to_string())
+                    .test_support(),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(device),
+            )
+            .child(
+                Button::new("storage-refresh")
+                    .label(t!("logPanel.refreshLenses").to_string())
+                    .ghost()
+                    .compact()
+                    .disabled(self.storage_busy)
+                    .on_click(cx.listener(|this, _, _, cx| this.load_storage(cx))),
+            )
+            .when(self.storage_busy, |this| this.child(Spinner::new()))
+            .when(self.storage_error, |this| {
+                this.child(
+                    div()
+                        .text_sm()
+                        .text_color(cx.theme().danger)
+                        .child(t!("storage.title").to_string()),
+                )
+            })
+            .children(rows)
     }
 
     fn mirror_summary(&self, cx: &Context<Self>) -> SharedString {
@@ -3817,6 +3984,7 @@ impl Render for AppShell {
                                 CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
                                 CaptureMode::Microphone => self.mic_panel(cx).into_any_element(),
                                 CaptureMode::Camera => self.camera_panel(cx).into_any_element(),
+                                CaptureMode::Storage => self.storage_panel(cx).into_any_element(),
                             }),
                     )
                 },

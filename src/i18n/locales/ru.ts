@@ -287,6 +287,20 @@ export const ru: Translations = {
 
   },
 
+  storage: {
+
+      title: 'Хранилище',
+
+      internal: 'Внутреннее',
+
+      shared: 'Общее',
+
+      used: 'занято',
+
+      free: 'свободно'
+
+  },
+
   sessionBehavior: {
     title: 'Поведение сессии',
     stayAwake: 'Устройство не спит',

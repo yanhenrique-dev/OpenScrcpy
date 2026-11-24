@@ -281,6 +281,20 @@ languages: {
 
     },
 
+    storage: {
+
+        title: 'Penyimpanan',
+
+        internal: 'Internal',
+
+        shared: 'Bersama',
+
+        used: 'terpakai',
+
+        free: 'bebas'
+
+    },
+
     sessionBehavior: {
         title: 'Pengaturan Sesi',
         stayAwake: 'Perangkat Terjaga',

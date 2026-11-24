@@ -281,6 +281,20 @@ export const zhCN: Translations = {
 
     },
 
+    storage: {
+
+        title: '存储',
+
+        internal: '内部',
+
+        shared: '共享',
+
+        used: '已用',
+
+        free: '可用'
+
+    },
+
     sessionBehavior: {
         title: '行为设置',
         stayAwake: '保持设备唤醒',

@@ -284,6 +284,20 @@ export const ar: Translations = {
 
     },
 
+    storage: {
+
+        title: 'التخزين',
+
+        internal: 'داخلي',
+
+        shared: 'مشترك',
+
+        used: 'مستخدم',
+
+        free: 'متاح'
+
+    },
+
     sessionBehavior: {
         title: 'سلوك الجلسة',
         stayAwake: 'إبقاء الجهاز مستيقظًا',
