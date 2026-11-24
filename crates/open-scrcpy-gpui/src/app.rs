@@ -2195,6 +2195,7 @@ impl AppShell {
                         Select::new(&self.fps_select)
                             .small()
                             .w_24()
+                            .menu_width(px(150.))
                             .accessibility_label(t!("controlPanel.fps").to_string()),
                     ),
             )
@@ -2213,6 +2214,7 @@ impl AppShell {
                         Select::new(&self.size_select)
                             .small()
                             .w_24()
+                            .menu_width(px(150.))
                             .accessibility_label(t!("controlPanel.resolution").to_string()),
                     ),
             )
@@ -2231,6 +2233,7 @@ impl AppShell {
                         Select::new(&self.codec_select)
                             .small()
                             .w_24()
+                            .menu_width(px(150.))
                             .accessibility_label(t!("controlPanel.codec").to_string()),
                     ),
             )
@@ -2455,6 +2458,7 @@ impl AppShell {
                         Select::new(&self.renderer_select)
                             .small()
                             .w_32()
+                            .menu_width(px(190.))
                             .accessibility_label(t!("controlPanel.graphicsRenderer").to_string()),
                     ),
             )
@@ -2473,6 +2477,7 @@ impl AppShell {
                         Select::new(&self.rotation_select)
                             .small()
                             .w_24()
+                            .menu_width(px(120.))
                             .accessibility_label(t!("controlPanel.rotation").to_string()),
                     ),
             )
