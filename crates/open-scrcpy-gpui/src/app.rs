@@ -160,6 +160,17 @@ fn choice_select(items: Vec<(&str, String)>) -> SearchableVec<ChoiceItem> {
     SearchableVec::new(items)
 }
 
+fn choice_select_owned(items: Vec<(String, String)>) -> SearchableVec<ChoiceItem> {
+    let items: Vec<ChoiceItem> = items
+        .into_iter()
+        .map(|(value, label)| ChoiceItem {
+            value,
+            label: label.into(),
+        })
+        .collect();
+    SearchableVec::new(items)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeviceState {
     Online,
@@ -262,6 +273,9 @@ pub struct AppShell {
     codec_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     renderer_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     rotation_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    camera_facing_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    camera_aspect_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    camera_max_size_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     _mirror_selects_subscriptions: Vec<Subscription>,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
@@ -566,6 +580,74 @@ impl AppShell {
             )
         });
 
+        let facing_values = CameraSettings::FACINGS;
+        let facing_items = facing_values
+            .iter()
+            .map(|facing| (*facing, Self::facing_label(facing).to_string()))
+            .collect();
+        let facing_index = facing_values
+            .iter()
+            .position(|facing| *facing == settings.camera.facing)
+            .unwrap_or(0);
+        let camera_facing_select = cx.new(|cx| {
+            SelectState::new(
+                choice_select(facing_items),
+                Some(IndexPath::new(facing_index)),
+                window,
+                cx,
+            )
+        });
+
+        let aspect_values = CameraSettings::ASPECTS;
+        let aspect_items = aspect_values
+            .iter()
+            .map(|aspect| {
+                let label = if *aspect == "0" {
+                    t!("controlPanel.aspectDefault").to_string()
+                } else {
+                    aspect.to_string()
+                };
+                (*aspect, label)
+            })
+            .collect();
+        let aspect_index = aspect_values
+            .iter()
+            .position(|aspect| *aspect == settings.camera.aspect)
+            .unwrap_or(0);
+        let camera_aspect_select = cx.new(|cx| {
+            SelectState::new(
+                choice_select(aspect_items),
+                Some(IndexPath::new(aspect_index)),
+                window,
+                cx,
+            )
+        });
+
+        let camera_size_values = MirrorSettings::SIZES;
+        let camera_size_items = camera_size_values
+            .iter()
+            .map(|size| {
+                let label = if *size == 0 {
+                    t!("controlPanel.resolutionOriginal").to_string()
+                } else {
+                    size.to_string()
+                };
+                (size.to_string(), label)
+            })
+            .collect::<Vec<(String, String)>>();
+        let camera_size_index = camera_size_values
+            .iter()
+            .position(|size| *size == settings.camera.max_size)
+            .unwrap_or(0);
+        let camera_max_size_select = cx.new(|cx| {
+            SelectState::new(
+                choice_select_owned(camera_size_items),
+                Some(IndexPath::new(camera_size_index)),
+                window,
+                cx,
+            )
+        });
+
         let mirror_selects_subscriptions = vec![
             cx.subscribe_in(
                 &fps_select,
@@ -628,6 +710,41 @@ impl AppShell {
                     }
                 },
             ),
+            cx.subscribe_in(
+                &camera_facing_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event {
+                        this.settings.camera.facing = value.clone();
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &camera_aspect_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event {
+                        this.settings.camera.aspect = value.clone();
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &camera_max_size_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event
+                        && let Ok(size) = value.parse::<u32>()
+                    {
+                        this.settings.camera.max_size = size;
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
         ];
 
         let terminal_input = cx.new(|cx| {
@@ -652,6 +769,9 @@ impl AppShell {
             codec_select,
             renderer_select,
             rotation_select,
+            camera_facing_select,
+            camera_aspect_select,
+            camera_max_size_select,
             _mirror_selects_subscriptions: mirror_selects_subscriptions,
             bitrate,
             _bitrate_subscription: bitrate_subscription,
@@ -3071,39 +3191,6 @@ impl AppShell {
     fn camera_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let camera = self.settings.camera.clone();
         let zoom = self.camera_zoom.read(cx).value().end().clamp(1.0, 10.0);
-        let facing_index = CameraSettings::FACINGS
-            .iter()
-            .position(|facing| *facing == camera.facing)
-            .unwrap_or(0);
-        let aspect_index = CameraSettings::ASPECTS
-            .iter()
-            .position(|aspect| *aspect == camera.aspect)
-            .unwrap_or(0);
-        let max_size_index = MirrorSettings::SIZES
-            .iter()
-            .position(|size| *size == camera.max_size)
-            .unwrap_or(0);
-
-        let facing_options = CameraSettings::FACINGS.map(|facing| {
-            Radio::new(format!("camera-facing-{facing}")).label(Self::facing_label(facing))
-        });
-        let aspect_options = CameraSettings::ASPECTS.map(|aspect| {
-            let label = if aspect == "0" {
-                t!("controlPanel.aspectDefault").to_string()
-            } else {
-                aspect.to_string()
-            };
-            Radio::new(format!("camera-aspect-{aspect}")).label(label)
-        });
-        let max_size_options = MirrorSettings::SIZES.map(|size| {
-            let label = if size == 0 {
-                t!("controlPanel.resolutionOriginal").to_string()
-            } else {
-                size.to_string()
-            };
-            Radio::new(format!("camera-size-max-{size}")).label(label)
-        });
-
         let lens_index = if camera.camera_id.is_empty() {
             Some(0)
         } else {
@@ -3173,18 +3260,11 @@ impl AppShell {
                             .child(t!("controlPanel.facing").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("camera-facing")
-                            .selected_index(Some(facing_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                let facing = CameraSettings::FACINGS
-                                    .get(*index)
-                                    .copied()
-                                    .unwrap_or("back");
-                                this.settings.camera.facing = facing.to_string();
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(facing_options),
+                        Select::new(&self.camera_facing_select)
+                            .small()
+                            .w_24()
+                            .menu_width(px(140.))
+                            .accessibility_label(t!("controlPanel.facing").to_string()),
                     ),
             )
             .child(
@@ -3199,16 +3279,11 @@ impl AppShell {
                             .child(t!("controlPanel.aspect").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("camera-aspect")
-                            .selected_index(Some(aspect_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                let aspect =
-                                    CameraSettings::ASPECTS.get(*index).copied().unwrap_or("0");
-                                this.settings.camera.aspect = aspect.to_string();
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(aspect_options),
+                        Select::new(&self.camera_aspect_select)
+                            .small()
+                            .w_24()
+                            .menu_width(px(140.))
+                            .accessibility_label(t!("controlPanel.aspect").to_string()),
                     ),
             )
             .child(
@@ -3248,14 +3323,11 @@ impl AppShell {
                             .child(t!("controlPanel.resolution").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("camera-max-size")
-                            .selected_index(Some(max_size_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.camera.max_size = MirrorSettings::SIZES[*index];
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(max_size_options),
+                        Select::new(&self.camera_max_size_select)
+                            .small()
+                            .w_24()
+                            .menu_width(px(140.))
+                            .accessibility_label(t!("controlPanel.resolution").to_string()),
                     ),
             )
             .child(
