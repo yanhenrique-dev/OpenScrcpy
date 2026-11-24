@@ -24,6 +24,7 @@ use gpui_kit::component::resizable::{resizable_panel, v_resizable};
 use gpui_kit::component::searchable_list::{SearchableListItem, SearchableVec};
 use gpui_kit::component::select::{Select, SelectEvent, SelectState};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
+use gpui_kit::component::spinner::Spinner;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::tab::{Tab, TabBar};
 use gpui_kit::component::tag::Tag;
@@ -294,6 +295,10 @@ pub struct AppShell {
     console_scroll: ScrollHandle,
     cameras: Vec<CameraInfo>,
     cameras_busy: bool,
+    cameras_for: Option<String>,
+    cameras_error: bool,
+    cameras_generation: u64,
+    camera_cache: HashMap<String, Vec<CameraInfo>>,
     capabilities: Option<Capabilities>,
     desktop_width: Entity<SliderState>,
     desktop_height: Entity<SliderState>,
@@ -790,6 +795,10 @@ impl AppShell {
             console_scroll: ScrollHandle::new(),
             cameras: Vec::new(),
             cameras_busy: false,
+            cameras_for: None,
+            cameras_error: false,
+            cameras_generation: 0,
+            camera_cache: HashMap::new(),
             capabilities: None,
             desktop_width,
             desktop_height,
@@ -1058,8 +1067,37 @@ impl AppShell {
     fn select_device(&mut self, serial: String, cx: &mut Context<Self>) {
         if self.active_device.as_deref() != Some(serial.as_str()) {
             self.active_device = Some(serial);
+            self.auto_load_cameras(cx);
             cx.notify();
         }
+    }
+
+    /// Loads the camera list for the active device from cache, or asks scrcpy
+    /// once when the device changes. The manual refresh button is only a retry
+    /// path for failures.
+    fn auto_load_cameras(&mut self, cx: &mut Context<Self>) {
+        let Some(device) = self.active_device.clone() else {
+            self.cameras.clear();
+            self.cameras_for = None;
+            return;
+        };
+        if self.cameras_for.as_deref() == Some(device.as_str()) {
+            return;
+        }
+        if self.cameras_busy {
+            // A request for the previous device may still be running; make its
+            // generation stale and let the new one take over.
+            self.cameras_busy = false;
+            self.cameras_generation = self.cameras_generation.wrapping_add(1);
+        }
+        if let Some(cached) = self.camera_cache.get(&device).cloned() {
+            self.cameras = cached;
+            self.cameras_for = Some(device);
+            self.cameras_error = false;
+            cx.notify();
+            return;
+        }
+        self.refresh_lenses(cx);
     }
 
     fn push_log(&mut self, line: impl Into<String>) {
@@ -1148,6 +1186,7 @@ impl AppShell {
                 .map(|device| device.serial.clone());
         }
         self.request_android_versions(cx);
+        self.auto_load_cameras(cx);
         cx.notify();
     }
 
@@ -3148,6 +3187,9 @@ impl AppShell {
             return;
         }
         self.cameras_busy = true;
+        self.cameras_error = false;
+        self.cameras_generation = self.cameras_generation.wrapping_add(1);
+        let generation = self.cameras_generation;
         self.push_log(format!(
             "[SYSTEM] Running scrcpy --list-cameras for {device}..."
         ));
@@ -3155,8 +3197,13 @@ impl AppShell {
 
         let services = self.services.clone();
         cx.spawn(async move |this, cx| {
-            let result = services.list_cameras(device).await;
+            let result = services.list_cameras(device.clone()).await;
             let _ = this.update(cx, |shell, cx| {
+                if shell.cameras_generation != generation
+                    || shell.active_device.as_deref() != Some(device.as_str())
+                {
+                    return;
+                }
                 shell.cameras_busy = false;
                 match result {
                     Ok(value) => {
@@ -3170,7 +3217,9 @@ impl AppShell {
                         } else {
                             format!("[SYSTEM] {} camera(s) found.", cameras.len())
                         });
-                        shell.cameras = cameras;
+                        shell.cameras = cameras.clone();
+                        shell.camera_cache.insert(device.clone(), cameras);
+                        shell.cameras_for = Some(device);
                         if !shell
                             .cameras
                             .iter()
@@ -3180,7 +3229,10 @@ impl AppShell {
                             shell.persist();
                         }
                     }
-                    Err(error) => shell.push_error(error.to_string()),
+                    Err(error) => {
+                        shell.cameras_error = true;
+                        shell.push_error(error.to_string());
+                    }
                 }
                 cx.notify();
             });
@@ -3241,11 +3293,22 @@ impl AppShell {
                             }))
                             .children(lens_options),
                     )
-                    .child(
-                        Button::new("refresh-lenses")
-                            .label(refresh_label)
-                            .disabled(self.active_device.is_none() || self.cameras_busy)
-                            .on_click(cx.listener(|this, _, _, cx| this.refresh_lenses(cx))),
+                    .when(self.cameras_busy, |this| this.child(Spinner::new()))
+                    .when(
+                        !self.cameras_busy
+                            && self.active_device.is_some()
+                            && (self.cameras_error || self.cameras.is_empty()),
+                        |this| {
+                            this.child(
+                                Button::new("camera-lenses-retry")
+                                    .label(refresh_label)
+                                    .ghost()
+                                    .compact()
+                                    .on_click(
+                                        cx.listener(|this, _, _, cx| this.refresh_lenses(cx)),
+                                    ),
+                            )
+                        },
                     ),
             )
             .child(

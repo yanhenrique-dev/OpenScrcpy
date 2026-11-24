@@ -130,10 +130,6 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
             .to_string();
         assert!(summary.contains("Back"), "unexpected summary: {summary}");
         assert!(summary.contains("1.0×"), "unexpected summary: {summary}");
-        assert_eq!(
-            window.find("refresh-lenses").label(),
-            Some("Refresh lenses")
-        );
         window.click("camera-torch", cx);
         window.render_frame(cx);
         let summary = window
