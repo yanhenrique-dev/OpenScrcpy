@@ -444,10 +444,11 @@ pub fn build_scrcpy_args(
                 args.push("--camera-size=1920x1080".to_string());
             }
 
-            if let Some(ar) = &config.camera_ar {
-                if ar != "0" {
-                    args.push(format!("--camera-ar={}", ar));
-                }
+            if let Some(ar) = config.camera_ar.as_deref().filter(|ar| *ar != "0") {
+                // scrcpy rejects --camera-size together with --camera-ar, so
+                // the ratio replaces the resolution chosen above.
+                args.retain(|arg| !arg.starts_with("--camera-size="));
+                args.push(format!("--camera-ar={ar}"));
             }
             if let Some(chs) = config.camera_high_speed {
                 if chs {
@@ -611,6 +612,16 @@ mod tests {
         assert!(args.contains(&"--audio-codec=opus".to_string()));
         assert!(args.contains(&"--audio-bit-rate=128k".to_string()));
         assert!(validate_scrcpy_config(&config).is_ok());
+    }
+
+    #[test]
+    fn camera_aspect_replaces_camera_size() {
+        let mut config = ScrcpyConfig::camera("device1");
+        config.res = Some("1920".to_string());
+        config.camera_ar = Some("1:1".to_string());
+        let args = build_scrcpy_args(&config, None, None);
+        assert!(args.contains(&"--camera-ar=1:1".to_string()));
+        assert!(!args.iter().any(|arg| arg.starts_with("--camera-size=")));
     }
 
     #[test]
