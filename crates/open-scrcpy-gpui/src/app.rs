@@ -2752,7 +2752,7 @@ impl AppShell {
                     .gap_2()
                     .child(
                         Button::new("storage-refresh")
-                            .label(t!("controlPanel.refreshLenses").to_string())
+                            .label(t!("common.refresh").to_string())
                             .ghost()
                             .compact()
                             .disabled(self.storage_busy)
