@@ -152,6 +152,11 @@ impl AppServices {
         })
     }
 
+    pub fn device_model(&self, serial: String) -> JoinHandle<Option<String>> {
+        self.runtime
+            .spawn(async move { adb::device_model(&serial).await })
+    }
+
     pub fn storage_usage(&self, serial: String) -> JoinHandle<serde_json::Value> {
         self.runtime
             .spawn(async move { adb::storage_usage(&serial).await })

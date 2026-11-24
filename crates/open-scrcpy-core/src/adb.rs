@@ -139,6 +139,22 @@ fn parse_storage(text: &str) -> Vec<serde_json::Value> {
 
 /// Reads the Android release version (e.g. `15`) from the device. Used by the
 /// shell to badge the device row; a failure is silent and simply omits it.
+pub async fn device_model(serial: &str) -> Option<String> {
+    if validate::device(serial).is_err() {
+        return None;
+    }
+    let adb_path = paths::binary_path("adb", None);
+    let mut cmd = process::create_command(&adb_path);
+    cmd.args(["-s", serial, "shell", "getprop", "ro.product.model"]);
+    let output = process::output_with_timeout(cmd, Duration::from_secs(3))
+        .await
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    clean_property(&String::from_utf8_lossy(&output.stdout))
+}
+
 pub async fn android_version(serial: &str) -> Option<String> {
     if validate::device(serial).is_err() {
         return None;

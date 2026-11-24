@@ -330,6 +330,7 @@ pub struct AppShell {
     pairing_attempt: Option<u32>,
     scrcpy_ready: Option<bool>,
     android_versions: HashMap<String, String>,
+    device_models: HashMap<String, String>,
     android_version_requests: HashSet<String>,
     downloading: bool,
     download_percent: Option<u64>,
@@ -808,6 +809,7 @@ impl AppShell {
             pairing_attempt: None,
             scrcpy_ready: None,
             android_versions: HashMap::new(),
+            device_models: HashMap::new(),
             android_version_requests: HashSet::new(),
             downloading: false,
             download_percent: None,
@@ -2057,7 +2059,12 @@ impl AppShell {
         let mut rows = Vec::with_capacity(self.devices.len());
         for device in &self.devices {
             let serial = device.serial.clone();
-            let name = device.display_name();
+            let name = self
+                .device_models
+                .get(&device.serial)
+                .cloned()
+                .map(SharedString::from)
+                .unwrap_or_else(|| device.display_name());
             let version = self.android_versions.get(&device.serial).cloned();
             let wireless = device.serial.contains(':') || device.serial.contains('.');
             let (state_label, state_color) = match device.state {
