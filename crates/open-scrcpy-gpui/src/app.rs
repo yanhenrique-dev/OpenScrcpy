@@ -100,16 +100,6 @@ impl CaptureMode {
         Self::Storage,
     ];
 
-    fn icon(self) -> IconName {
-        match self {
-            Self::Screen => IconName::Monitor,
-            Self::Camera => IconName::Camera,
-            Self::Desktop => IconName::AppWindow,
-            Self::Microphone => IconName::Mic,
-            Self::Storage => IconName::HardDrive,
-        }
-    }
-
     fn label(self) -> SharedString {
         match self {
             Self::Screen => t!("controlPanel.screen"),
@@ -2338,10 +2328,7 @@ impl AppShell {
                             this.switch_mode(*mode, cx);
                         }
                     }))
-                    .children(
-                        CaptureMode::ALL
-                            .map(|mode| Tab::new().icon(mode.icon()).label(mode.label())),
-                    ),
+                    .children(CaptureMode::ALL.map(|mode| Tab::new().label(mode.label()))),
             )
             .child(div().flex_1())
             .child(self.header_actions(cx))
