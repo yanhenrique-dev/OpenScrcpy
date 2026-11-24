@@ -1745,8 +1745,16 @@ impl AppShell {
                                 items
                                     .iter()
                                     .filter_map(|item| {
+                                        let mount = item.get("mount")?.as_str()?.to_string();
+                                        let visible = mount == "/data"
+                                            || mount == "/storage/emulated/0"
+                                            || (mount.starts_with("/storage/")
+                                                && !mount.starts_with("/storage/emulated"));
+                                        if !visible {
+                                            return None;
+                                        }
                                         Some(StoragePartition {
-                                            mount: item.get("mount")?.as_str()?.to_string(),
+                                            mount,
                                             total_kb: item.get("totalKb")?.as_u64()?,
                                             used_kb: item.get("usedKb")?.as_u64()?,
                                             free_kb: item.get("freeKb")?.as_u64()?,
@@ -2160,22 +2168,6 @@ impl AppShell {
                 )
             })
             .children(rows)
-            .child(
-                Button::new("push-files")
-                    .label(t!("sidebar.flashPushFiles").to_string())
-                    .outline()
-                    .disabled(self.active_device.is_none())
-                    .on_click(cx.listener(|this, _, _, cx| this.pick_files(cx))),
-            )
-            .child(
-                div()
-                    .id("push-hint")
-                    .aria_label(t!("sidebar.flashPushSubtitle").to_string())
-                    .text_xs()
-                    .text_color(cx.theme().muted_foreground)
-                    .child(t!("sidebar.flashPushSubtitle").to_string())
-                    .test_support(),
-            )
             .child(
                 div()
                     .flex()
@@ -2693,7 +2685,7 @@ impl AppShell {
             let free = partition.free_kb as f32 / 1024.0 / 1024.0;
             let total = partition.total_kb.max(1) as f32;
             let percent = (partition.used_kb as f32 / total * 100.0).clamp(0.0, 100.0);
-            let label = if partition.mount == "/data" {
+            let label = if partition.mount.starts_with("/data") {
                 t!("storage.internal").to_string()
             } else {
                 t!("storage.shared").to_string()
@@ -2754,12 +2746,34 @@ impl AppShell {
                     .child(device),
             )
             .child(
-                Button::new("storage-refresh")
-                    .label(t!("logPanel.refreshLenses").to_string())
-                    .ghost()
-                    .compact()
-                    .disabled(self.storage_busy)
-                    .on_click(cx.listener(|this, _, _, cx| this.load_storage(cx))),
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        Button::new("storage-refresh")
+                            .label(t!("controlPanel.refreshLenses").to_string())
+                            .ghost()
+                            .compact()
+                            .disabled(self.storage_busy)
+                            .on_click(cx.listener(|this, _, _, cx| this.load_storage(cx))),
+                    )
+                    .child(
+                        Button::new("push-files")
+                            .label(t!("sidebar.flashPushFiles").to_string())
+                            .outline()
+                            .disabled(self.active_device.is_none())
+                            .on_click(cx.listener(|this, _, _, cx| this.pick_files(cx))),
+                    ),
+            )
+            .child(
+                div()
+                    .id("push-hint")
+                    .aria_label(t!("sidebar.flashPushSubtitle").to_string())
+                    .text_xs()
+                    .text_color(cx.theme().muted_foreground)
+                    .child(t!("sidebar.flashPushSubtitle").to_string())
+                    .test_support(),
             )
             .when(self.storage_busy, |this| this.child(Spinner::new()))
             .when(self.storage_error, |this| {

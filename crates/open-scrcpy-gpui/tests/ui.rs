@@ -68,7 +68,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
         assert_eq!(window.find("panel-title").label(), Some("Screen"));
-        let sidebar_x = window.find("push-files").bounds().origin.x;
+        let sidebar_x = window.find("wireless-connect").bounds().origin.x;
         let panel_x = window.find("panel-title").bounds().origin.x;
         assert!(sidebar_x < panel_x, "LTR sidebar must lead");
 
@@ -90,17 +90,6 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         window.close_sheet(cx);
         window.render_frame(cx);
-
-        // File transfer is available from the sidebar (disabled without a device).
-        assert_eq!(
-            window.find("push-files").label(),
-            Some("Flash / Push Files")
-        );
-
-        assert_eq!(
-            window.find("push-hint").label(),
-            Some("Drag & drop ANY FILE OR APK")
-        );
 
         assert_eq!(
             window.find("shortcuts-title").label(),
@@ -254,7 +243,7 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         window.render_frame(cx);
         assert!(LayoutDirection::global(cx).is_rtl());
         assert_ne!(window.find("panel-title").label(), Some("Écran"));
-        let sidebar_x = window.find("push-files").bounds().origin.x;
+        let sidebar_x = window.find("wireless-connect").bounds().origin.x;
         let panel_x = window.find("panel-title").bounds().origin.x;
         assert!(sidebar_x > panel_x, "RTL sidebar must follow the panel");
 
