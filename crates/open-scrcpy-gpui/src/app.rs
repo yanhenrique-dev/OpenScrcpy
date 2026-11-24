@@ -314,6 +314,7 @@ pub struct AppShell {
     cameras_for: Option<String>,
     cameras_error: bool,
     cameras_generation: u64,
+    cameras_requesting: Option<String>,
     camera_cache: HashMap<String, Vec<CameraInfo>>,
     storage: Vec<StoragePartition>,
     storage_busy: bool,
@@ -793,6 +794,7 @@ impl AppShell {
             cameras_for: None,
             cameras_error: false,
             cameras_generation: 0,
+            cameras_requesting: None,
             camera_cache: HashMap::new(),
             storage: Vec::new(),
             storage_busy: false,
@@ -1108,9 +1110,14 @@ impl AppShell {
             return;
         }
         if self.cameras_busy {
+            if self.cameras_requesting.as_deref() == Some(device.as_str()) {
+                // Already asking for this exact device; don't duplicate it.
+                return;
+            }
             // A request for the previous device may still be running; make its
             // generation stale and let the new one take over.
             self.cameras_busy = false;
+            self.cameras_requesting = None;
             self.cameras_generation = self.cameras_generation.wrapping_add(1);
         }
         if let Some(cached) = self.camera_cache.get(&device).cloned() {
@@ -3356,6 +3363,7 @@ impl AppShell {
             return;
         }
         self.cameras_busy = true;
+        self.cameras_requesting = Some(device.clone());
         self.cameras_error = false;
         self.cameras_generation = self.cameras_generation.wrapping_add(1);
         let generation = self.cameras_generation;
@@ -3374,6 +3382,7 @@ impl AppShell {
                     return;
                 }
                 shell.cameras_busy = false;
+                shell.cameras_requesting = None;
                 match result {
                     Ok(value) => {
                         let output = value
