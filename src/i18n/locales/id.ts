@@ -272,8 +272,6 @@ languages: {
     status: {
         running: 'Sesi berjalan',
         starting: 'Memulai…',
-        upToDate: 'Terbaru',
-        logLines: 'baris'
     },
 
     settings: {

@@ -272,8 +272,6 @@ export const zhCN: Translations = {
     status: {
         running: '会话运行中',
         starting: '正在启动…',
-        upToDate: '已是最新',
-        logLines: '行'
     },
 
     settings: {

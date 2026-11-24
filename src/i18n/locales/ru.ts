@@ -278,8 +278,6 @@ export const ru: Translations = {
   status: {
       running: 'Сеанс активен',
       starting: 'Запуск…',
-      upToDate: 'Актуально',
-      logLines: 'строк'
   },
 
   settings: {

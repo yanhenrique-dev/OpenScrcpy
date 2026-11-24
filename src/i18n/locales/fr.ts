@@ -272,8 +272,6 @@ export const fr: Translations = {
     status: {
         running: 'Session active',
         starting: 'Démarrage…',
-        upToDate: 'À jour',
-        logLines: 'lignes'
     },
 
     settings: {

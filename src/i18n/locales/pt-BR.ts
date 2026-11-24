@@ -272,8 +272,6 @@ export const ptBR: Translations = {
     status: {
         running: 'Sessão ativa',
         starting: 'Iniciando…',
-        upToDate: 'Atualizado',
-        logLines: 'linhas'
     },
 
     settings: {

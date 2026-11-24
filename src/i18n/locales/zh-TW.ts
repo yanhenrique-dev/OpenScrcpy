@@ -272,8 +272,6 @@ export const zhTW: Translations = {
     status: {
         running: '工作階段執行中',
         starting: '正在啟動…',
-        upToDate: '已是最新',
-        logLines: '行'
     },
 
     settings: {

@@ -225,7 +225,6 @@ haver conversa nem multi-seleção real.
 
 - **Title bar** ganhou o status da sessão (pronto/iniciando/ativo/sem core) e o
   dispositivo ativo.
-- **Status bar**: estado, dispositivo, modo, linhas de log e update.
 - **Settings sheet**: o antigo diálogo "Aplicativo" virou `Sheet`, com
   notificações, posição da janela, tema, idioma, Sobre e verificar update.
 - **Toasts**: copiar console e salvar relatório confirmam por `Notification`.

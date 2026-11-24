@@ -275,8 +275,6 @@ export const ar: Translations = {
     status: {
         running: 'الجلسة قيد التشغيل',
         starting: 'جارٍ البدء…',
-        upToDate: 'محدّث',
-        logLines: 'أسطر'
     },
 
     settings: {

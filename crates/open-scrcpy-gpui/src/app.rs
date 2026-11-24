@@ -21,7 +21,6 @@ use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
 use gpui_kit::component::resizable::{resizable_panel, v_resizable};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
-use gpui_kit::component::status_bar::StatusBar;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::tab::{Tab, TabBar};
 use gpui_kit::component::tag::Tag;
@@ -3333,73 +3332,6 @@ impl AppShell {
         cx.notify();
     }
 
-    fn status_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
-        let (label, color) = if self.running {
-            (t!("status.running").to_string(), cx.theme().success)
-        } else if self.starting {
-            (t!("status.starting").to_string(), cx.theme().warning)
-        } else if self.scrcpy_ready == Some(true) {
-            (t!("header.scrcpyReady").to_string(), cx.theme().success)
-        } else {
-            (t!("header.scrcpyMissing").to_string(), cx.theme().danger)
-        };
-        let device = self
-            .active_device
-            .clone()
-            .unwrap_or_else(|| t!("sidebar.noDevice").to_string());
-        let updates = self
-            .update_available
-            .as_ref()
-            .map(|version| t!("header.updateAvailableShort", v = version.as_str()).to_string())
-            .unwrap_or_else(|| t!("status.upToDate").to_string());
-
-        StatusBar::new()
-            .left(
-                div()
-                    .flex_row_dir(cx)
-                    .items_center()
-                    .gap_3()
-                    .child(
-                        div()
-                            .flex_row_dir(cx)
-                            .items_center()
-                            .gap_1()
-                            .child(div().w_1p5().h_1p5().rounded_full().bg(color))
-                            .child(div().text_xs().child(label)),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(device),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(self.mode.label()),
-                    ),
-            )
-            .right(
-                div()
-                    .flex_row_dir(cx)
-                    .items_center()
-                    .gap_3()
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(format!("{} {}", self.logs.len(), t!("status.logLines"))),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(updates),
-                    ),
-            )
-    }
-
     fn console(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let mut lines = Vec::with_capacity(self.logs.len());
         for line in &self.logs {
@@ -3615,7 +3547,6 @@ impl Render for AppShell {
                         ),
                 ),
             )
-            .child(self.status_bar(cx))
     }
 }
 

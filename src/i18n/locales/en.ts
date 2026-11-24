@@ -273,8 +273,6 @@ export const en = {
     status: {
         running: 'Session running',
         starting: 'Starting…',
-        upToDate: 'Up to date',
-        logLines: 'logs'
     },
 
     settings: {

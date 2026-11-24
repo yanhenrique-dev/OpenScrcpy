@@ -2236,24 +2236,6 @@ status:
     ru: "Запуск…"
     id: "Memulai…"
     ar: "جارٍ البدء…"
-  upToDate:
-    en: "Up to date"
-    fr: "À jour"
-    pt-BR: "Atualizado"
-    zh-CN: "已是最新"
-    zh-TW: "已是最新"
-    ru: "Актуально"
-    id: "Terbaru"
-    ar: "محدّث"
-  logLines:
-    en: "logs"
-    fr: "lignes"
-    pt-BR: "linhas"
-    zh-CN: "行"
-    zh-TW: "行"
-    ru: "строк"
-    id: "baris"
-    ar: "أسطر"
 settings:
   appearance:
     en: "Appearance"
