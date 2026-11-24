@@ -247,6 +247,7 @@ export const fr: Translations = {
         keepInBackground: 'Continuer en arrière-plan',
         keepInBackgroundTooltip: 'Fermer la fenêtre masque OpenScrcpy dans la zone de notification et garde les sessions de miroir et de microphone actives. Choisissez « Quitter » dans le menu pour les arrêter.',
         notifications: 'Notifications natives',
+        autoUpdate: 'Mises à jour automatiques',
         notificationsTooltip: 'Vous avertit des connexions de périphériques, des fins de session inattendues et des mises à jour disponibles. Les notifications ne s’affichent que lorsque OpenScrcpy est en cours d’exécution ; les avis de périphérique et de mise à jour sont masqués lorsque la fenêtre a le focus.',
         autoReconnect: 'Reconnexion automatique',
         autoReconnectTooltip: "Si scrcpy se termine de façon inattendue (déconnexion USB/ADB ou plantage), réessaie la session avec un délai exponentiel allant jusqu'à 30 secondes. Un arrêt volontaire ou une fenêtre scrcpy fermée ne sont pas reconnectés. S'applique aux nouvelles sessions ; la console journalise chaque tentative."

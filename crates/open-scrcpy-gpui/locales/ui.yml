@@ -2062,6 +2062,15 @@ appBehavior:
     ru: "Системные уведомления"
     id: "Notifikasi bawaan"
     ar: "إشعارات النظام"
+  autoUpdate:
+    en: "Automatic updates"
+    fr: "Mises à jour automatiques"
+    pt-BR: "Atualizações automáticas"
+    zh-CN: "自动更新"
+    zh-TW: "自動更新"
+    ru: "Автоматические обновления"
+    id: "Pembaruan otomatis"
+    ar: "التحديثات التلقائية"
   notificationsTooltip:
     en: "Notify you about device connections, unexpected session ends and available updates. Notifications only appear while OpenScrcpy is running, and device/update notices are suppressed while the window is focused."
     fr: "Vous avertit des connexions de périphériques, des fins de session inattendues et des mises à jour disponibles. Les notifications ne s’affichent que lorsque OpenScrcpy est en cours d’exécution ; les avis de périphérique et de mise à jour sont masqués lorsque la fenêtre a le focus."

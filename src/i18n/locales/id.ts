@@ -247,6 +247,7 @@ languages: {
         keepInBackground: 'Tetap berjalan di latar belakang',
         keepInBackgroundTooltip: 'Menutup jendela akan menyembunyikan OpenScrcpy ke tray dan menjaga sesi cermin serta mikrofon tetap berjalan. Pilih Keluar di menu tray untuk menghentikannya.',
         notifications: 'Notifikasi bawaan',
+        autoUpdate: 'Pembaruan otomatis',
         notificationsTooltip: 'Memberi tahu tentang perangkat yang terhubung, sesi yang berakhir tak terduga, dan pembaruan yang tersedia. Notifikasi hanya muncul saat OpenScrcpy berjalan; pemberitahuan perangkat dan pembaruan disembunyikan saat jendela difokuskan.',
         autoReconnect: 'Sambung ulang otomatis',
         autoReconnectTooltip: 'Jika scrcpy berhenti secara tak terduga (USB/ADB terputus atau crash), coba mulai ulang sesi dengan backoff eksponensial hingga 30 detik. Penghentian yang disengaja atau jendela scrcpy yang ditutup tidak akan disambungkan ulang. Berlaku untuk sesi baru; konsol mencatat setiap percobaan.'

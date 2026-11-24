@@ -479,6 +479,8 @@ pub struct AppSettings {
     pub onboarding_done: bool,
     /// Native notifications for session events.
     pub notifications_enabled: bool,
+    /// Check for updates automatically when enabled.
+    pub auto_update: bool,
     /// Restore/persist the external scrcpy window position.
     pub remember_window_position: bool,
 }
@@ -497,6 +499,7 @@ impl Default for AppSettings {
             recent_wireless: Vec::new(),
             onboarding_done: false,
             notifications_enabled: true,
+            auto_update: false,
             remember_window_position: true,
         }
     }
@@ -819,7 +822,7 @@ mod tests {
         assert!(args.contains(&"--camera-torch".to_string()));
         assert!(args.contains(&"--camera-zoom=2.0".to_string()));
         assert!(args.contains(&"--camera-high-speed".to_string()));
-        assert!(args.contains(&"--camera-size=1920x1080".to_string()));
+        assert!(!args.iter().any(|arg| arg.starts_with("--camera-size=")));
         assert_eq!(config.camera_mic_sink, Some(true));
     }
 

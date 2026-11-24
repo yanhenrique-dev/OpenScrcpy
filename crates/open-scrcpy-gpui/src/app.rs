@@ -906,6 +906,27 @@ impl AppShell {
                                 });
                             }),
                     )
+                    .child({
+                        let auto_weak = weak.clone();
+                        let auto = weak
+                            .upgrade()
+                            .map(|entity| entity.read(cx).settings.auto_update)
+                            .unwrap_or(false);
+                        Switch::new("settings-auto-update")
+                            .checked(auto)
+                            .label(t!("appBehavior.autoUpdate").to_string())
+                            .on_click(move |checked, _, cx| {
+                                let auto = *checked;
+                                let _ = auto_weak.update(cx, |this, cx| {
+                                    this.settings.auto_update = auto;
+                                    this.persist();
+                                    if auto {
+                                        this.check_update(cx);
+                                    }
+                                    cx.notify();
+                                });
+                            })
+                    })
                     .child(
                         Switch::new("settings-remember-position")
                             .checked(remember)
@@ -1969,7 +1990,8 @@ impl AppShell {
                 this.child(
                     Button::new("install-update")
                         .icon(IconName::Download)
-                        .label(t!("header.updateBadge", v = version).to_string())
+                        .tooltip(t!("header.updateBadge", v = version).to_string())
+                        .accessibility_label(t!("header.updateBadge", v = version).to_string())
                         .primary()
                         .disabled(self.installing_update)
                         .on_click(cx.listener(|this, _, _, cx| this.install_update(cx))),
@@ -1987,7 +2009,8 @@ impl AppShell {
             .child(
                 Button::new("app-settings")
                     .icon(IconName::Settings)
-                    .label(t!("appBehavior.title").to_string())
+                    .tooltip(t!("appBehavior.title").to_string())
+                    .accessibility_label(t!("appBehavior.title").to_string())
                     .ghost()
                     .on_click(
                         cx.listener(|this, _, window, cx| this.open_settings_sheet(window, cx)),
@@ -1996,7 +2019,8 @@ impl AppShell {
             .child(
                 Button::new("check-update")
                     .icon(IconName::RefreshCw)
-                    .label(t!("header.checkAppUpdate").to_string())
+                    .tooltip(t!("header.checkAppUpdate").to_string())
+                    .accessibility_label(t!("header.checkAppUpdate").to_string())
                     .ghost()
                     .disabled(self.checking_update)
                     .on_click(cx.listener(|this, _, _, cx| this.check_update(cx))),

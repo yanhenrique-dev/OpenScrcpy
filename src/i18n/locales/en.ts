@@ -248,6 +248,7 @@ export const en = {
         keepInBackground: 'Keep running in the background',
         keepInBackgroundTooltip: 'Closing the window hides OpenScrcpy to the tray and keeps mirror and microphone sessions running. Choose Quit in the tray menu to stop them.',
         notifications: 'Native notifications',
+        autoUpdate: 'Automatic updates',
         notificationsTooltip: 'Notify you about device connections, unexpected session ends and available updates. Notifications only appear while OpenScrcpy is running, and device/update notices are suppressed while the window is focused.',
         autoReconnect: 'Reconnect automatically',
         autoReconnectTooltip: 'If scrcpy exits unexpectedly (USB/ADB drop or crash), retry the session with exponential backoff up to 30 seconds. A deliberate Stop or a closed scrcpy window is not reconnected. Applies to new sessions; the console logs each attempt.'

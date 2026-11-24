@@ -247,6 +247,7 @@ export const zhCN: Translations = {
         keepInBackground: '在后台继续运行',
         keepInBackgroundTooltip: '关闭窗口时，OpenScrcpy 会隐藏到托盘，并保持镜像和麦克风会话运行。选择托盘菜单中的“退出”可停止它们。',
         notifications: '原生通知',
+        autoUpdate: '自动更新',
         notificationsTooltip: '在设备连接、会话意外结束和有可用更新时通知你。通知仅在 OpenScrcpy 运行时出现；窗口处于焦点时不会显示设备和更新通知。',
         autoReconnect: '自动重新连接',
         autoReconnectTooltip: '如果 scrcpy 意外退出（USB/ADB 断开或崩溃），使用指数退避（最长 30 秒）重试会话。主动停止或关闭 scrcpy 窗口不会重连。仅适用于新会话；控制台会记录每次尝试。'
