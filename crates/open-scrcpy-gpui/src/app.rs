@@ -15,8 +15,9 @@ use gpui_kit::component::IndexPath;
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::TitleBar;
 use gpui_kit::component::avatar::Avatar;
-use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
+use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _, DropdownButton};
 use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::menu::PopupMenuItem;
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
@@ -3243,22 +3244,6 @@ impl AppShell {
     fn camera_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let camera = self.settings.camera.clone();
         let zoom = self.camera_zoom.read(cx).value().end().clamp(1.0, 10.0);
-        let lens_index = if camera.camera_id.is_empty() {
-            Some(0)
-        } else {
-            self.cameras
-                .iter()
-                .position(|camera_info| camera_info.id == camera.camera_id)
-                .map(|index| index + 1)
-        };
-        let mut lens_options =
-            vec![Radio::new("camera-lens-auto").label(t!("controlPanel.autoSelect").to_string())];
-        for camera_info in &self.cameras {
-            lens_options.push(
-                Radio::new(format!("camera-lens-{}", camera_info.id))
-                    .label(camera_info.name.clone()),
-            );
-        }
         let refresh_label = t!("controlPanel.refreshLenses").to_string();
 
         div()
@@ -3276,23 +3261,72 @@ impl AppShell {
                             .text_sm()
                             .child(t!("controlPanel.cameraDevice").to_string()),
                     )
-                    .child(
-                        RadioGroup::horizontal("camera-lens")
-                            .selected_index(lens_index)
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.camera.camera_id = if *index == 0 {
-                                    String::new()
-                                } else {
-                                    this.cameras
-                                        .get(*index - 1)
-                                        .map(|camera: &CameraInfo| camera.id.clone())
-                                        .unwrap_or_default()
-                                };
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(lens_options),
-                    )
+                    .child({
+                        let weak = cx.weak_entity();
+                        let cameras = self.cameras.clone();
+                        let current = camera.camera_id.clone();
+                        let auto_label = t!("controlPanel.autoSelect").to_string();
+                        let trigger_label = if current.is_empty() {
+                            auto_label.clone()
+                        } else {
+                            cameras
+                                .iter()
+                                .find(|info| info.id == current)
+                                .map(|info| {
+                                    info.name
+                                        .split(',')
+                                        .next()
+                                        .unwrap_or(&info.name)
+                                        .to_string()
+                                })
+                                .unwrap_or_else(|| {
+                                    current.split(',').next().unwrap_or("").to_string()
+                                })
+                        };
+                        DropdownButton::new("camera-lens")
+                            .button(
+                                Button::new("camera-lens-trigger")
+                                    .label(trigger_label)
+                                    .outline()
+                                    .small(),
+                            )
+                            .dropdown_menu(move |mut menu, _, _| {
+                                let weak = weak.clone();
+                                let auto = current.is_empty();
+                                menu = menu.item(
+                                    PopupMenuItem::new(auto_label.clone())
+                                        .checked(auto)
+                                        .on_click({
+                                            let weak = weak.clone();
+                                            move |_, _, cx| {
+                                                let _ = weak.update(cx, |this, cx| {
+                                                    this.settings.camera.camera_id.clear();
+                                                    this.persist();
+                                                    cx.notify();
+                                                });
+                                            }
+                                        }),
+                                );
+                                for info in &cameras {
+                                    let weak = weak.clone();
+                                    let id = info.id.clone();
+                                    let checked = id == current;
+                                    menu = menu.item(
+                                        PopupMenuItem::new(info.name.clone())
+                                            .checked(checked)
+                                            .on_click(move |_, _, cx| {
+                                                let id = id.clone();
+                                                let _ = weak.update(cx, |this, cx| {
+                                                    this.settings.camera.camera_id = id.clone();
+                                                    this.persist();
+                                                    cx.notify();
+                                                });
+                                            }),
+                                    );
+                                }
+                                menu
+                            })
+                    })
                     .when(self.cameras_busy, |this| this.child(Spinner::new()))
                     .when(
                         !self.cameras_busy
