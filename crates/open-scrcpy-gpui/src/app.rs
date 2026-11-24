@@ -2104,6 +2104,7 @@ impl AppShell {
                     .selected(self.active_device.as_deref() == Some(device.serial.as_str()))
                     .accessibility_label(device.label())
                     .w_full()
+                    .h(px(48.))
                     .on_click(
                         cx.listener(move |this, _, _, cx| this.select_device(serial.clone(), cx)),
                     )
