@@ -889,139 +889,138 @@ impl AppShell {
             let notify_weak = weak.clone();
             let remember_weak = weak.clone();
 
-            sheet.title(t!("appBehavior.title").to_string()).child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_3()
-                    .child(
-                        Switch::new("settings-notifications")
-                            .checked(notifications)
-                            .label(t!("appBehavior.notifications").to_string())
-                            .on_click(move |checked, _, cx| {
-                                let _ = notify_weak.update(cx, |this, cx| {
-                                    this.settings.notifications_enabled = *checked;
-                                    this.persist();
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child({
-                        let auto_weak = weak.clone();
-                        let auto = weak
-                            .upgrade()
-                            .map(|entity| entity.read(cx).settings.auto_update)
-                            .unwrap_or(false);
-                        Switch::new("settings-auto-update")
-                            .checked(auto)
-                            .label(t!("appBehavior.autoUpdate").to_string())
-                            .on_click(move |checked, _, cx| {
-                                let auto = *checked;
-                                let _ = auto_weak.update(cx, |this, cx| {
-                                    this.settings.auto_update = auto;
-                                    this.persist();
-                                    if auto {
-                                        this.check_update(cx);
-                                    }
-                                    cx.notify();
-                                });
-                            })
-                    })
-                    .child(
-                        Switch::new("settings-remember-position")
-                            .checked(remember)
-                            .label(t!("sessionBehavior.rememberWindowPosition").to_string())
-                            .on_click(move |checked, _, cx| {
-                                let _ = remember_weak.update(cx, |this, cx| {
-                                    this.settings.remember_window_position = *checked;
-                                    this.persist();
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(t!("appBehavior.keepInBackgroundTooltip").to_string()),
-                    )
-                    .child(
-                        div()
-                            .mt_2()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(t!("settings.appearance").to_string()),
-                    )
-                    .child({
-                        let theme_weak = weak.clone();
-                        let current = current_theme;
-                        div().flex_row_dir(cx).flex_wrap().gap_1().children(
-                            ThemePreference::ALL.map(|preference| {
-                                let theme_weak = theme_weak.clone();
-                                Button::new(format!("settings-{}", preference.id()))
-                                    .label(theme_label(preference))
-                                    .ghost()
-                                    .compact()
-                                    .selected(current == preference)
-                                    .on_click(move |_, window, cx| {
-                                        let _ = theme_weak.update(cx, |this, cx| {
-                                            this.set_theme(preference, window, cx);
-                                        });
-                                        window.close_sheet(cx);
-                                    })
-                            }),
+            sheet
+                .title(t!("appBehavior.title").to_string())
+                .size(px(430.))
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_3()
+                        .child(
+                            Switch::new("settings-notifications")
+                                .checked(notifications)
+                                .label(t!("appBehavior.notifications").to_string())
+                                .on_click(move |checked, _, cx| {
+                                    let _ = notify_weak.update(cx, |this, cx| {
+                                        this.settings.notifications_enabled = *checked;
+                                        this.persist();
+                                        cx.notify();
+                                    });
+                                }),
                         )
-                    })
-                    .child(
-                        div()
-                            .mt_2()
-                            .flex_row_dir(cx)
-                            .items_center()
-                            .gap_1()
-                            .child({
-                                let language_weak = weak.clone();
-                                Button::new("settings-language")
-                                    .label(format!(
-                                        "{}: {}",
-                                        t!("header.languageLabel"),
-                                        i18n::label(&current_locale)
-                                    ))
-                                    .outline()
-                                    .compact()
-                                    .on_click(move |_, window, cx| {
-                                        window.close_sheet(cx);
-                                        let _ = language_weak.update(cx, |this, cx| {
-                                            this.open_language_dialog(window, cx)
-                                        });
-                                    })
-                            })
-                            .child({
-                                let about_weak = weak.clone();
-                                Button::new("settings-about")
-                                    .label(t!("header.aboutTitle").to_string())
-                                    .ghost()
-                                    .compact()
-                                    .on_click(move |_, window, cx| {
-                                        window.close_sheet(cx);
-                                        let _ = about_weak.update(cx, |this, cx| {
-                                            this.open_about_dialog(window, cx)
-                                        });
-                                    })
-                            })
-                            .child({
-                                let update_weak = weak.clone();
-                                Button::new("settings-check-update")
-                                    .label(t!("header.checkAppUpdate").to_string())
-                                    .ghost()
-                                    .compact()
-                                    .on_click(move |_, window, cx| {
-                                        window.close_sheet(cx);
-                                        let _ = update_weak
-                                            .update(cx, |this, cx| this.check_update(cx));
-                                    })
-                            }),
-                    ),
-            )
+                        .child({
+                            let auto_weak = weak.clone();
+                            let auto = weak
+                                .upgrade()
+                                .map(|entity| entity.read(cx).settings.auto_update)
+                                .unwrap_or(false);
+                            Switch::new("settings-auto-update")
+                                .checked(auto)
+                                .label(t!("appBehavior.autoUpdate").to_string())
+                                .on_click(move |checked, _, cx| {
+                                    let auto = *checked;
+                                    let _ = auto_weak.update(cx, |this, cx| {
+                                        this.settings.auto_update = auto;
+                                        this.persist();
+                                        if auto {
+                                            this.check_update(cx);
+                                        }
+                                        cx.notify();
+                                    });
+                                })
+                        })
+                        .child(
+                            Switch::new("settings-remember-position")
+                                .checked(remember)
+                                .label(t!("sessionBehavior.rememberWindowPosition").to_string())
+                                .on_click(move |checked, _, cx| {
+                                    let _ = remember_weak.update(cx, |this, cx| {
+                                        this.settings.remember_window_position = *checked;
+                                        this.persist();
+                                        cx.notify();
+                                    });
+                                }),
+                        )
+                        .child(div().mt_2().h(px(1.)).bg(cx.theme().border))
+                        .child(
+                            div()
+                                .mt_1()
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
+                                .child(t!("settings.appearance").to_string()),
+                        )
+                        .child({
+                            let theme_weak = weak.clone();
+                            let current = current_theme;
+                            div().flex_row_dir(cx).flex_wrap().gap_1().children(
+                                ThemePreference::ALL.map(|preference| {
+                                    let theme_weak = theme_weak.clone();
+                                    Button::new(format!("settings-{}", preference.id()))
+                                        .label(theme_label(preference))
+                                        .ghost()
+                                        .compact()
+                                        .selected(current == preference)
+                                        .on_click(move |_, window, cx| {
+                                            let _ = theme_weak.update(cx, |this, cx| {
+                                                this.set_theme(preference, window, cx);
+                                            });
+                                            window.close_sheet(cx);
+                                        })
+                                }),
+                            )
+                        })
+                        .child(div().mt_2().h(px(1.)).bg(cx.theme().border))
+                        .child(
+                            div()
+                                .mt_1()
+                                .flex()
+                                .flex_col()
+                                .gap_1()
+                                .child({
+                                    let language_weak = weak.clone();
+                                    Button::new("settings-language")
+                                        .label(format!(
+                                            "{}: {}",
+                                            t!("header.languageLabel"),
+                                            i18n::label(&current_locale)
+                                        ))
+                                        .outline()
+                                        .w_full()
+                                        .on_click(move |_, window, cx| {
+                                            window.close_sheet(cx);
+                                            let _ = language_weak.update(cx, |this, cx| {
+                                                this.open_language_dialog(window, cx)
+                                            });
+                                        })
+                                })
+                                .child({
+                                    let about_weak = weak.clone();
+                                    Button::new("settings-about")
+                                        .label(t!("header.aboutTitle").to_string())
+                                        .ghost()
+                                        .w_full()
+                                        .on_click(move |_, window, cx| {
+                                            window.close_sheet(cx);
+                                            let _ = about_weak.update(cx, |this, cx| {
+                                                this.open_about_dialog(window, cx)
+                                            });
+                                        })
+                                })
+                                .child({
+                                    let update_weak = weak.clone();
+                                    Button::new("settings-check-update")
+                                        .label(t!("header.checkAppUpdate").to_string())
+                                        .ghost()
+                                        .w_full()
+                                        .on_click(move |_, window, cx| {
+                                            window.close_sheet(cx);
+                                            let _ = update_weak
+                                                .update(cx, |this, cx| this.check_update(cx));
+                                        })
+                                }),
+                        ),
+                )
         });
     }
 
