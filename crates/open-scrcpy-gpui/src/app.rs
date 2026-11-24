@@ -1937,16 +1937,11 @@ impl AppShell {
             )
     }
 
-    fn header(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn header_actions(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex_row_dir(cx)
             .items_center()
-            .gap_3()
-            .px_4()
-            .py_2()
-            .border_b_1()
-            .border_color(cx.theme().border)
-            .child(div().flex_1())
+            .gap_2()
             .when_some(self.update_available.clone(), |this, version| {
                 this.child(
                     Button::new("install-update")
@@ -2226,6 +2221,9 @@ impl AppShell {
             .position(|mode| *mode == self.mode)
             .unwrap_or(0);
         div()
+            .flex_row_dir(cx)
+            .items_center()
+            .gap_2()
             .p_2()
             .border_b_1()
             .border_color(cx.theme().border)
@@ -2243,6 +2241,8 @@ impl AppShell {
                             .map(|mode| Tab::new().icon(mode.icon()).label(mode.label())),
                     ),
             )
+            .child(div().flex_1())
+            .child(self.header_actions(cx))
     }
 
     fn mirror_settings(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -3831,7 +3831,6 @@ impl Render for AppShell {
             .text_color(cx.theme().foreground)
             .on_drop(cx.listener(|this, paths: &ExternalPaths, _, cx| this.handle_drop(paths, cx)))
             .child(self.titlebar(cx))
-            .child(self.header(cx))
             .child(
                 div().flex_1().min_h_0().child(
                     v_resizable("workspace-console")
