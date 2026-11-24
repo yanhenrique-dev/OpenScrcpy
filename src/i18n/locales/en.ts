@@ -277,20 +277,6 @@ export const en = {
         logLines: 'logs'
     },
 
-    palette: {
-
-        open: 'Search or command',
-
-        title: 'Commands',
-
-        placeholder: 'Search commands',
-
-        empty: 'No commands found',
-
-        goTo: 'Go to {mode}'
-
-    },
-
     settings: {
 
         appearance: 'Appearance'

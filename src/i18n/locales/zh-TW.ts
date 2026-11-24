@@ -276,20 +276,6 @@ export const zhTW: Translations = {
         logLines: '行'
     },
 
-    palette: {
-
-        open: '搜尋或命令',
-
-        title: '命令',
-
-        placeholder: '搜尋命令',
-
-        empty: '找不到命令',
-
-        goTo: '前往 {mode}'
-
-    },
-
     settings: {
 
         appearance: '外觀'

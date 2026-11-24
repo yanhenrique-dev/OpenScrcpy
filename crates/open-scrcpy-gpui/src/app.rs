@@ -116,18 +116,6 @@ struct DiscoveredService {
     address: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum PaletteAction {
-    Start,
-    Stop,
-    Mode(usize),
-    Settings,
-    Language,
-    About,
-    CheckUpdates,
-    Theme(ThemePreference),
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeviceState {
     Online,
@@ -235,7 +223,6 @@ pub struct AppShell {
     mic_db: Option<f64>,
     renderers: Vec<(String, String)>,
     discovered: Vec<DiscoveredService>,
-    palette_query: Entity<InputState>,
     terminal_input: Entity<InputState>,
     terminal_busy: bool,
     console_scroll: ScrollHandle,
@@ -395,10 +382,6 @@ impl AppShell {
             }),
         ];
 
-        let palette_query = cx.new(|cx| {
-            InputState::new(window, cx).placeholder(t!("palette.placeholder").to_string())
-        });
-
         let terminal_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
         });
@@ -426,7 +409,6 @@ impl AppShell {
             mic_db: None,
             renderers: Vec::new(),
             discovered: Vec::new(),
-            palette_query,
             terminal_input,
             terminal_busy: false,
             console_scroll: ScrollHandle::new(),
@@ -1303,108 +1285,6 @@ impl AppShell {
         .detach();
     }
 
-    fn open_command_palette(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let weak = cx.weak_entity();
-        let query = self.palette_query.clone();
-        let start = self.start_label();
-        window.open_dialog(cx, move |dialog, _, cx| {
-            let filter = query.read(cx).value().trim().to_lowercase();
-            let mut items: Vec<(String, String, PaletteAction)> = vec![
-                (
-                    "palette-start".to_string(),
-                    start.clone(),
-                    PaletteAction::Start,
-                ),
-                (
-                    "palette-stop".to_string(),
-                    t!("controlPanel.stopSession").to_string(),
-                    PaletteAction::Stop,
-                ),
-                (
-                    "palette-settings".to_string(),
-                    t!("appBehavior.title").to_string(),
-                    PaletteAction::Settings,
-                ),
-                (
-                    "palette-language".to_string(),
-                    t!("header.languageLabel").to_string(),
-                    PaletteAction::Language,
-                ),
-                (
-                    "palette-about".to_string(),
-                    t!("header.aboutTitle").to_string(),
-                    PaletteAction::About,
-                ),
-                (
-                    "palette-update".to_string(),
-                    t!("header.checkAppUpdate").to_string(),
-                    PaletteAction::CheckUpdates,
-                ),
-            ];
-            for (index, mode) in CaptureMode::ALL.iter().enumerate() {
-                items.push((
-                    format!("palette-mode-{index}"),
-                    t!("palette.goTo", mode = mode.label()).to_string(),
-                    PaletteAction::Mode(index),
-                ));
-            }
-            for preference in ThemePreference::ALL {
-                items.push((
-                    format!("palette-theme-{}", preference.id()),
-                    theme_label(preference).to_string(),
-                    PaletteAction::Theme(preference),
-                ));
-            }
-            if !filter.is_empty() {
-                items.retain(|(_, label, _)| label.to_lowercase().contains(&filter));
-            }
-
-            let mut list = div().flex().flex_col().gap_1();
-            if items.is_empty() {
-                list = list.child(
-                    div()
-                        .text_sm()
-                        .text_color(cx.theme().muted_foreground)
-                        .child(t!("palette.empty").to_string()),
-                );
-            }
-            for (id, label, action) in items {
-                let weak = weak.clone();
-                list = list.child(Button::new(id).ghost().w_full().label(label).on_click(
-                    move |_, window, cx| {
-                        window.close_dialog(cx);
-                        let action = action.clone();
-                        let _ = weak
-                            .update(cx, |shell, cx| shell.run_palette_action(action, window, cx));
-                    },
-                ));
-            }
-
-            dialog
-                .title(t!("palette.title").to_string())
-                .child(Input::new(&query))
-                .child(list)
-        });
-    }
-
-    fn run_palette_action(
-        &mut self,
-        action: PaletteAction,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        match action {
-            PaletteAction::Start => self.start_session(cx),
-            PaletteAction::Stop => self.confirm_stop(window, cx),
-            PaletteAction::Mode(index) => self.select_mode(index, cx),
-            PaletteAction::Settings => self.open_settings_sheet(window, cx),
-            PaletteAction::Language => self.open_language_dialog(window, cx),
-            PaletteAction::About => self.open_about_dialog(window, cx),
-            PaletteAction::CheckUpdates => self.check_update(cx),
-            PaletteAction::Theme(preference) => self.set_theme(preference, window, cx),
-        }
-    }
-
     fn start_label(&self) -> String {
         match self.mode {
             CaptureMode::Desktop => t!("controlPanel.ejectToDesktop").to_string(),
@@ -1664,17 +1544,6 @@ impl AppShell {
                             .text_xs()
                             .text_color(cx.theme().muted_foreground)
                             .child(self.active_device.clone().unwrap_or_default()),
-                    )
-                    .child(div().flex_1())
-                    .child(
-                        Button::new("command-palette")
-                            .icon(IconName::Search)
-                            .label(t!("palette.open").to_string())
-                            .ghost()
-                            .compact()
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.open_command_palette(window, cx)
-                            })),
                     ),
             )
     }

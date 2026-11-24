@@ -276,20 +276,6 @@ export const fr: Translations = {
         logLines: 'lignes'
     },
 
-    palette: {
-
-        open: 'Rechercher ou commander',
-
-        title: 'Commandes',
-
-        placeholder: 'Rechercher des commandes',
-
-        empty: 'Aucune commande',
-
-        goTo: 'Aller à {mode}'
-
-    },
-
     settings: {
 
         appearance: 'Apparence'

@@ -276,20 +276,6 @@ export const ptBR: Translations = {
         logLines: 'linhas'
     },
 
-    palette: {
-
-        open: 'Buscar ou comando',
-
-        title: 'Comandos',
-
-        placeholder: 'Buscar comandos',
-
-        empty: 'Nenhum comando encontrado',
-
-        goTo: 'Ir para {mode}'
-
-    },
-
     settings: {
 
         appearance: 'Aparência'

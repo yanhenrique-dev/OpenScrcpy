@@ -276,20 +276,6 @@ export const zhCN: Translations = {
         logLines: '行'
     },
 
-    palette: {
-
-        open: '搜索或命令',
-
-        title: '命令',
-
-        placeholder: '搜索命令',
-
-        empty: '未找到命令',
-
-        goTo: '转到 {mode}'
-
-    },
-
     settings: {
 
         appearance: '外观'

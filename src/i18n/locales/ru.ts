@@ -282,20 +282,6 @@ export const ru: Translations = {
       logLines: 'строк'
   },
 
-  palette: {
-
-      open: 'Поиск или команда',
-
-      title: 'Команды',
-
-      placeholder: 'Поиск команд',
-
-      empty: 'Команды не найдены',
-
-      goTo: 'Перейти к {mode}'
-
-  },
-
   settings: {
 
       appearance: 'Внешний вид'

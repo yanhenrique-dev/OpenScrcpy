@@ -276,20 +276,6 @@ languages: {
         logLines: 'baris'
     },
 
-    palette: {
-
-        open: 'Cari atau perintah',
-
-        title: 'Perintah',
-
-        placeholder: 'Cari perintah',
-
-        empty: 'Tidak ada perintah',
-
-        goTo: 'Buka {mode}'
-
-    },
-
     settings: {
 
         appearance: 'Tampilan'

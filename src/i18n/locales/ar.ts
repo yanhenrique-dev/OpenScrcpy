@@ -279,20 +279,6 @@ export const ar: Translations = {
         logLines: 'أسطر'
     },
 
-    palette: {
-
-        open: 'بحث أو أمر',
-
-        title: 'الأوامر',
-
-        placeholder: 'ابحث عن الأوامر',
-
-        empty: 'لم يتم العثور على أوامر',
-
-        goTo: 'الانتقال إلى {mode}'
-
-    },
-
     settings: {
 
         appearance: 'المظهر'
