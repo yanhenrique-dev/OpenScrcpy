@@ -19,6 +19,7 @@ use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::notification::Notification;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::radio::{Radio, RadioGroup};
+use gpui_kit::component::resizable::{resizable_panel, v_resizable};
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::status_bar::StatusBar;
 use gpui_kit::component::switch::Switch;
@@ -3432,8 +3433,7 @@ impl AppShell {
         div()
             .flex()
             .flex_col()
-            .h_40()
-            .flex_shrink_0()
+            .size_full()
             .border_t_1()
             .border_color(cx.theme().border)
             .child(
@@ -3562,7 +3562,38 @@ impl AppShell {
 }
 
 impl Render for AppShell {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let body = div()
+            .flex_row_dir(cx)
+            .size_full()
+            .min_h_0()
+            .child(self.sidebar(cx))
+            .when(
+                needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
+                |this| this.child(self.onboarding_panel(cx).into_any_element()),
+            )
+            .when(
+                !needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
+                |this| {
+                    this.child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .flex_1()
+                            .min_w_0()
+                            .child(self.mode_tabs(cx))
+                            .child(match self.mode {
+                                CaptureMode::Screen => self.screen_panel(cx).into_any_element(),
+                                CaptureMode::Desktop => self.desktop_panel(cx).into_any_element(),
+                                CaptureMode::Microphone => self.mic_panel(cx).into_any_element(),
+                                CaptureMode::Camera => self.camera_panel(cx).into_any_element(),
+                            }),
+                    )
+                },
+            );
+
+        let console_max = px((window.viewport_size().height * 0.5).as_f32().max(160.));
+
         div()
             .size_full()
             .flex()
@@ -3573,44 +3604,17 @@ impl Render for AppShell {
             .child(self.titlebar(cx))
             .child(self.header(cx))
             .child(
-                div()
-                    .flex_row_dir(cx)
-                    .flex_1()
-                    .min_h_0()
-                    .child(self.sidebar(cx))
-                    .when(
-                        needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
-                        |this| this.child(self.onboarding_panel(cx).into_any_element()),
-                    )
-                    .when(
-                        !needs_onboarding(self.scrcpy_ready, self.settings.onboarding_done),
-                        |this| {
-                            this.child(
-                                div()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .child(self.mode_tabs(cx))
-                                    .child(match self.mode {
-                                        CaptureMode::Screen => {
-                                            self.screen_panel(cx).into_any_element()
-                                        }
-                                        CaptureMode::Desktop => {
-                                            self.desktop_panel(cx).into_any_element()
-                                        }
-                                        CaptureMode::Microphone => {
-                                            self.mic_panel(cx).into_any_element()
-                                        }
-                                        CaptureMode::Camera => {
-                                            self.camera_panel(cx).into_any_element()
-                                        }
-                                    }),
-                            )
-                        },
-                    ),
+                div().flex_1().min_h_0().child(
+                    v_resizable("workspace-console")
+                        .child(resizable_panel().child(body))
+                        .child(
+                            resizable_panel()
+                                .size(px(180.))
+                                .size_range(px(120.)..console_max)
+                                .child(self.console(cx)),
+                        ),
+                ),
             )
-            .child(self.console(cx))
             .child(self.status_bar(cx))
     }
 }

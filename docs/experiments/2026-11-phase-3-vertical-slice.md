@@ -229,8 +229,8 @@ haver conversa nem multi-seleção real.
 - **Settings sheet**: o antigo diálogo "Aplicativo" virou `Sheet`, com
   notificações, posição da janela, tema, idioma, Sobre e verificar update.
 - **Toasts**: copiar console e salvar relatório confirmam por `Notification`.
-- **Console**: filtros Tudo/Sistema/Erros e separador visual no início de
-  sessão.
+- **Console**: redimensionável de 120 px até **metade da janela** (arraste a
+  divisória), filtros Tudo/Sistema/Erros e separador visual no início de sessão.
 - **Índice**: 403 chaves por locale; 39 testes GPUI.
 
 Ainda pendentes do plano: ficha do dispositivo, pairing em Stepper/OtpInput,
