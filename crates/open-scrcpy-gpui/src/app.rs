@@ -11,6 +11,7 @@ use std::time::Duration;
 use gpui_kit::base::LogicalStyledExt as _;
 use gpui_kit::base::Selectable as _;
 use gpui_kit::component::Sizable as _;
+use gpui_kit::component::TitleBar;
 use gpui_kit::component::avatar::Avatar;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState};
@@ -1387,14 +1388,36 @@ impl AppShell {
             }))
     }
 
+    fn titlebar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+        let version = env!("CARGO_PKG_VERSION");
+        let services = self.services.clone();
+        TitleBar::new()
+            .on_close_window(move |_, window, _| {
+                services.teardown();
+                window.remove_window();
+            })
+            .child(
+                div()
+                    .flex_row_dir(cx)
+                    .items_center()
+                    .gap_2()
+                    .pl_2()
+                    .child(div().id("app-title").text_sm().child("OpenScrcpy"))
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().muted_foreground)
+                            .child(format!("v{version}")),
+                    ),
+            )
+    }
+
     fn header(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let locale_label = format!(
             "{}: {}",
             t!("header.languageLabel"),
             i18n::label(&self.settings.locale)
         );
-        let version = env!("CARGO_PKG_VERSION");
-
         div()
             .flex_row_dir(cx)
             .items_center()
@@ -1403,18 +1426,6 @@ impl AppShell {
             .py_2()
             .border_b_1()
             .border_color(cx.theme().border)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .child(div().id("app-title").text_lg().child("OpenScrcpy"))
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(cx.theme().muted_foreground)
-                            .child(format!("v{version}")),
-                    ),
-            )
             .child(div().flex_1())
             .child(self.theme_modes(cx))
             .when_some(self.update_available.clone(), |this, version| {
@@ -1530,7 +1541,6 @@ impl AppShell {
                                             .when_some(version, |this, version| {
                                                 this.child(
                                                     Tag::new()
-                                                        .outline()
                                                         .small()
                                                         .child(format!("Android {version}")),
                                                 )
@@ -3278,6 +3288,7 @@ impl Render for AppShell {
             .bg(cx.theme().background)
             .text_color(cx.theme().foreground)
             .on_drop(cx.listener(|this, paths: &ExternalPaths, _, cx| this.handle_drop(paths, cx)))
+            .child(self.titlebar(cx))
             .child(self.header(cx))
             .child(
                 div()

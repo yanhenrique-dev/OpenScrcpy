@@ -204,6 +204,10 @@ recebeu:
   `Cancel`; o foco volta ao gatilho pelo próprio componente.
 - **Progress**: o download do core no onboarding agora tem barra determinada,
   além do texto de porcentagem.
+- **TitleBar própria**: a janela usa `WindowDecorations::Client` e a `TitleBar`
+  do Kit no topo, com marca, região de arraste e controles de janela; o botão
+  fechar roda o teardown das sessões antes de remover a janela. A barra nativa
+  do sistema deixou de ser usada (P8 revertido após feedback de uso).
 
 Ficaram de fora, de propósito: `TabBar` (os botões de modo têm IDs estáveis
 usados pelos testes de UI; a troca exige repensar a navegação), `Combobox`
@@ -226,7 +230,7 @@ haver conversa nem multi-seleção real.
 | 3.9 Behavior (reconnect/background/notificações) | **parcial**: reconnect, notificações (com opt-out) e posição da janela prontos; background/tray **bloqueados** pela ausência de `Window::hide` no GPUI 0.3.12 (ver 4.1) |
 | 3.10 Modais (onboarding/atalhos/sobre/update) | **parcial**: onboarding, Sobre e card de atalhos prontos; modal de update e confirmações pendentes |
 | 3.11 Integrações (tray/single-instance/hotkeys/drag-drop) | **parcial**: instância única, recenter global e drag-drop de arquivos prontos; tray/background bloqueados (4.1) |
-| 3.12 Chrome/titlebar | **decidido**: decoração `Server` explícita + título da janela, conforme P8; os botões/resize do webview do 2.x não foram portados |
+| 3.12 Chrome/titlebar | **feito**: decoração `Client` + `TitleBar` do Kit (arraste, duplo clique para maximizar, minimizar/maximizar/fechar); o fechar executa o teardown. P8 (chrome nativo) foi revertido a pedido do produto |
 
 ## 6. Próximos passos
 
