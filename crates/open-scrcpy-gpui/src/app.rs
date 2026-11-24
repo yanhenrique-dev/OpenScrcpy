@@ -131,6 +131,35 @@ impl SearchableListItem for ThemePreference {
     }
 }
 
+#[derive(Clone)]
+struct ChoiceItem {
+    value: String,
+    label: SharedString,
+}
+
+impl SearchableListItem for ChoiceItem {
+    type Value = String;
+
+    fn title(&self) -> SharedString {
+        self.label.clone()
+    }
+
+    fn value(&self) -> &Self::Value {
+        &self.value
+    }
+}
+
+fn choice_select(items: Vec<(&str, String)>) -> SearchableVec<ChoiceItem> {
+    let items: Vec<ChoiceItem> = items
+        .into_iter()
+        .map(|(value, label)| ChoiceItem {
+            value: value.to_string(),
+            label: label.into(),
+        })
+        .collect();
+    SearchableVec::new(items)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DeviceState {
     Online,
@@ -228,6 +257,12 @@ pub struct AppShell {
     log_filter: LogFilter,
     theme_select: Entity<SelectState<SearchableVec<ThemePreference>>>,
     _theme_subscription: Subscription,
+    fps_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    size_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    codec_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    renderer_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    rotation_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
+    _mirror_selects_subscriptions: Vec<Subscription>,
     bitrate: Entity<SliderState>,
     _bitrate_subscription: Subscription,
     camera_zoom: Entity<SliderState>,
@@ -422,6 +457,179 @@ impl AppShell {
             },
         );
 
+        let fps_values = ["30", "60", "90"];
+        let fps_index = fps_values
+            .iter()
+            .position(|value| value.parse::<u32>().ok() == Some(settings.mirror.fps))
+            .unwrap_or(1);
+        let fps_select = cx.new(|cx| {
+            let items = fps_values
+                .iter()
+                .map(|value| (*value, (*value).to_string()))
+                .collect();
+            SelectState::new(
+                choice_select(items),
+                Some(IndexPath::new(fps_index)),
+                window,
+                cx,
+            )
+        });
+
+        let size_values = ["0", "1920", "1280", "720"];
+        let size_index = size_values
+            .iter()
+            .position(|value| value.parse::<u32>().ok() == Some(settings.mirror.max_size))
+            .unwrap_or(0);
+        let size_select = cx.new(|cx| {
+            let original = t!("controlPanel.resolutionOriginal").to_string();
+            let labels = [
+                original,
+                "1920".to_string(),
+                "1280".to_string(),
+                "720".to_string(),
+            ];
+            let items = size_values
+                .iter()
+                .zip(labels)
+                .map(|(value, label)| (*value, label))
+                .collect();
+            SelectState::new(
+                choice_select(items),
+                Some(IndexPath::new(size_index)),
+                window,
+                cx,
+            )
+        });
+
+        let codec_values = ["h264", "h265", "av1"];
+        let codec_labels = ["H.264", "H.265", "AV1"];
+        let codec_index = codec_values
+            .iter()
+            .position(|value| *value == settings.mirror.video_codec)
+            .unwrap_or(0);
+        let codec_select = cx.new(|cx| {
+            let items = codec_values
+                .iter()
+                .zip(codec_labels)
+                .map(|(value, label)| (*value, label.to_string()))
+                .collect();
+            SelectState::new(
+                choice_select(items),
+                Some(IndexPath::new(codec_index)),
+                window,
+                cx,
+            )
+        });
+
+        let renderer_values = ["auto", "opengl", "opengles2", "opengl_es", "software"];
+        let renderer_labels = [
+            t!("controlPanel.rendererAuto").to_string(),
+            "OpenGL".to_string(),
+            "OpenGL ES 2".to_string(),
+            "OpenGL ES".to_string(),
+            "Software".to_string(),
+        ];
+        let renderer_index = renderer_values
+            .iter()
+            .position(|value| *value == settings.mirror.renderer)
+            .unwrap_or(0)
+            .min(renderer_values.len() - 1);
+        let renderer_select = cx.new(|cx| {
+            let items = renderer_values
+                .iter()
+                .zip(renderer_labels)
+                .map(|(value, label)| (*value, label))
+                .collect();
+            SelectState::new(
+                choice_select(items),
+                Some(IndexPath::new(renderer_index)),
+                window,
+                cx,
+            )
+        });
+
+        let rotation_values = ["0", "90", "180", "270"];
+        let rotation_index = rotation_values
+            .iter()
+            .position(|value| value.parse::<u32>().ok() == Some(settings.mirror.rotation))
+            .unwrap_or(0);
+        let rotation_select = cx.new(|cx| {
+            let items = rotation_values
+                .iter()
+                .map(|value| (*value, format!("{value}°")))
+                .collect();
+            SelectState::new(
+                choice_select(items),
+                Some(IndexPath::new(rotation_index)),
+                window,
+                cx,
+            )
+        });
+
+        let mirror_selects_subscriptions = vec![
+            cx.subscribe_in(
+                &fps_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event
+                        && let Ok(fps) = value.parse::<u32>()
+                    {
+                        this.settings.mirror.fps = fps;
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &size_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event
+                        && let Ok(size) = value.parse::<u32>()
+                    {
+                        this.settings.mirror.max_size = size;
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &codec_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event {
+                        this.settings.mirror.video_codec = value.clone();
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &renderer_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event {
+                        this.settings.mirror.renderer = value.clone();
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+            cx.subscribe_in(
+                &rotation_select,
+                window,
+                |this, _, event: &SelectEvent<SearchableVec<ChoiceItem>>, _, cx| {
+                    if let SelectEvent::Confirm(Some(value)) = event
+                        && let Ok(rotation) = value.parse::<u32>()
+                    {
+                        this.settings.mirror.rotation = rotation;
+                        this.persist();
+                        cx.notify();
+                    }
+                },
+            ),
+        ];
+
         let terminal_input = cx.new(|cx| {
             InputState::new(window, cx).placeholder(t!("logPanel.terminalPlaceholder").to_string())
         });
@@ -439,6 +647,12 @@ impl AppShell {
             log_filter: LogFilter::All,
             theme_select,
             _theme_subscription: theme_subscription,
+            fps_select,
+            size_select,
+            codec_select,
+            renderer_select,
+            rotation_select,
+            _mirror_selects_subscriptions: mirror_selects_subscriptions,
             bitrate,
             _bitrate_subscription: bitrate_subscription,
             camera_zoom,
@@ -1913,38 +2127,6 @@ impl AppShell {
         let settings = self.settings.mirror.clone();
         let bitrate = self.bitrate.read(cx).value().end().round() as u32;
 
-        let fps_index = MirrorSettings::FPS
-            .iter()
-            .position(|fps| *fps == settings.fps)
-            .unwrap_or(1);
-        let size_index = MirrorSettings::SIZES
-            .iter()
-            .position(|size| *size == settings.max_size)
-            .unwrap_or(0);
-        let codec_index = MirrorSettings::CODECS
-            .iter()
-            .position(|codec| *codec == settings.video_codec)
-            .unwrap_or(0);
-        let renderer_index = if settings.renderer == "auto" {
-            Some(0)
-        } else {
-            self.renderers
-                .iter()
-                .position(|(id, _)| *id == settings.renderer)
-                .map(|index| index + 1)
-        };
-        let mut renderer_options =
-            vec![Radio::new("renderer-auto").label(t!("controlPanel.rendererAuto").to_string())];
-        for (id, label) in &self.renderers {
-            renderer_options.push(Radio::new(format!("renderer-{id}")).label(label.clone()));
-        }
-        let rotation_index = DesktopSettings::ROTATIONS
-            .iter()
-            .position(|rotation| *rotation == settings.rotation)
-            .unwrap_or(0);
-        let rotation_options = DesktopSettings::ROTATIONS.map(|rotation| {
-            Radio::new(format!("mirror-rotation-{rotation}")).label(format!("{rotation}°"))
-        });
         let audio_sources = [
             "output",
             "playback",
@@ -1968,25 +2150,6 @@ impl AppShell {
         });
         let audio_on = settings.audio;
         let dup_enabled = audio_on && settings.mirror_audio_source == "playback";
-
-        let fps_options =
-            MirrorSettings::FPS.map(|fps| Radio::new(format!("fps-{fps}")).label(fps.to_string()));
-        let size_options = MirrorSettings::SIZES.map(|size| {
-            let label = if size == 0 {
-                t!("controlPanel.resolutionOriginal").to_string()
-            } else {
-                size.to_string()
-            };
-            Radio::new(format!("size-{size}")).label(label)
-        });
-        let codec_options = MirrorSettings::CODECS.map(|codec| {
-            let label = match codec {
-                "h265" => "H.265",
-                "av1" => "AV1",
-                _ => "H.264",
-            };
-            Radio::new(format!("codec-{codec}")).label(label)
-        });
 
         div()
             .flex()
@@ -2029,14 +2192,10 @@ impl AppShell {
                             .child(t!("controlPanel.fps").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("mirror-fps")
-                            .selected_index(Some(fps_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.mirror.fps = MirrorSettings::FPS[*index];
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(fps_options),
+                        Select::new(&self.fps_select)
+                            .small()
+                            .w_24()
+                            .accessibility_label(t!("controlPanel.fps").to_string()),
                     ),
             )
             .child(
@@ -2051,14 +2210,10 @@ impl AppShell {
                             .child(t!("controlPanel.resolution").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("mirror-size")
-                            .selected_index(Some(size_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.mirror.max_size = MirrorSettings::SIZES[*index];
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(size_options),
+                        Select::new(&self.size_select)
+                            .small()
+                            .w_24()
+                            .accessibility_label(t!("controlPanel.resolution").to_string()),
                     ),
             )
             .child(
@@ -2073,18 +2228,10 @@ impl AppShell {
                             .child(t!("controlPanel.codec").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("mirror-codec")
-                            .selected_index(Some(codec_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                let codec = MirrorSettings::CODECS
-                                    .get(*index)
-                                    .copied()
-                                    .unwrap_or("h264");
-                                this.settings.mirror.video_codec = codec.to_string();
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(codec_options),
+                        Select::new(&self.codec_select)
+                            .small()
+                            .w_24()
+                            .accessibility_label(t!("controlPanel.codec").to_string()),
                     ),
             )
             .child(
@@ -2305,21 +2452,10 @@ impl AppShell {
                             .child(t!("controlPanel.graphicsRenderer").to_string()),
                     )
                     .child(
-                        RadioGroup::vertical("mirror-renderer")
-                            .selected_index(renderer_index)
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.mirror.renderer = if *index == 0 {
-                                    "auto".to_string()
-                                } else {
-                                    this.renderers
-                                        .get(*index - 1)
-                                        .map(|entry: &(String, String)| entry.0.clone())
-                                        .unwrap_or_else(|| "auto".to_string())
-                                };
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(renderer_options),
+                        Select::new(&self.renderer_select)
+                            .small()
+                            .w_32()
+                            .accessibility_label(t!("controlPanel.graphicsRenderer").to_string()),
                     ),
             )
             .child(
@@ -2334,14 +2470,10 @@ impl AppShell {
                             .child(t!("controlPanel.rotation").to_string()),
                     )
                     .child(
-                        RadioGroup::horizontal("mirror-rotation")
-                            .selected_index(Some(rotation_index))
-                            .on_change(cx.listener(|this, index, _, cx| {
-                                this.settings.mirror.rotation = DesktopSettings::ROTATIONS[*index];
-                                this.persist();
-                                cx.notify();
-                            }))
-                            .children(rotation_options),
+                        Select::new(&self.rotation_select)
+                            .small()
+                            .w_24()
+                            .accessibility_label(t!("controlPanel.rotation").to_string()),
                     ),
             )
     }
