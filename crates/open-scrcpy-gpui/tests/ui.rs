@@ -271,15 +271,10 @@ fn shell_switches_modes_theme_and_locale(cx: &mut TestAppContext) {
         let panel_x = window.find("panel-title").bounds().origin.x;
         assert!(sidebar_x > panel_x, "RTL sidebar must follow the panel");
 
-        // About opens as a dialog with the external links.
-        assert!(
-            window
-                .find("about")
-                .label()
-                .unwrap_or_default()
-                .contains("OpenScrcpy")
-        );
-        window.click("about", cx);
+        // About lives inside the settings sheet now.
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-about", cx);
         window.render_frame(cx);
         assert!(window.find("about-repository").label().is_some());
     })

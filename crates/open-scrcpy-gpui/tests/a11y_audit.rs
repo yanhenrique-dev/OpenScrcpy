@@ -115,7 +115,9 @@ fn every_interactive_control_has_an_accessible_name(cx: &mut TestAppContext) {
         window.close_sheet(cx);
         window.render_frame(cx);
 
-        window.click("about", cx);
+        window.click("app-settings", cx);
+        window.render_frame(cx);
+        window.click("settings-about", cx);
         window.render_frame(cx);
         assert_interactive_elements_are_named(window, "about dialog");
     })

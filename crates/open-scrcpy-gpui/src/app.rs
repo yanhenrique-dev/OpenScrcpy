@@ -268,8 +268,6 @@ pub struct AppShell {
     starting: bool,
     logs: Vec<String>,
     log_filter: LogFilter,
-    theme_select: Entity<SelectState<SearchableVec<ThemePreference>>>,
-    _theme_subscription: Subscription,
     fps_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     size_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
     codec_select: Entity<SelectState<SearchableVec<ChoiceItem>>>,
@@ -453,29 +451,6 @@ impl AppShell {
                 }
             }),
         ];
-
-        let theme_index = ThemePreference::ALL
-            .iter()
-            .position(|preference| *preference == settings.theme)
-            .unwrap_or(2);
-        let theme_select = cx.new(|cx| {
-            SelectState::new(
-                SearchableVec::new(ThemePreference::ALL.to_vec()),
-                Some(IndexPath::new(theme_index)),
-                window,
-                cx,
-            )
-            .searchable(true)
-        });
-        let theme_subscription = cx.subscribe_in(
-            &theme_select,
-            window,
-            |this, _, event: &SelectEvent<SearchableVec<ThemePreference>>, window, cx| {
-                if let SelectEvent::Confirm(Some(theme)) = event {
-                    this.set_theme(*theme, window, cx);
-                }
-            },
-        );
 
         let fps_values = ["30", "60", "90"];
         let fps_index = fps_values
@@ -768,8 +743,6 @@ impl AppShell {
             starting: false,
             logs: Vec::new(),
             log_filter: LogFilter::All,
-            theme_select,
-            _theme_subscription: theme_subscription,
             fps_select,
             size_select,
             codec_select,
@@ -1979,13 +1952,6 @@ impl AppShell {
             .border_b_1()
             .border_color(cx.theme().border)
             .child(div().flex_1())
-            .child(
-                div().w_40().child(
-                    Select::new(&self.theme_select)
-                        .small()
-                        .accessibility_label(t!("settings.appearance").to_string()),
-                ),
-            )
             .when_some(self.update_available.clone(), |this, version| {
                 this.child(
                     Button::new("install-update")
@@ -1997,15 +1963,6 @@ impl AppShell {
                         .on_click(cx.listener(|this, _, _, cx| this.install_update(cx))),
                 )
             })
-            .child(
-                Button::new("about")
-                    .icon(IconName::Info)
-                    .label(t!("header.aboutTitle").to_string())
-                    .ghost()
-                    .on_click(
-                        cx.listener(|this, _, window, cx| this.open_about_dialog(window, cx)),
-                    ),
-            )
             .child(
                 Button::new("app-settings")
                     .icon(IconName::Settings)
